@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dear Elsewhere</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..600&family=Noto+Serif+SC:wght@500;700&display=swap" />
+  <link rel="stylesheet" href="/src/styles/index.css" />
+</head>
+<body>
+  <!-- 顶栏：左边是「我的足迹」「好友」，中间是当前位置，右边是「动态」和头像；每个入口点开是一张悬浮纸卡 -->
+  <header id="topbar">
+    <div class="tb-group">
+      <button class="tb-brand" data-drop="footprints" aria-expanded="false" data-i18n-attr="title:brand">
+        <!-- 齿孔邮票小徽标 -->
+        <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+          <rect class="bm-perf" x="3" y="3" width="34" height="34" rx="2" />
+          <rect class="bm-face" x="7" y="7" width="26" height="26" rx="1" />
+          <path class="bm-pin" d="M20 29s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10z" />
+          <circle class="bm-dot" cx="20" cy="19" r="2" />
+        </svg>
+        <span class="brand-text"><b data-i18n="brand">Dear Elsewhere</b><small data-i18n="brandSub">致远方 · 旅行手账</small></span>
+        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
+      </button>
+      <span class="tb-rule" aria-hidden="true"></span>
+      <button class="tb-tab" data-drop="friends" aria-expanded="false">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5" /><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7" /></svg>
+        <span data-i18n="friends">好友</span><i class="tb-dot" hidden></i>
+        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
+      </button>
+    </div>
+
+    <nav id="crumbs" data-i18n-attr="aria-label:here"></nav>
+
+    <div class="tb-group">
+      <button class="tb-tab" data-drop="feed" aria-expanded="false">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 9.5h16M8 13h5M8 16h8" /></svg>
+        <span data-i18n="feed">动态</span><i class="tb-dot" hidden></i>
+        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
+      </button>
+      <span class="tb-rule" aria-hidden="true"></span>
+      <button class="tb-me" data-drop="me" aria-expanded="false" data-i18n-attr="title:profile">
+        <span class="avatar" id="meAvatar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9.5" r="3.6" /><path d="M5.5 19.5c1-3.3 3.4-5 6.5-5s5.5 1.7 6.5 5" /></svg>
+        </span>
+        <i class="tb-dot" hidden></i>
+        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- 我的足迹：搜索 + 当前层级的内容 + 备份 -->
+  <section class="drop drop-left" id="drop-footprints" hidden>
+    <div class="search">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
+      <input id="searchInput" type="search" data-i18n-attr="placeholder:searchPlaceholder title:searchTitle" autocomplete="off" />
+      <ul id="searchResults"></ul>
+    </div>
+
+    <div id="panel"></div>
+
+    <footer>
+      <p class="sync" id="syncStatus" role="status" hidden></p>
+      <button id="exportBtn">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14" /></svg><span data-i18n="exportBackup">导出备份</span>
+      </button>
+      <label>
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V9M7 13.5l5-5 5 5M5 4h14" /></svg><span data-i18n="importBackup">导入备份</span>
+        <input id="importInput" type="file" accept="application/json" hidden />
+      </label>
+    </footer>
+  </section>
+
+  <section class="drop drop-left" id="drop-friends" hidden>
+    <p class="drop-head"><b data-i18n="friends">好友</b><span>Friends</span></p>
+    <div class="empty-card">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5" /><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7" /></svg>
+      <b data-i18n="fr.none">还没有好友</b>
+      <span data-i18n="fr.noneGuest">登录后输入对方的 ID，就能互相看到足迹</span>
+    </div>
+  </section>
+
+  <section class="drop drop-right" id="drop-feed" hidden>
+    <p class="drop-head"><b data-i18n="feed">动态</b><span>Postcards from friends</span></p>
+    <div class="empty-card">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 9.5h16M8 13h5M8 16h8" /></svg>
+      <b data-i18n="feed.empty">信箱还是空的</b>
+      <span data-i18n="feed.emptyGuest">好友带照片打卡后，明信片会寄到这里</span>
+    </div>
+  </section>
+
+  <section class="drop drop-right drop-narrow" id="drop-me" hidden></section>
+
+  <!-- 手机：底部标签栏 -->
+  <nav id="tabbar" data-i18n-attr="aria-label:mainNav">
+    <button data-drop="footprints" aria-expanded="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0c0 4.9-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></svg><span data-i18n="footprints">足迹</span>
+    </button>
+    <button data-drop="friends" aria-expanded="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5" /><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7" /></svg><span data-i18n="friends">好友</span><i class="tb-dot" hidden></i>
+    </button>
+    <button data-drop="feed" aria-expanded="false">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 9.5h16M8 13h5M8 16h8" /></svg><span data-i18n="feed">动态</span><i class="tb-dot" hidden></i>
+    </button>
+  </nav>
+  <div id="scrim" hidden></div>
+
+  <main id="map" data-level="world"></main>
+  <div id="loading" hidden data-i18n="loading">加载中…</div>
+
+  <!-- 打卡明信片：正面是照片，背面是留言与「地址」（标准行政层级） -->
+  <div id="editor" hidden>
+    <div class="pc-backdrop"></div>
+    <article class="postcard" role="dialog" aria-modal="true" aria-labelledby="editName">
+      <div class="pc-paper">
+        <button id="closeEditor" class="pc-close" data-i18n-attr="title:close">×</button>
+
+        <section class="pc-front" id="photoDrop">
+          <div id="photoGrid"></div>
+          <label class="pc-add">
+            <b>＋</b><span data-i18n="addPhotos">添加照片</span><small data-i18n="dropPhotos">或直接拖到明信片上</small>
+            <input id="photoInput" type="file" accept="image/*" multiple hidden />
+          </label>
+        </section>
+
+        <section class="pc-back">
+          <div class="pc-message">
+            <p class="pc-kicker" id="editKicker"></p>
+            <input id="editName" data-i18n-attr="placeholder:namePlaceholder" autocomplete="off" />
+            <textarea id="editNote" rows="4" data-i18n-attr="placeholder:notePlaceholder"></textarea>
+          </div>
+
+          <div class="pc-address">
+            <div class="stamp-wrap">
+              <button class="pc-stamp" id="stamp" type="button" data-i18n-attr="title:changeDate">
+                <span class="stamp-inner">
+                  <span class="st-level" id="stampLevel"></span>
+                  <span class="st-day" id="stampDay"></span>
+                  <span class="st-month" id="stampMonth"></span>
+                </span>
+              </button>
+            </div>
+            <input id="editDate" type="date" class="pc-date" tabindex="-1" data-i18n-attr="aria-label:dateLabel" />
+            <svg class="pc-postmark" viewBox="0 0 220 120" aria-hidden="true">
+              <defs><path id="pm-arc" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0" /></defs>
+              <circle cx="60" cy="60" r="56" />
+              <circle cx="60" cy="60" r="35" />
+              <text class="pm-ring"><textPath href="#pm-arc" data-i18n="postmarkRing">DEAR ELSEWHERE ✦ 致远方 ✦ DEAR ELSEWHERE ✦</textPath></text>
+              <text class="pm-center" x="60" y="64" text-anchor="middle" id="postmarkText"></text>
+              <path d="M122 38 q11 -7 22 0 t22 0 t22 0 t22 0" />
+              <path d="M122 60 q11 -7 22 0 t22 0 t22 0 t22 0" />
+              <path d="M122 82 q11 -7 22 0 t22 0 t22 0 t22 0" />
+            </svg>
+            <ol class="pc-lines" id="editAddress"></ol>
+          </div>
+        </section>
+
+        <section class="pc-marker" id="markerPicker" hidden>
+          <p class="pc-marker-title"><span data-i18n="markerTitle">ON THE MAP · 地图上的样子</span><small id="markerHint"></small></p>
+          <div class="mk-options" id="markerOptions"></div>
+          <div class="mk-config">
+            <label class="mk-field">
+              <span data-i18n="markerLabel">牌子上的文字</span>
+              <input id="markerLabel" maxlength="30" autocomplete="off" />
+              <button type="button" id="useName" hidden data-i18n="useName">改回地名</button>
+            </label>
+            <div class="mk-field">
+              <span data-i18n="markerIcon">插在地图上的图标</span>
+              <div class="mk-icons" id="markerIcons" role="group" data-i18n-attr="aria-label:iconGroup"></div>
+            </div>
+          </div>
+        </section>
+
+        <footer class="pc-foot">
+          <button id="deleteRecord" class="pc-delete" data-i18n="delete">删除</button>
+          <span class="pc-saved" id="savedHint" data-i18n="autosaved">✓ 已自动保存</span>
+          <button id="doneEditor" class="pc-done" data-i18n="done">收进足迹 →</button>
+        </footer>
+      </div>
+    </article>
+  </div>
+
+  <div id="lightbox" hidden><img alt="" /></div>
+  <div id="toast" role="status" hidden></div>
+
+  <!-- 一键截图：暗房里冲洗当前画面 -->
+  <div id="shot" hidden>
+    <div class="shot-backdrop"></div>
+    <section class="shot-panel" role="dialog" aria-modal="true" aria-labelledby="shotTitle">
+      <header class="shot-head">
+        <div><p data-i18n="darkroom">DARKROOM · 冲印这一页足迹</p><h2 id="shotTitle"></h2></div>
+        <button class="pc-close" id="shotClose" data-i18n-attr="title:close">×</button>
+      </header>
+      <div class="shot-stage">
+        <figure class="shot-print"><img id="shotImg" data-i18n-attr="alt:shotPreview" /><figcaption data-i18n="developing">显影中…</figcaption></figure>
+      </div>
+      <footer class="shot-foot">
+        <div class="shot-ratios" role="radiogroup" data-i18n-attr="aria-label:ratio">
+          <button type="button" role="radio" data-ratio="4:5"><i style="--w: 16px; --h: 20px"></i><span>4:5<small data-i18n="portrait">竖版</small></span></button>
+          <button type="button" role="radio" data-ratio="1:1"><i style="--w: 18px; --h: 18px"></i><span>1:1<small data-i18n="square">方形</small></span></button>
+          <button type="button" role="radio" data-ratio="9:16"><i style="--w: 12px; --h: 21px"></i><span>9:16<small data-i18n="story">故事</small></span></button>
+        </div>
+        <button class="au-submit shot-save" id="shotSave" type="button"><span data-i18n="saveImage">保存图片</span><b aria-hidden="true">↓</b></button>
+      </footer>
+    </section>
+  </div>
+
+  <!-- 账号：登录 / 注册（航空信）与首次填写资料（旅行护照），内容由 src/auth.js 渲染 -->
+  <div id="auth" data-view="checking">
+    <div class="au-backdrop"></div>
+    <div class="au-stage" id="authStage"></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

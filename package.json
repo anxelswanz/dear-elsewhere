@@ -1,0 +1,23 @@
+{
+  "name": "dear-elsewhere",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:data": "node scripts/build-data.mjs && node scripts/add-english-names.mjs",
+    "build:avatars": "node scripts/build-avatars.mjs"
+  },
+  "devDependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.2",
+    "mapshaper": "^0.6.121",
+    "pinyin-pro": "^3.29.5",
+    "vite": "^6.4.5"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "leaflet": "1.9.4"
+  }
+}

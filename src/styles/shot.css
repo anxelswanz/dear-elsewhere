@@ -1,0 +1,82 @@
+/* =====================================================================
+   一键截图 · 暗房：安全灯的红光下，照片慢慢显影
+   ===================================================================== */
+#shot {
+  --paper: #f8f2e4;
+  position: fixed; inset: 0; z-index: 1650; display: grid; place-items: center; padding: 20px;
+  color: var(--paper);
+}
+#shot[hidden] { display: none; }
+.shot-backdrop {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(196, 48, 43, .38), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(232, 89, 12, .12), transparent 55%),
+    rgba(18, 13, 11, .94);
+  animation: fade-in .3s ease both;
+}
+
+.shot-panel {
+  position: relative; display: flex; flex-direction: column; gap: 18px; width: min(620px, 100%);
+  max-height: calc(100vh - 40px);
+}
+.shot-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.shot-head p { margin: 0; font: 600 10.5px var(--serif-en); letter-spacing: .28em; color: rgba(248, 242, 228, .55); }
+.shot-head h2 { margin: 6px 0 0; font: 700 26px var(--serif-zh); letter-spacing: .1em; }
+.shot-head .pc-close { position: static; flex: none; background: rgba(248, 242, 228, .12); color: var(--paper); box-shadow: none; }
+.shot-head .pc-close:hover { background: rgba(248, 242, 228, .22); }
+
+.shot-stage { display: grid; flex: 1; min-height: 0; place-items: center; }
+/* 冲印出来的照片：白边、底边留宽，挂在晾绳上似的微微倾斜 */
+.shot-print {
+  position: relative; margin: 0; padding: 10px 10px 34px; background: #fbf8f1; rotate: -.8deg;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 255, 255, .05);
+}
+.shot-print::before {
+  /* 一枚小夹子 */
+  content: ''; position: absolute; top: -12px; left: 50%; width: 34px; height: 18px; translate: -50% 0;
+  background: linear-gradient(#d7c9ae, #bfae8e); border-radius: 3px; box-shadow: 0 3px 6px rgba(0, 0, 0, .4);
+}
+#shotImg {
+  display: block; width: auto; height: auto; max-width: min(560px, calc(100vw - 60px)); max-height: calc(100vh - 290px);
+  aspect-ratio: var(--ratio, .8); object-fit: contain; background: #2a2420;
+}
+.shot-print figcaption {
+  position: absolute; left: 0; right: 0; bottom: 9px; text-align: center;
+  font: italic 13px var(--serif-en); letter-spacing: .08em; color: #8a7f72;
+}
+#shot[data-state="developing"] #shotImg { filter: sepia(1) brightness(.35) blur(2px); }
+#shot[data-state="ready"] #shotImg { animation: develop 1.4s ease-out both; }
+#shot[data-state="ready"] .shot-print figcaption { font-size: 0; }
+#shot[data-state="ready"] .shot-print figcaption::after { content: 'Dear Elsewhere'; font-size: 13px; }
+@keyframes develop {
+  from { filter: sepia(1) brightness(.35) blur(2px); }
+  55% { filter: sepia(.4) brightness(.85) blur(0); }
+  to { filter: none; }
+}
+
+.shot-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.shot-ratios { display: flex; gap: 8px; }
+.shot-ratios button {
+  display: flex; align-items: center; gap: 9px; height: 46px; padding: 0 14px 0 12px; cursor: pointer;
+  color: rgba(248, 242, 228, .7); background: rgba(248, 242, 228, .06);
+  border: 1px solid rgba(248, 242, 228, .16); border-radius: 10px; transition: color .15s, border-color .15s, background .15s;
+}
+.shot-ratios button:hover { color: var(--paper); border-color: rgba(248, 242, 228, .4); }
+.shot-ratios button[aria-checked="true"] { color: #1a1310; background: var(--paper); border-color: var(--paper); }
+.shot-ratios i { flex: none; width: var(--w); height: var(--h); border: 1.5px solid currentColor; border-radius: 2px; }
+.shot-ratios span { display: grid; text-align: left; font: 600 13px/1.1 var(--serif-en); }
+.shot-ratios small { font: 400 11px -apple-system, "PingFang SC", sans-serif; opacity: .75; }
+.shot-save { width: auto; min-width: 150px; margin: 0; padding: 0 22px; color: #1a1310; background: var(--paper); }
+.shot-save:hover { color: #fff; }
+
+.map-shot .ic { color: var(--ink-soft); }
+
+@media (max-width: 700px) {
+  #shot { padding: 14px; }
+  .shot-head h2 { font-size: 22px; }
+  #shotImg { max-height: calc(100vh - 300px); }
+  .shot-foot { flex-direction: column; align-items: stretch; }
+  .shot-ratios button { flex: 1; justify-content: center; padding: 0 8px; }
+  .shot-save { width: 100%; }
+}

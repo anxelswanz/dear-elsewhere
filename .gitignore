@@ -1,0 +1,5 @@
+node_modules/
+raw/
+dist/
+.env.local
+.DS_Store

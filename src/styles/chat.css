@@ -1,0 +1,338 @@
+/* =====================================================================
+   好友私聊 · 通信簿
+   一页从信封里抽出来的横线信纸：邮票头像、邮戳分日、火漆封口的发送键、
+   整版邮票似的 emoji。颜色只用纸、墨、航空信红蓝；橙色仍只留给「去过」。
+   ===================================================================== */
+
+/* 与悬浮面板同一套纸面色（panels.css 只给 #topbar / .drop / #tabbar 定义了） */
+#chat, #chatView {
+  --paper: #fbf8f1;
+  --paper-2: #f3ede1;
+  --card: #fffdf8;
+  --rule: rgba(42, 39, 35, .12);
+  --rule-strong: rgba(42, 39, 35, .24);
+  --ink-red: rgba(196, 48, 43, .78);       /* 邮戳的印泥 */
+  --line: rgba(31, 75, 143, .085);         /* 信纸横线 */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .13 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: var(--ink);
+}
+
+/* ---------- 好友列表里的聊天按钮与未读数 ---------- */
+.fr-btn.fr-chat { position: relative; }
+.fr-btn.fr-chat .ic { color: var(--ink); }
+.fr-unread {
+  position: absolute; top: -6px; right: -6px; display: grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px;
+  font: 600 10.5px var(--serif-en); font-style: normal; color: #fff; background: var(--air-red); border-radius: 9px;
+  box-shadow: 0 0 0 2px var(--paper); animation: unread-pop .35s cubic-bezier(.3, 1.6, .5, 1) both;
+}
+@keyframes unread-pop { from { scale: .2; } }
+
+/* ---------- 信笺 ---------- */
+#chat {
+  position: fixed; right: 20px; bottom: 20px; z-index: 1400; display: flex; flex-direction: column;
+  width: 384px; height: min(620px, calc(100vh - 110px));
+  background: var(--grain), var(--paper); border-radius: 6px 6px 14px 14px; overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(42, 39, 35, .1),
+    0 2px 0 -1px #fff inset,
+    0 34px 60px -26px rgba(42, 39, 35, .6),
+    0 10px 18px -12px rgba(42, 39, 35, .25);
+  transform-origin: 85% 100%;
+  animation: letter-out .5s cubic-bezier(.2, .9, .25, 1.05) both;
+}
+#chat[hidden] { display: none; }
+/* 像从信封里抽出来：先往上滑，再轻轻摆正 */
+@keyframes letter-out {
+  0% { opacity: 0; translate: 0 48px; rotate: 2.5deg; scale: .96; }
+  60% { opacity: 1; rotate: -.6deg; }
+  100% { translate: 0; rotate: 0deg; scale: 1; }
+}
+/* 顶边航空信斜纹 */
+#chat::before {
+  content: ''; flex: none; height: 7px;
+  background: repeating-linear-gradient(-45deg, var(--air-red) 0 11px, var(--paper) 11px 17px, var(--air-blue) 17px 28px, var(--paper) 28px 34px);
+}
+
+/* ---------- 抬头：邮票头像 + 收件人 ---------- */
+.ch-head {
+  position: relative; display: flex; flex: none; align-items: center; gap: 12px; padding: 12px 10px 12px 16px;
+  border-bottom: 1px dashed var(--rule-strong);
+}
+/* 齿孔邮票：中间实心，四周按格子打孔 */
+.ch-stamp {
+  flex: none; display: block; width: 48px; height: 56px; padding: 5px; background: #fff;
+  filter: drop-shadow(0 2px 3px rgba(42, 39, 35, .22));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, radial-gradient(circle 2.6px, #0000 92%, #000) -3.5px -3.5px / 7px 7px round;
+  -webkit-mask-composite: source-over;
+  mask: linear-gradient(#000 0 0) content-box, radial-gradient(circle 2.6px, #0000 92%, #000) -3.5px -3.5px / 7px 7px round;
+  mask-composite: add;
+  rotate: -4deg; transition: rotate .3s cubic-bezier(.3, 1.6, .5, 1);
+}
+.ch-head:hover .ch-stamp { rotate: 3deg; }
+.ch-stamp img { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--paper-2); }
+.ch-head .person-text { gap: 1px; }
+.ch-kicker { font: italic 600 9.5px var(--serif-en); letter-spacing: .22em; color: var(--air-blue); text-transform: uppercase; }
+.ch-head .person-text b { font: 700 17px/1.25 var(--serif-zh); letter-spacing: .02em; }
+.ch-head .person-text small { font-size: 12px; }
+.ch-x {
+  align-self: flex-start; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; cursor: pointer;
+  color: var(--ink-soft); background: none; border: none; border-radius: 50%; transition: background .15s, color .15s, rotate .25s;
+}
+.ch-x:hover { color: var(--air-red); background: var(--paper-2); rotate: 90deg; }
+.ch-x .ic { width: 18px; height: 18px; }
+
+/* ---------- 正文：横线信纸 ---------- */
+.ch-list {
+  position: relative; flex: 1; min-height: 0; padding: 12px 16px 8px; overflow-y: auto; overscroll-behavior: contain;
+  background:
+    linear-gradient(90deg, transparent 22px, rgba(196, 48, 43, .16) 22px 23px, transparent 23px) local,
+    repeating-linear-gradient(180deg, transparent 0 27px, var(--line) 27px 28px) local;
+  scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent;
+}
+.ch-note { margin: 28px 0; font: italic 13px var(--serif-en); text-align: center; color: var(--ink-soft); }
+.ch-earlier {
+  display: block; margin: 4px auto 12px; padding: 5px 14px; cursor: pointer;
+  font: italic 12px var(--serif-en); color: var(--ink-soft); background: var(--card);
+  border: 1px dashed var(--rule-strong); border-radius: 999px; transition: color .15s, border-color .15s;
+}
+.ch-earlier:hover { color: var(--ink); border-color: var(--ink); border-style: solid; }
+
+/* 空信纸：一枚大邮戳盖着问候 */
+.ch-empty { position: relative; display: grid; justify-items: center; gap: 6px; margin: 54px 12px; text-align: center; }
+.ch-empty span {
+  display: grid; place-items: center; width: 92px; height: 92px; margin-bottom: 8px; font-size: 40px;
+  border-radius: 50%; box-shadow: 0 0 0 1.5px var(--ink-red), 0 0 0 6px var(--paper), 0 0 0 7.5px var(--ink-red);
+  rotate: -10deg; animation: stamp-down .6s cubic-bezier(.3, 1.5, .5, 1) .15s both;
+}
+.ch-empty b { font: 700 16px var(--serif-zh); }
+.ch-empty small { max-width: 240px; font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+@keyframes stamp-down { from { opacity: 0; scale: 1.6; rotate: -24deg; } }
+
+/* 分日：圆形邮戳，两侧是注销波纹线 */
+.ch-day { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 18px 0 12px; }
+.ch-day::before, .ch-day::after {
+  content: ''; flex: 1; max-width: 70px; height: 12px; opacity: .55;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 4q6-4 12 0t12 0M0 9q6-4 12 0t12 0' fill='none' stroke='%23c4302b' stroke-width='1.2'/%3E%3C/svg%3E") repeat-x center / 24px 12px;
+}
+.ch-postmark {
+  display: grid; place-items: center; align-content: center; width: 62px; height: 62px; gap: 1px;
+  font: 700 12px/1.1 var(--serif-zh); color: var(--ink-red); text-align: center;
+  border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-red), inset 0 0 0 5px var(--paper), inset 0 0 0 6px var(--ink-red);
+  background: var(--paper); rotate: -8deg; mix-blend-mode: multiply;
+}
+.ch-day:nth-of-type(even) .ch-postmark { rotate: 6deg; }
+.ch-postmark small { font: italic 600 8px var(--serif-en); letter-spacing: .18em; text-transform: uppercase; }
+
+/* ---------- 消息 ---------- */
+.ch-msg { position: relative; display: flex; flex-direction: column; align-items: flex-start; max-width: 80%; margin: 3px 0 3px 14px; }
+.ch-msg.tail { margin-bottom: 12px; }
+.ch-msg.mine { align-items: flex-end; margin-left: auto; margin-right: 0; }
+.ch-msg time { margin: 4px 4px 0; font: italic 10.5px var(--serif-en); letter-spacing: .04em; color: var(--ink-soft); }
+.ch-msg.pending { opacity: .55; }
+.ch-msg.failed time { font-style: normal; font-weight: 600; color: var(--air-red); }
+
+/* 对方：撕下的便笺；自己：墨水写的回信 */
+.ch-bubble {
+  margin: 0; padding: 8px 13px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  color: var(--ink); background: #fff; border-radius: 3px 14px 14px 14px;
+  box-shadow: 0 0 0 1px rgba(42, 39, 35, .08), 0 6px 12px -10px rgba(42, 39, 35, .5);
+}
+.ch-msg.theirs:not(.tail) .ch-bubble, .ch-msg.theirs .ch-bubble:not(:last-of-type) { border-radius: 3px 14px 14px 3px; }
+.ch-msg.mine .ch-bubble {
+  color: #fbf6ea; background: linear-gradient(160deg, #3a352f, var(--ink) 60%); border-radius: 14px 3px 14px 14px;
+  box-shadow: 0 8px 16px -10px rgba(42, 39, 35, .7);
+}
+.ch-msg.mine:not(.tail) .ch-bubble, .ch-msg.mine .ch-bubble:not(:last-of-type) { border-radius: 14px 3px 3px 14px; }
+.ch-msg .ch-checkin + .ch-bubble { margin-top: 5px; }
+.ch-emoji { margin: 0; font-size: 42px; line-height: 1.15; filter: drop-shadow(0 4px 4px rgba(42, 39, 35, .18)); }
+.ch-msg.arrive .ch-emoji { animation: emoji-pop .6s cubic-bezier(.3, 1.7, .5, 1) both; }
+@keyframes emoji-pop { from { scale: .2; rotate: -20deg; } }
+
+/* 打开对话：最近几条依次落到信纸上；新消息：从信纸外飞进来 */
+.ch-msg.enter { animation: note-drop .42s cubic-bezier(.2, .9, .3, 1) calc(var(--i) * 32ms + 120ms) both; }
+@keyframes note-drop { from { opacity: 0; translate: 0 10px; } }
+.ch-msg.arrive.theirs { animation: fly-left .45s cubic-bezier(.2, .9, .3, 1.1) both; }
+.ch-msg.arrive.mine { animation: fly-right .45s cubic-bezier(.2, .9, .3, 1.1) both; }
+@keyframes fly-left { from { opacity: 0; translate: -24px 8px; rotate: -3deg; } }
+@keyframes fly-right { from { opacity: 0; translate: 24px 8px; rotate: 3deg; } }
+
+/* ---------- 转发的打卡：一张盖了邮戳的小明信片 ---------- */
+.ch-checkin {
+  position: relative; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; width: 262px; max-width: 100%;
+  padding: 11px 12px 11px 14px; text-align: left; cursor: pointer; color: var(--ink);
+  background: #fffaf0; border: none; border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(42, 39, 35, .1), 0 14px 22px -16px rgba(42, 39, 35, .65);
+  rotate: -1deg; transition: rotate .3s cubic-bezier(.3, 1.5, .5, 1), translate .3s, box-shadow .3s;
+}
+.ch-msg.mine .ch-checkin { rotate: 1deg; }
+.ch-checkin::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 5px;
+  background: repeating-linear-gradient(180deg, var(--air-red) 0 8px, #fffaf0 8px 12px, var(--air-blue) 12px 20px, #fffaf0 20px 24px);
+}
+/* 右上角的注销波纹 */
+.ch-checkin::after {
+  content: ''; position: absolute; top: 8px; right: 8px; width: 46px; height: 16px; opacity: .5; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='46' height='16'%3E%3Cpath d='M0 4q5.75-4 11.5 0t11.5 0 11.5 0 11.5 0M0 11q5.75-4 11.5 0t11.5 0 11.5 0 11.5 0' fill='none' stroke='%23c4302b' stroke-width='1.1'/%3E%3C/svg%3E") no-repeat;
+}
+.ch-checkin:hover { rotate: 0deg; translate: 0 -3px; box-shadow: 0 0 0 1px rgba(42, 39, 35, .12), 0 20px 28px -16px rgba(42, 39, 35, .7); }
+.ch-checkin .post-stack { position: relative; display: block; inset: auto; height: 82px; margin: 2px 0 0 2px; }
+.ch-checkin .post-stack img { width: 68px; height: 68px; border-width: 3px 3px 10px; }
+.ch-checkin:hover .p1 { transform: rotate(-8deg) translate(-3px, -2px); }
+.ch-checkin:hover .p2 { transform: translate(13px, -5px) rotate(8deg); }
+.ch-checkin:hover .p3 { transform: translate(22px, -9px) rotate(15deg); }
+.ch-ci-text { display: flex; flex-direction: column; min-width: 0; padding-right: 4px; }
+.ch-ci-text b { overflow: hidden; padding-right: 30px; font: 700 15px/1.35 var(--serif-zh); text-overflow: ellipsis; white-space: nowrap; }
+.ch-ci-text small { display: -webkit-box; margin-top: 3px; overflow: hidden; font-size: 11.5px; line-height: 1.45; color: var(--ink-soft); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ch-ci-meta { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; border-top: 1px dotted var(--rule-strong); }
+.ch-ci-meta time { font: 600 10.5px var(--serif-en); letter-spacing: .12em; color: var(--air-red); }
+.ch-ci-meta i { display: flex; align-items: center; gap: 3px; font: italic 600 11px var(--serif-en); color: var(--ink-soft); }
+.ch-ci-meta .ic { width: 13px; height: 13px; }
+
+/* ---------- 托盘 ---------- */
+.ch-tray {
+  flex: none; max-height: 232px; overflow-y: auto; background: var(--grain), #fffaf0;
+  border-top: 1px dashed var(--rule-strong); animation: tray-up .25s cubic-bezier(.2, .9, .3, 1) both;
+}
+.ch-tray[hidden] { display: none; }
+@keyframes tray-up { from { opacity: 0; translate: 0 12px; } }
+
+/* emoji：一整版齿孔邮票 */
+.ch-emojis { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 0; padding: 10px; }
+.ch-emojis button {
+  position: relative; height: 42px; padding: 0; font-size: 22px; cursor: pointer; background: none;
+  border: none; border-right: 1px dashed rgba(42, 39, 35, .13); border-bottom: 1px dashed rgba(42, 39, 35, .13);
+  transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), background .12s;
+}
+.ch-emojis button:hover { z-index: 1; background: #fff; transform: scale(1.28) rotate(-6deg); box-shadow: 0 6px 12px -6px rgba(42, 39, 35, .45); }
+.ch-emojis button:active { transform: scale(1.05); }
+
+.ch-tray-title { margin: 0; padding: 12px 16px 6px; font: italic 600 12px var(--serif-en); letter-spacing: .04em; color: var(--ink-soft); }
+.ch-picks ul { margin: 0; padding: 0 8px 8px; list-style: none; }
+.ch-picks li button {
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%;
+  padding: 7px 8px; text-align: left; cursor: pointer; color: var(--ink); background: none; border: none; border-radius: 8px;
+  transition: background .12s;
+}
+.ch-picks li button:hover:not(:disabled) { background: #fff; }
+.ch-picks li button:hover:not(:disabled) img { rotate: 0deg; scale: 1.06; }
+.ch-picks li button:disabled { cursor: progress; opacity: .5; }
+.ch-picks img {
+  width: 46px; height: 46px; object-fit: cover; background: var(--paper-2); border: 3px solid #fff; border-bottom-width: 7px;
+  box-shadow: 0 3px 7px -3px rgba(30, 20, 10, .45); rotate: -3deg; transition: rotate .25s, scale .25s;
+}
+.ch-picks li:nth-child(even) img { rotate: 3deg; }
+.ch-picks span { display: grid; min-width: 0; }
+.ch-picks b { overflow: hidden; font: 700 13.5px var(--serif-zh); text-overflow: ellipsis; white-space: nowrap; }
+.ch-picks small { overflow: hidden; font-size: 11.5px; color: var(--ink-soft); text-overflow: ellipsis; white-space: nowrap; }
+.ch-picks time { font: 600 10.5px var(--serif-en); letter-spacing: .1em; color: var(--air-red); }
+
+/* ---------- 写信 ---------- */
+.ch-gone { flex: none; margin: 0; padding: 16px; font: italic 13px var(--serif-en); text-align: center; color: var(--ink-soft); border-top: 1px dashed var(--rule-strong); }
+.ch-gone[hidden] { display: none; }
+.ch-compose { display: flex; flex: none; align-items: flex-end; gap: 4px; padding: 10px 10px 12px; background: var(--paper); border-top: 1px dashed var(--rule-strong); }
+.ch-compose[hidden] { display: none; }
+.ch-tool {
+  display: grid; flex: none; place-items: center; width: 38px; height: 38px; padding: 0; cursor: pointer;
+  color: var(--ink-soft); background: none; border: none; border-radius: 50%; transition: color .15s, background .15s, rotate .25s;
+}
+.ch-tool:hover { color: var(--ink); background: var(--paper-2); }
+.ch-tool[aria-expanded="true"] { color: var(--air-blue); background: rgba(31, 75, 143, .09); }
+.ch-tool[data-tray="emoji"]:hover { rotate: -12deg; }
+.ch-tool .ic { width: 21px; height: 21px; }
+.ch-compose textarea {
+  flex: 1; min-width: 0; min-height: 38px; max-height: 120px; padding: 9px 13px; resize: none;
+  font: 14px/1.45 -apple-system, "PingFang SC", sans-serif; color: var(--ink);
+  background: #fff; border: 1px solid var(--rule); border-radius: 19px; outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.ch-compose textarea::placeholder { font: italic 14px var(--serif-en); color: rgba(42, 39, 35, .4); }
+.ch-compose textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(42, 39, 35, .07); }
+
+/* 发送：一枚火漆封印 */
+.ch-send {
+  position: relative; display: grid; flex: none; place-items: center; width: 40px; height: 40px; margin-left: 2px; padding: 0; cursor: pointer;
+  color: #f8e3c8; border: none; border-radius: 47% 53% 50% 50% / 52% 46% 54% 48%;
+  background: radial-gradient(circle at 34% 30%, #e46a5f, #b52a23 52%, #7f1813 100%);
+  box-shadow: inset 0 0 0 3px rgba(127, 24, 19, .45), inset 0 0 0 4.5px rgba(255, 210, 180, .25), 0 4px 8px -3px rgba(127, 24, 19, .6);
+  transition: rotate .35s cubic-bezier(.3, 1.6, .5, 1), scale .2s;
+}
+.ch-send:hover { rotate: -18deg; scale: 1.06; }
+.ch-send:active { scale: .9; }
+.ch-send .ic { width: 16px; height: 16px; translate: -1px 1px; }
+
+/* ---------- 查看转发的打卡：翻过来的明信片 ---------- */
+#chatView { position: fixed; inset: 0; z-index: 1450; display: grid; place-items: center; padding: 20px; perspective: 1400px; }
+#chatView[hidden] { display: none; }
+.cv-backdrop { position: absolute; inset: 0; background: rgba(32, 28, 24, .5); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: fade-in .25s both; }
+.cv-card {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px;
+  width: min(740px, 100%); max-height: calc(100vh - 40px); padding: 24px 26px 22px; overflow-y: auto;
+  background: var(--grain), #fffaf0; border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(42, 39, 35, .08), 0 40px 70px -24px rgba(0, 0, 0, .6);
+  animation: card-flip .7s cubic-bezier(.2, .9, .25, 1) both;
+}
+/* 底边一道航空信条纹 */
+.cv-card::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 5px;
+  background: repeating-linear-gradient(-45deg, var(--air-red) 0 10px, #fffaf0 10px 15px, var(--air-blue) 15px 25px, #fffaf0 25px 30px);
+}
+@keyframes card-flip {
+  0% { opacity: 0; transform: rotateY(-70deg) rotateZ(-4deg) translateY(30px); }
+  55% { opacity: 1; transform: rotateY(8deg) rotateZ(1deg); }
+  100% { transform: none; }
+}
+.cv-postmark {
+  position: absolute; top: 18px; right: 58px; display: grid; place-items: center; align-content: center; gap: 2px;
+  width: 78px; height: 78px; font: 600 12px var(--serif-en); letter-spacing: .06em; color: var(--ink-red); text-align: center;
+  border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-red), inset 0 0 0 6px transparent, inset 0 0 0 7px var(--ink-red);
+  rotate: 12deg; mix-blend-mode: multiply; pointer-events: none;
+  animation: stamp-down .5s cubic-bezier(.3, 1.5, .5, 1) .55s both;
+}
+.cv-postmark small { font: italic 600 7px var(--serif-en); letter-spacing: .16em; }
+
+.cv-photos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start; }
+.cv-photos.n1 { grid-template-columns: 1fr; }
+.cv-photos.n3 > :first-child { grid-column: span 2; }
+.cv-photos button {
+  padding: 0; cursor: zoom-in; background: #fff; border: 5px solid #fff; border-bottom-width: 18px;
+  box-shadow: 0 8px 16px -8px rgba(30, 20, 10, .5); transition: transform .3s cubic-bezier(.3, 1.5, .5, 1), box-shadow .3s;
+  animation: photo-in .5s cubic-bezier(.2, .9, .3, 1.1) both;
+}
+.cv-photos button:nth-child(1) { animation-delay: .3s; }
+.cv-photos button:nth-child(2) { animation-delay: .38s; }
+.cv-photos button:nth-child(3) { animation-delay: .46s; }
+.cv-photos button:nth-child(n + 4) { animation-delay: .54s; }
+.cv-photos button:nth-child(odd) { transform: rotate(-1.5deg); }
+.cv-photos button:nth-child(even) { transform: rotate(1.8deg); }
+.cv-photos button:hover { z-index: 1; transform: rotate(0) scale(1.04); box-shadow: 0 16px 24px -10px rgba(30, 20, 10, .55); }
+@keyframes photo-in { from { opacity: 0; translate: 0 16px; scale: .92; } }
+.cv-photos img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--paper-2); }
+.cv-photos.n1 img { aspect-ratio: 4 / 3; }
+
+.cv-text { display: flex; flex-direction: column; min-width: 0; padding: 4px 0 6px 22px; border-left: 1px solid var(--rule-strong); }
+.cv-from { margin: 0 0 8px; padding-right: 72px; font: italic 600 10.5px var(--serif-en); letter-spacing: .16em; text-transform: uppercase; color: var(--air-blue); }
+.cv-text h3 { margin: 0; padding-right: 64px; font: 700 24px/1.3 var(--serif-zh); }
+.cv-text small { margin-top: 6px; font-size: 13px; color: var(--ink-soft); }
+/* 留言写在横线上 */
+.cv-text p {
+  margin: 16px 0 0; padding-top: 2px; font: 15px/28px var(--serif-zh); white-space: pre-wrap; color: #4b453e;
+  background: repeating-linear-gradient(180deg, transparent 0 27px, var(--line) 27px 28px);
+}
+.cv-text footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 20px; }
+.cv-text time { font: 600 12px var(--serif-en); letter-spacing: .14em; color: var(--air-red); }
+.cv-text .fr-btn { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; }
+.cv-text .fr-btn .ic { width: 15px; height: 15px; color: var(--accent); }
+.cv-text .fr-btn:hover { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+
+@media (max-width: 700px) {
+  #chat { inset: 0; width: auto; height: auto; border-radius: 0; padding-bottom: env(safe-area-inset-bottom); animation-name: sheet-up; }
+  .ch-checkin { width: 240px; }
+  .cv-card { grid-template-columns: minmax(0, 1fr); padding: 18px 16px 20px; }
+  .cv-text { padding-left: 0; border-left: none; }
+  .cv-postmark { top: 30px; right: 30px; } /* 盖在照片上 */
+  .cv-from, .cv-text h3 { padding-right: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #chat, #chat *, #chatView, #chatView * { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
+}

@@ -1,0 +1,115 @@
+/* =====================================================================
+   欢迎动画：登录是纸面上的红色邮戳，注册是深蓝护照封皮上的烫金印章
+   ===================================================================== */
+#welcome {
+  --bg: #f8f2e4;
+  --stamp: var(--air-red);
+  --title: var(--ink);
+  --sub: var(--ink-soft);
+  --route: rgba(31, 75, 143, .45);
+  position: fixed; inset: 0; z-index: 1700; display: grid; place-items: center; overflow: hidden; cursor: pointer;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .35 0 0 0 0 .22 0 0 0 .1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 50% 42%, rgba(255, 255, 255, .7), transparent 60%),
+    var(--bg);
+  clip-path: circle(150% at var(--cx, 50%) var(--cy, 42%));
+  animation: wl-fade .35s ease both;
+  transition: clip-path .75s cubic-bezier(.7, 0, .25, 1);
+}
+/* 上下两道航空信条纹 */
+#welcome::before, #welcome::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 10px;
+  background: repeating-linear-gradient(135deg, var(--air-red) 0 16px, var(--bg) 16px 26px, var(--air-blue) 26px 42px, var(--bg) 42px 52px);
+}
+#welcome::before { top: 0; }
+#welcome::after { bottom: 0; }
+#welcome.wl-out { clip-path: circle(0 at var(--cx, 50%) var(--cy, 42%)); }
+@keyframes wl-fade { from { opacity: 0; } }
+
+/* 注册：深蓝护照封皮 + 细密的烫金防伪纹 */
+#welcome.wl-signup {
+  --bg: #1d3352;
+  --stamp: #d9b45a;
+  --title: #f4e3b5;
+  --sub: rgba(244, 227, 181, .72);
+  --route: rgba(217, 180, 90, .55);
+  background:
+    repeating-radial-gradient(circle at 50% 42%, transparent 0 22px, rgba(217, 180, 90, .06) 22px 23px),
+    radial-gradient(ellipse at 50% 42%, #284670, transparent 65%),
+    var(--bg);
+}
+#welcome.wl-signup::before, #welcome.wl-signup::after { height: 2px; background: var(--stamp); opacity: .6; }
+#welcome.wl-signup::before { top: 18px; }
+#welcome.wl-signup::after { bottom: 18px; }
+
+/* 航线与纸飞机 */
+.wl-route { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.wl-route-line { fill: none; stroke: var(--route); stroke-width: 2.2; stroke-dasharray: 9 9; stroke-linecap: round; }
+.wl-route-reveal {
+  fill: none; stroke: #fff; stroke-width: 10; stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: wl-draw 1.7s cubic-bezier(.33, 0, .2, 1) .25s forwards;
+}
+@keyframes wl-draw { to { stroke-dashoffset: 0; } }
+.wl-plane { opacity: 0; }
+.wl-plane svg { fill: var(--bg); stroke: var(--stamp); stroke-width: 1.6; stroke-linejoin: round; overflow: visible; }
+
+.wl-center { position: relative; display: grid; justify-items: center; padding: 0 24px; margin-top: -4vh; text-align: center; }
+
+/* 邮戳：从高处「啪」地盖下来，盖完微微歪着 */
+.wl-stamp {
+  position: relative; width: 220px; height: 220px; color: var(--stamp); rotate: -9deg;
+  animation: wl-slam .55s cubic-bezier(.3, 1.4, .5, 1) .35s both;
+}
+.wl-stamp > svg { position: absolute; inset: 0; overflow: visible; }
+.wl-ring-outer { fill: none; stroke: currentColor; stroke-width: 3.5; }
+.wl-ring-inner { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-dasharray: 3 3; }
+.wl-ring-text { font: 600 12.5px var(--serif-en); fill: currentColor; }
+.wl-avatar {
+  position: absolute; top: 50%; left: 50%; width: 88px; height: 88px; overflow: hidden; translate: -50% -50%; rotate: 9deg;
+  background: #fff1e6; border-radius: 50%; box-shadow: 0 0 0 3px var(--bg), 0 0 0 4.5px currentColor;
+}
+.wl-avatar img { display: block; width: 100%; height: 100%; }
+.wl-date {
+  position: absolute; left: 50%; bottom: 49px; padding: 2px 9px; translate: -50% 0; white-space: nowrap;
+  font: 700 11px var(--serif-en); letter-spacing: .2em; color: currentColor; background: var(--bg);
+  border: 1.5px solid currentColor; border-radius: 3px;
+}
+/* 盖下去那一下荡开的墨圈 */
+.wl-ink { position: absolute; inset: 6px; border: 2px solid currentColor; border-radius: 50%; opacity: 0; animation: wl-ripple .9s ease-out .78s both; }
+.wl-ink-2 { animation-delay: .9s; }
+@keyframes wl-slam {
+  0% { opacity: 0; scale: 2.6; rotate: -28deg; filter: blur(3px); }
+  60% { opacity: 1; scale: .93; rotate: -7deg; filter: none; }
+  100% { opacity: 1; scale: 1; rotate: -9deg; }
+}
+@keyframes wl-ripple {
+  0% { opacity: .5; scale: 1; }
+  100% { opacity: 0; scale: 1.75; }
+}
+/* 落章时整页轻轻一震 */
+.wl-center { animation: wl-shake .28s ease-out .72s both; }
+@keyframes wl-shake {
+  30% { translate: 0 3px; }
+  60% { translate: 0 -1px; }
+}
+
+.wl-title {
+  margin: 30px 0 0; font: 700 clamp(24px, 4.2vw, 34px) var(--serif-zh); letter-spacing: .1em; color: var(--title);
+  animation: wl-rise .6s cubic-bezier(.2, .8, .2, 1) .9s both;
+}
+.wl-sub { margin: 10px 0 0; font-size: 14px; letter-spacing: .04em; color: var(--sub); animation: wl-rise .6s cubic-bezier(.2, .8, .2, 1) 1.05s both; }
+.wl-skip { margin: 34px 0 0; font: italic 12px var(--serif-en); letter-spacing: .12em; color: var(--sub); opacity: .55; animation: wl-fade .6s ease 1.6s both; }
+@keyframes wl-rise { from { opacity: 0; translate: 0 14px; } }
+
+#welcome.wl-out .wl-center { scale: .9; opacity: .6; transition: scale .75s cubic-bezier(.7, 0, .25, 1), opacity .75s; }
+
+@media (max-width: 700px) {
+  .wl-stamp { width: 180px; height: 180px; }
+  .wl-avatar { width: 72px; height: 72px; }
+  .wl-date { bottom: 40px; font-size: 9.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #welcome, #welcome * { animation-duration: .01s !important; animation-delay: 0s !important; }
+  #welcome { transition: opacity .3s; }
+  #welcome.wl-out { clip-path: none; opacity: 0; }
+}
