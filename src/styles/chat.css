@@ -127,7 +127,25 @@
 .ch-msg { position: relative; display: flex; flex-direction: column; align-items: flex-start; max-width: 80%; margin: 3px 0 3px 14px; }
 .ch-msg.tail { margin-bottom: 12px; }
 .ch-msg.mine { align-items: flex-end; margin-left: auto; margin-right: 0; }
-.ch-msg time { margin: 4px 4px 0; font: italic 10.5px var(--serif-en); letter-spacing: .04em; color: var(--ink-soft); }
+.ch-meta { display: flex; align-items: center; gap: 6px; margin: 4px 4px 0; }
+.ch-msg time { font: italic 10.5px var(--serif-en); letter-spacing: .04em; color: var(--ink-soft); }
+
+/* 已读回执：未读是一枚灰色的勾，已读是航空蓝的双勾，变成已读的那一刻像盖章一样「啪」一下 */
+.ch-receipt {
+  display: inline-flex; align-items: center; gap: 2px; padding: 0 6px 0 4px; height: 17px;
+  font: 600 10.5px/1 -apple-system, "PingFang SC", sans-serif; letter-spacing: .04em; white-space: nowrap;
+  border-radius: 9px; transition: color .3s, background .3s;
+}
+.ch-receipt .ic { width: 13px; height: 13px; stroke-width: 2.2; }
+.ch-receipt.unread { color: var(--ink-soft); box-shadow: inset 0 0 0 1px var(--rule-strong, rgba(42, 39, 35, .24)); }
+.ch-receipt.read { color: var(--air-blue); background: rgba(31, 75, 143, .09); }
+.ch-receipt.pop { animation: receipt-stamp .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes receipt-stamp {
+  0% { scale: 1.9; rotate: -12deg; opacity: 0; }
+  60% { scale: .92; rotate: 2deg; opacity: 1; }
+  100% { scale: 1; rotate: 0deg; }
+}
+@media (prefers-reduced-motion: reduce) { .ch-receipt.pop { animation: none; } }
 .ch-msg.pending { opacity: .55; }
 .ch-msg.failed time { font-style: normal; font-weight: 600; color: var(--air-red); }
 

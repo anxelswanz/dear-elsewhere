@@ -29,6 +29,7 @@ const toRow = r => ({
   deleted_photos: r.deletedPhotos || [],
   deleted: !!r.deleted,
   published_at: r.publishedAt ? new Date(r.publishedAt).toISOString() : null,
+  transport: r.transport || null,
   created_at: new Date(r.createdAt || Date.now()).toISOString(),
   updated_at: new Date(r.updatedAt || Date.now()).toISOString(),
 });
@@ -44,6 +45,8 @@ export function mergeRow(local, row) {
       level: row.level, ref: row.ref, name: row.name, country: row.country, region: row.region, city: row.city,
       lat: row.lat, lng: row.lng, date: row.date || '', note: row.note,
       marker: row.marker, icon: row.icon, label: row.label, deleted: row.deleted,
+      // 还没执行 0005 时云端没有这一列：保留本地的选择
+      transport: row.transport === undefined ? local?.transport || '' : row.transport || '',
       createdAt: Date.parse(row.created_at), updatedAt: Math.max(remoteAt, local?.updatedAt || 0),
     });
   }

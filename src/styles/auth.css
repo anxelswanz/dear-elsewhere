@@ -24,8 +24,9 @@
 
 /* 检查登录状态时：遮罩中央一枚呼吸的邮票 */
 #auth[data-view="checking"] .au-stage::before {
-  content: ''; width: 44px; height: 44px; border-radius: 4px;
-  background: var(--card); border: 3px dotted var(--accent);
+  content: ''; width: 52px; height: 61px;
+  background: url(/brand/stamp@2x.png) center / contain no-repeat;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .35));
   animation: au-breathe 1.2s ease-in-out infinite;
 }
 @keyframes au-breathe { 50% { scale: .86; opacity: .6; } }
@@ -50,8 +51,9 @@
 .au-letter .au-paper { padding: 26px 30px 24px; }
 
 .au-head { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
-.au-head .brand-mark { width: 46px; height: 46px; }
+.au-head .brand-mark { height: 56px; margin: -4px 0; rotate: -3deg; }
 .au-head h2 { margin: 0; font: 700 24px/1.1 var(--serif-zh); letter-spacing: .08em; }
+.au-head h2.wordmark { font-size: 27px; }
 .au-head p { margin: 5px 0 0; font: italic 14px/1 var(--serif-en); color: var(--ink-soft); }
 .au-postmark {
   width: 74px; height: 74px; margin: -10px -12px 0 auto; rotate: 14deg; opacity: .55;
@@ -121,8 +123,7 @@
 
 /* 深蓝封皮 + 烫金字 */
 .pp-cover { display: flex; align-items: center; gap: 14px; padding: 18px 26px 16px; color: var(--gold); }
-.pp-emblem { display: grid; place-items: center; width: 44px; height: 44px; border: 1.5px solid currentColor; border-radius: 50%; }
-.pp-emblem svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.pp-emblem { display: block; width: auto; height: 50px; margin: -4px 0; rotate: -4deg; }
 .pp-cover p { margin: 0; font: 600 10.5px var(--serif-en); letter-spacing: .26em; opacity: .85; }
 .pp-cover h2 { margin: 4px 0 0; font: 700 21px var(--serif-zh); letter-spacing: .12em; color: #f1dfb0; }
 .pp-no { margin-left: auto; margin-right: 44px; font: italic 13px var(--serif-en); letter-spacing: .08em; opacity: .7; }

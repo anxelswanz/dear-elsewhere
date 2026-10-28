@@ -6,6 +6,7 @@ import { t, lang, localName, langSwitch } from './i18n.js';
 
 const AVATAR_COUNT = 60;
 const AVATARS = Array.from({ length: AVATAR_COUNT }, (_, i) => `a${String(i + 1).padStart(2, '0')}`);
+const BRAND = `${import.meta.env.BASE_URL}brand/`; // Logo：航空邮票（无文字）
 export const avatarUrl = id => `${import.meta.env.BASE_URL}avatars/${id}.svg`;
 const HANDLE_MIN = 3, HANDLE_MAX = 20;
 const HANDLE_RE = new RegExp(`^[a-z0-9_]{${HANDLE_MIN},${HANDLE_MAX}}$`);
@@ -122,13 +123,8 @@ const FIELD = {
 
 const brandHtml = `
   <header class="au-head">
-    <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
-      <rect class="bm-perf" x="3" y="3" width="34" height="34" rx="2" />
-      <rect class="bm-face" x="7" y="7" width="26" height="26" rx="1" />
-      <path class="bm-pin" d="M20 29s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10z" />
-      <circle class="bm-dot" cx="20" cy="19" r="2" />
-    </svg>
-    <div><h2>${t('brand')}</h2><p>${t('brandSub')}</p></div>
+    <img class="brand-mark" src="${BRAND}stamp.png" srcset="${BRAND}stamp.png 1x, ${BRAND}stamp@2x.png 2x" alt="" />
+    <div><h2 class="wordmark"><i>Dear</i> Elsewhere</h2><p>${t('brandSub')}</p></div>
     <svg class="au-postmark" viewBox="0 0 100 100" aria-hidden="true">
       <defs><path id="au-arc" d="M50,50 m-36,0 a36,36 0 1,1 72,0 a36,36 0 1,1 -72,0" /></defs>
       <circle cx="50" cy="50" r="46" /><circle cx="50" cy="50" r="27" />
@@ -366,9 +362,7 @@ function renderPassport() {
     <article class="passport" aria-labelledby="ppTitle">
       ${create ? '' : `<button type="button" class="pc-close" data-pp-close title="${t('close')}">×</button>`}
       <header class="pp-cover">
-        <span class="pp-emblem" aria-hidden="true">
-          <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" /><path d="M5 20h30M20 5c-5 4-5 26 0 30M20 5c5 4 5 26 0 30M8 12.5h24M8 27.5h24" /></svg>
-        </span>
+        <img class="pp-emblem" src="${BRAND}stamp-gold.png" srcset="${BRAND}stamp-gold.png 1x, ${BRAND}stamp-gold@2x.png 2x" alt="" />
         <div><p>${t('pp.kicker')}</p><h2 id="ppTitle">${t(create ? 'pp.create' : 'pp.edit')}</h2></div>
         <span class="pp-no">No. ${escapeHtml((session?.user.id || '').slice(0, 8).toUpperCase())}</span>
       </header>

@@ -1,0 +1,109 @@
+/* =====================================================================
+   旅程：航线上的交通工具、到站邮戳、回放提示条、右上角的年份面板
+   ===================================================================== */
+.jr-anchor { background: none; border: none; }
+
+/* 交通工具：一枚纸质小圆章，颜色跟着航线 */
+.jr-vehicle {
+  --c: var(--ink);
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  color: var(--c); background: #fbf8f1; box-shadow: 0 0 0 1.5px var(--c), 0 4px 10px -3px rgba(42, 39, 35, .45);
+  transition: scale .2s, box-shadow .2s;
+}
+.jr-plane { --c: #1f4b8f; }
+.jr-ship { --c: #2b7a8c; }
+.jr-train { --c: #2a2723; }
+.jr-car { --c: #9a6b3f; }
+.jr-ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.jr-vehicle .jr-ic { rotate: var(--rot, 0deg); scale: var(--flip, 1) 1; transition: rotate .2s; }
+.jr-vehicle.parked { cursor: pointer; }
+.jr-vehicle.parked:hover { scale: 1.15; box-shadow: 0 0 0 2px var(--c), 0 6px 14px -3px rgba(42, 39, 35, .5); }
+.jr-vehicle.parked .jr-ic { transition: none; }
+/* 回放中：跑动的那一个更大，停着的先藏起来 */
+.jr-vehicle.moving { width: 40px; height: 40px; box-shadow: 0 0 0 2px var(--c), 0 8px 18px -4px rgba(42, 39, 35, .55); }
+.jr-vehicle.moving .jr-ic { width: 22px; height: 22px; transition: none; }
+.jr-playing .jr-vehicle.parked { opacity: 0; pointer-events: none; }
+
+/* 到站邮戳 */
+.jr-stamp {
+  position: absolute; left: 0; bottom: 28px; display: grid; justify-items: center; gap: 1px; padding: 5px 10px 4px;
+  translate: -50% 0; rotate: -6deg; white-space: nowrap; pointer-events: none;
+  color: var(--air-red); background: rgba(251, 248, 241, .94);
+  border: 2px solid currentColor; outline: 1px solid currentColor; outline-offset: 2px; border-radius: 4px;
+  box-shadow: 0 6px 14px -6px rgba(42, 39, 35, .5);
+  animation: jr-stamp .5s cubic-bezier(.3, 1.5, .5, 1) both;
+}
+.jr-stamp b { font: 700 13px var(--serif-zh); letter-spacing: .04em; }
+.jr-stamp time { font: 700 10px var(--serif-en); letter-spacing: .14em; }
+@keyframes jr-stamp { 0% { scale: 2.2; opacity: 0; rotate: -18deg; } 65% { scale: .94; opacity: 1; } 100% { scale: 1; rotate: -6deg; } }
+
+/* 回放提示条：顶栏下方居中 */
+#journeyHud {
+  position: fixed; top: 82px; left: 50%; z-index: 1050; display: flex; align-items: center; gap: 10px;
+  padding: 6px 6px 6px 8px; translate: -50% 0;
+  color: #fbf8f1; background: rgba(32, 28, 24, .88); border-radius: 999px;
+  box-shadow: 0 12px 26px -12px rgba(0, 0, 0, .6);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  animation: jr-hud-in .3s cubic-bezier(.2, .8, .2, 1) both;
+}
+#journeyHud[hidden] { display: none; }
+@keyframes jr-hud-in { from { opacity: 0; translate: -50% -8px; } }
+.jr-hud-ic { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--ink); background: #fbf8f1; }
+.jr-hud-ic .jr-ic { width: 16px; height: 16px; }
+.jr-hud-text { display: grid; min-width: 0; padding-right: 4px; }
+.jr-hud-text b { font: 600 12.5px var(--serif-en); letter-spacing: .04em; }
+.jr-hud-text small { max-width: 46vw; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
+#journeyHud button {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0; cursor: pointer;
+  color: #fbf8f1; background: rgba(251, 248, 241, .12); border: none; border-radius: 50%; transition: background .15s;
+}
+#journeyHud button:hover { background: rgba(251, 248, 241, .26); }
+#journeyHud button .ic { width: 15px; height: 15px; }
+
+/* ---------- 右上角：旅程按钮与年份面板 ---------- */
+.jr-control { position: relative; }
+.jr-button[aria-expanded="true"] { color: #fbf8f1; background: var(--ink); }
+.jr-button[aria-expanded="true"] .ic { color: #ffb68a; }
+.jr-panel {
+  --paper: #fbf8f1; --paper-2: #f3ede1; --rule: rgba(42, 39, 35, .12);
+  position: absolute; top: 0; right: calc(100% + 10px); width: 290px; padding: 4px 0 14px;
+  color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 14px;
+  box-shadow: 0 24px 48px -20px rgba(42, 39, 35, .5), 0 2px 6px rgba(42, 39, 35, .08);
+  font: 13px -apple-system, "PingFang SC", sans-serif; text-align: left;
+  animation: drop-in .18s ease-out both;
+}
+.jr-panel[hidden] { display: none; }
+.jr-head { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 12px 16px 6px; }
+.jr-head b { font: 700 17px var(--serif-zh); letter-spacing: .04em; }
+.jr-head span { font: italic 12.5px var(--serif-en); color: var(--ink-soft); }
+.jr-years { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 16px 8px; }
+.jr-years button {
+  height: 28px; padding: 0 12px; font: 600 13px var(--serif-en); letter-spacing: .04em; cursor: pointer;
+  color: var(--ink-soft); background: var(--paper-2); border: none; border-radius: 999px; transition: background .15s, color .15s;
+}
+.jr-years button[aria-checked="true"] { color: var(--paper); background: var(--ink); }
+.jr-stats { margin: 0; padding: 2px 16px 6px; font: italic 12.5px var(--serif-en); color: var(--ink-soft); }
+.jr-legs { max-height: 180px; margin: 0 10px; padding: 0; overflow-y: auto; list-style: none; counter-reset: leg; }
+.jr-legs li { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; font-size: 12.5px; }
+.jr-legs li:hover { background: var(--paper-2); }
+.jr-legs .jr-ic { flex: none; width: 15px; height: 15px; color: var(--ink-soft); }
+.jr-legs span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-legs time { flex: none; font: 600 11px var(--serif-en); color: var(--air-red); }
+.jr-empty { margin: 0; padding: 6px 16px 4px; font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+.jr-toggle { margin: 8px 16px 0; padding: 10px 2px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.jr-play {
+  display: flex; align-items: center; justify-content: center; gap: 7px; width: calc(100% - 32px); height: 38px; margin: 12px 16px 0;
+  font: 600 13px -apple-system, "PingFang SC", sans-serif; cursor: pointer;
+  color: var(--paper); background: var(--ink); border: none; border-radius: 10px; transition: background .15s;
+}
+.jr-play:hover { background: var(--air-red); }
+.jr-play:disabled { opacity: .4; cursor: default; background: var(--ink); }
+.jr-play .ic { width: 15px; height: 15px; }
+
+@media (max-width: 700px) {
+  .jr-panel { position: fixed; top: auto; right: 8px; left: 8px; bottom: calc(70px + env(safe-area-inset-bottom)); width: auto; }
+  #journeyHud { top: 70px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jr-stamp, #journeyHud { animation: none; }
+}

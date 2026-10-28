@@ -4,7 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dear Elsewhere</title>
-  <link rel="icon" href="data:," />
+  <link rel="icon" type="image/png" sizes="32x32" href="brand/icon-32.png" />
+  <link rel="icon" type="image/png" sizes="64x64" href="brand/icon-64.png" />
+  <link rel="apple-touch-icon" href="brand/icon-180.png" />
+  <meta name="theme-color" content="#f8f2e4" />
+  <meta property="og:title" content="Dear Elsewhere" />
+  <meta property="og:image" content="brand/icon-512.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..600&family=Noto+Serif+SC:wght@500;700&display=swap" />
@@ -15,14 +20,9 @@
   <header id="topbar">
     <div class="tb-group">
       <button class="tb-brand" data-drop="footprints" aria-expanded="false" data-i18n-attr="title:brand">
-        <!-- 齿孔邮票小徽标 -->
-        <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
-          <rect class="bm-perf" x="3" y="3" width="34" height="34" rx="2" />
-          <rect class="bm-face" x="7" y="7" width="26" height="26" rx="1" />
-          <path class="bm-pin" d="M20 29s-6-5.6-6-10a6 6 0 0 1 12 0c0 4.4-6 10-6 10z" />
-          <circle class="bm-dot" cx="20" cy="19" r="2" />
-        </svg>
-        <span class="brand-text"><b data-i18n="brand">Dear Elsewhere</b><small data-i18n="brandSub">致远方 · 旅行手账</small></span>
+        <!-- Logo：航空邮票（无文字） -->
+        <img class="brand-mark" src="brand/stamp.png" srcset="brand/stamp.png 1x, brand/stamp@2x.png 2x" alt="" />
+        <span class="brand-text"><b class="wordmark"><i>Dear</i> Elsewhere</b><small data-i18n="brandSub">致远方 · 旅行手账</small></span>
         <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
       </button>
       <span class="tb-rule" aria-hidden="true"></span>

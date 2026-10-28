@@ -41,14 +41,17 @@
 [aria-expanded="true"] > .tb-caret { rotate: 180deg; color: var(--ink); }
 
 .tb-brand { gap: 10px; padding-left: 6px; }
-.brand-mark { flex: none; width: 34px; height: 34px; transition: rotate .25s; }
-.tb-brand:hover .brand-mark { rotate: -6deg; }
-.bm-perf { fill: var(--card); stroke: var(--accent); stroke-width: 2.2; stroke-dasharray: 2 2.2; }
-.bm-face { fill: #fff1e6; stroke: var(--accent); stroke-width: 1; }
-.bm-pin { fill: var(--accent); }
-.bm-dot { fill: var(--card); }
+.brand-mark {
+  flex: none; display: block; width: auto; height: 38px; margin: -2px 0;
+  filter: drop-shadow(0 2px 3px rgba(42, 39, 35, .18)); transition: rotate .25s, translate .25s;
+}
+.tb-brand:hover .brand-mark { rotate: -5deg; translate: 0 -1px; }
 .brand-text { display: grid; text-align: left; }
 .brand-text b { font: 700 17px/1.1 var(--serif-zh); letter-spacing: .06em; }
+/* 文字标：与 Logo 设计稿一致，Dear 斜体、Elsewhere 正体 */
+.wordmark { font-family: var(--serif-en) !important; font-weight: 500 !important; letter-spacing: -.005em !important; white-space: nowrap; }
+.wordmark i { font-style: italic; font-weight: 500; }
+.brand-text .wordmark { font-size: 19px; }
 .brand-text small { margin-top: 3px; font: italic 400 12px/1 var(--serif-en); color: var(--ink-soft); }
 
 .tb-tab { font-size: 14px; font-weight: 600; }

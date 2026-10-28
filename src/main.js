@@ -5,6 +5,7 @@ import { initAuth, askLetter, avatarUrl } from './auth.js';
 import { initSocial } from './social.js';
 import { initChat } from './chat.js';
 import { initSnapshot } from './snapshot.js';
+import { initJourney } from './journey.js';
 
 applyStatic();
 import { createSync, touch } from './sync.js';
@@ -240,6 +241,7 @@ let records = [];          // 界面上显示的记录
 let tombstones = [];       // 已删除、等待同步给其他设备的记录
 let sync = null;
 let social = null;          // 好友与动态，登录后创建
+let journey = null;         // 旅程航线与回放，登录后创建
 let chat = null;            // 好友私聊，登录后创建
 let me = null;              // 当前用户 id
 let visited = { country: new Set(), region: new Set(), city: new Set() };
@@ -373,6 +375,7 @@ function refresh() {
   drawLevelLayers();
   renderPlaces();
   renderSidebar();
+  journey?.refresh();
   const cur = records.find(r => r.id === currentId);
   if (cur) fillEditor(cur);
 }
@@ -1171,7 +1174,9 @@ function openEditor(id) {
 function closeEditor() {
   const ed = $('#editor');
   if (ed.hidden) return;
+  const closed = currentId;
   currentId = null;
+  setTimeout(() => journey?.afterEdit(closed), 260); // 等明信片收起再飞
   ed.classList.add('closing');
   setTimeout(() => {
     if (!currentId) ed.hidden = true;
@@ -1642,6 +1647,18 @@ async function claimLegacy(profile) {
   refresh();
 
   me = user.id;
+  journey = initJourney({
+    map, L, toMapAt, uid: user.id, distKm, toast,
+    records: () => records,
+    save: saveRecord,
+    // 这次打卡落在哪一站：有城市就按城市，否则按坐标附近（约 10 公里）
+    stationOf: r => {
+      const c = r.city && geo.cityById.get(r.city);
+      if (c) return { key: c.id, name: c.name, country: c.country, lat: c.lat, lng: c.lng };
+      if (r.lat == null || r.lng == null) return null;
+      return { key: `${r.country}|${r.lat.toFixed(1)},${r.lng.toFixed(1)}`, name: r.name || regionName(r.region) || countryName(r.country), country: r.country, lat: r.lat, lng: r.lng };
+    },
+  });
   social = initSocial({
     me: { id: user.id, profile },
     helpers: {
@@ -1684,5 +1701,5 @@ async function claimLegacy(profile) {
 
 // 端到端测试入口：开发环境或带 ?e2e 时暴露少量内部函数
 if (import.meta.env.DEV || new URLSearchParams(location.search).has('e2e')) {
-  window.__mymap = { saveRecord, removeRecord, newRecord, goTo, records: () => records, sync: () => sync, social: () => social, map: () => map };
+  window.__mymap = { saveRecord, removeRecord, newRecord, goTo, records: () => records, sync: () => sync, social: () => social, map: () => map, journey: () => journey, closeEditor, openEditor };
 }

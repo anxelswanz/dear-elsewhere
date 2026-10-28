@@ -29,6 +29,8 @@ const ICON = {
   send: '<path d="M4 12l16-7-6 16-3-7z"/><path d="M11 14l9-9"/>',
   pin: '<path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0c0 4.9-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
   camera: '<path d="M4 8.5h3l1.5-2h7l1.5 2h3v10H4z"/><circle cx="12" cy="13" r="3.2"/>',
+  sent: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  read: '<path d="M2.5 12.5l4.5 4.5L16.5 7.5"/><path d="M11.5 16.5l.5.5 9.5-9.5"/>',
 };
 const icon = name => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -66,6 +68,7 @@ export function initChat({ me, social, helpers }) {
     viewing: null,       // 正在查看的转发打卡消息
   };
   const thumbs = new Map(); // 存储路径 -> 签名链接
+  const justRead = new Set(); // 刚变成已读的消息，播一次盖章动画
 
   document.body.insertAdjacentHTML('beforeend', `
     <section id="chat" hidden role="dialog" aria-labelledby="chatName">
@@ -192,6 +195,15 @@ export function initChat({ me, social, helpers }) {
     </button>`;
   }
 
+  // 自己发出的消息：未读 / 已读（同一组消息只在最后一条下面显示）
+  function receipt(m) {
+    if (m.pending || m.failed) return '';
+    const read = !!m.read_at;
+    const pop = read && justRead.has(m.id) ? ' pop' : '';
+    return `<span class="ch-receipt ${read ? 'read' : 'unread'}${pop}" title="${read ? t('chat.readAt', { time: clock(m.read_at) }) : t('chat.unreadTitle')}">${
+      icon(read ? 'read' : 'sent')}${t(read ? 'chat.read' : 'chat.unread')}</span>`;
+  }
+
   // enter：刚打开对话，最近几条依次落下；fresh：这条刚到，单独做一次到达动画
   function renderList({ toBottom = false, enter = false, fresh = null } = {}) {
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
@@ -216,10 +228,11 @@ export function initChat({ me, social, helpers }) {
       const motion = enter && back < 10 ? ` enter" style="--i: ${9 - back}` : m.id === fresh ? ' arrive' : '';
       html += `<div class="ch-msg ${mine ? 'mine' : 'theirs'}${tail ? ' tail' : ''}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}${motion}" data-msg="${m.id}">
         ${content}
-        ${tail ? `<time>${m.failed ? t('chat.failedShort') : m.pending ? t('chat.sending') : clock(m.created_at)}${mine && m.read_at && tail ? ` · ${t('chat.read')}` : ''}</time>` : ''}
+        ${tail ? `<p class="ch-meta"><time>${m.failed ? t('chat.failedShort') : m.pending ? t('chat.sending') : clock(m.created_at)}</time>${mine ? receipt(m) : ''}</p>` : ''}
       </div>`;
     });
     list.innerHTML = html;
+    justRead.clear();
     if (toBottom || nearBottom) list.scrollTop = list.scrollHeight;
   }
 
@@ -381,7 +394,11 @@ export function initChat({ me, social, helpers }) {
 
   function onUpdate(m) {
     const cur = state.messages.find(x => x.id === m.id);
-    if (cur && cur.read_at !== m.read_at) { cur.read_at = m.read_at; renderList(); }
+    if (cur && cur.read_at !== m.read_at) {
+      if (!cur.read_at && m.read_at) justRead.add(cur.id);
+      cur.read_at = m.read_at;
+      renderList();
+    }
   }
 
   supabase.channel('chat')

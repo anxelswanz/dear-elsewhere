@@ -49,6 +49,10 @@
 #shot[data-state="ready"] #shotImg { animation: develop 1.4s ease-out both; }
 #shot[data-state="ready"] .shot-print figcaption { font-size: 0; }
 #shot[data-state="ready"] .shot-print figcaption::after { content: 'Dear Elsewhere'; font-size: 13px; }
+#shot[data-state="ready"] .shot-print figcaption::before {
+  content: ''; display: inline-block; width: 12px; height: 14px; margin-right: 6px; vertical-align: -2px;
+  background: url(/brand/stamp.png) center / contain no-repeat;
+}
 @keyframes develop {
   from { filter: sepia(1) brightness(.35) blur(2px); }
   55% { filter: sepia(.4) brightness(.85) blur(0); }
