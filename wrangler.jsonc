@@ -1,0 +1,11 @@
+// Cloudflare 部署配置：只发布 npm run build 生成的静态文件（dist/），没有服务端代码
+// 有了这个文件，wrangler 就不会去自动识别项目、解析 vite.config.js
+// public/_headers（CSP、缓存）会被一起发布并生效
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dear-elsewhere", // 必须和 Cloudflare 控制台里这个 Worker 的名字一致
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist"
+  }
+}
