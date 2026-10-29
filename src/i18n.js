@@ -215,6 +215,7 @@ const DICT = {
   'au.forgot': ['忘记密码？', 'Forgot password?'],
   'au.forgotTitle': ['找回密码', 'Reset password'],
   'au.resetTitle': ['重置密码', 'New password'],
+  'au.linkExpired': ['这个邮件链接已经用过或过期了。需要重置密码的话，点「忘记密码？」重新发一封。', 'This email link has already been used or has expired. To reset your password, tap “Forgot password?” to get a new one.'],
   'au.resetSent': ['重置链接已寄到 {email}，请查收邮件。', 'A reset link is on its way to {email}.'],
   'au.terms': ['服务条款', 'Terms of Service'],
   'au.privacy': ['隐私政策', 'Privacy Policy'],

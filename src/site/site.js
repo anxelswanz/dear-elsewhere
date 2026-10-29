@@ -7,6 +7,9 @@ import '@fontsource/noto-serif-sc/700.css';
 import '../styles/themes.css';
 import './site.css';
 
+// 邮件链接（验证邮箱、重置密码）回跳到官网时，带着登录信息转到应用里处理
+if (/(^|[#&])(access_token|error_code)=/.test(location.hash)) location.replace(`${import.meta.env.BASE_URL}app/${location.hash}`);
+
 const root = document.documentElement;
 const buttons = document.querySelectorAll('[data-set]');
 

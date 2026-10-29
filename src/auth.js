@@ -1,6 +1,6 @@
 // 账号：登录 / 注册 / 找回密码（一封航空信），首次登录填写「旅行护照」资料，
 // 以及顶栏头像和「个人资料」面板。必须登录才能使用地图。
-import { supabase, supabaseReady } from './supabase.js';
+import { supabase, supabaseReady, urlAuth } from './supabase.js';
 import { playWelcome } from './welcome.js';
 import { t, lang, localName, langSwitch } from './i18n.js';
 import { applyAccountSettings } from './settings.js';
@@ -39,6 +39,8 @@ let invite = '';         // 注册用的邀请码，同上
 let resolveReady;        // 第一次拿到完整资料时，把账号交给地图
 let readyUser = null;
 let welcome = null;      // 'login' | 'signup'：只在主动登录、刚签发护照时播放欢迎动画，刷新页面不播
+let recovering = urlAuth.recovery; // 从重置密码邮件回来：设好新密码之前，拿到会话也不进地图
+let linkNotice = urlAuth.error ? t('au.linkExpired') : ''; // 邮件链接用过或过期，在登录页提示一次
 
 // ---------- 入口 ----------
 // 返回的 Promise 在登录且资料齐全后 resolve 为 { user, profile }；之后换账号或退出时整页刷新
@@ -55,13 +57,21 @@ export function initAuth({ countries: countriesReady }) {
   showGate('checking');
   if (!supabaseReady) { showGate('config'); return ready; }
 
+  if (urlAuth.error) history.replaceState(null, '', location.pathname + location.search);
+
   supabase.auth.onAuthStateChange((event, s) => {
-    if (event === 'PASSWORD_RECOVERY') { session = s; return showGate('reset'); }
+    // 重置密码：INITIAL_SESSION 可能比 PASSWORD_RECOVERY 先到，两种都直接进「设置新密码」
+    if (event === 'PASSWORD_RECOVERY' || (recovering && s && ['INITIAL_SESSION', 'SIGNED_IN'].includes(event))) {
+      recovering = true;
+      session = s;
+      if (view !== 'reset') showGate('reset');
+      return;
+    }
     if (!['INITIAL_SESSION', 'SIGNED_IN', 'SIGNED_OUT'].includes(event)) return;
     if (event === 'SIGNED_IN' && s?.user.id === session?.user.id && profile) return; // 切回标签页时也会触发
     if (view === 'reset') return;
-    // 回调里不能直接 await supabase 的其他请求，放到下一轮执行
-    setTimeout(() => handleSession(s), 0);
+    // 回调里不能直接 await supabase 的其他请求，放到下一轮执行；到时候已经进了重置页就不再处理
+    setTimeout(() => { if (view !== 'reset') handleSession(s); }, 0);
   });
   return ready;
 }
@@ -88,7 +98,11 @@ async function handleSession(s) {
   birthday = '';
   birthplace = '';
   renderMe();
-  if (!s) return showGate('login');
+  if (!s) {
+    const notice = linkNotice;
+    linkNotice = '';
+    return showGate('login', notice);
+  }
   showGate('checking');
   const uid = s.user.id;
   const [pub, priv] = await Promise.all([
@@ -270,6 +284,7 @@ async function submitLetter(form) {
     } else if (view === 'reset') {
       const { error } = await supabase.auth.updateUser({ password: data.password });
       if (error) return say(authError(error));
+      recovering = false;
       view = 'checking';
       handleSession(session);
     }
