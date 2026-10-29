@@ -3,235 +3,520 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dear Elsewhere</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="brand/icon-32.png" />
-  <link rel="icon" type="image/png" sizes="64x64" href="brand/icon-64.png" />
-  <link rel="apple-touch-icon" href="brand/icon-180.png" />
+  <title>Dear Elsewhere · 致远方 — 把去过的地方盖成邮戳</title>
+  <meta name="description" content="Dear Elsewhere 是一本地图上的旅行手账：按住地图盖一枚邮戳，写一张带照片的明信片，寄给好友。" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/brand/icon-32.png" />
+  <link rel="icon" type="image/png" sizes="64x64" href="/brand/icon-64.png" />
+  <link rel="apple-touch-icon" href="/brand/icon-180.png" />
   <meta name="theme-color" content="#f8f2e4" />
-  <script src="boot/theme.js"></script>
-  <meta property="og:title" content="Dear Elsewhere" />
-  <meta property="og:image" content="brand/icon-512.png" />
-  <link rel="stylesheet" href="/src/styles/index.css" />
+  <meta property="og:title" content="Dear Elsewhere · 致远方" />
+  <meta property="og:description" content="把去过的地方，盖成一枚邮戳。" />
+  <meta property="og:image" content="/brand/icon-512.png" />
+  <!-- 与主站共用：主题（mymap:theme）和语言（mymap:lang）在 <head> 里同步设好，避免闪烁 -->
+  <script src="/boot/site-auth.js"></script>
+  <script src="/boot/theme.js"></script>
+  <script src="/boot/legal-lang.js"></script>
+  <script type="module" src="/src/site/site.js"></script>
 </head>
 <body>
-  <!-- 顶栏：左边是「我的足迹」「好友」，中间是当前位置，右边是「动态」和头像；每个入口点开是一张悬浮纸卡 -->
-  <header id="topbar">
-    <div class="tb-group">
-      <button class="tb-brand" data-drop="footprints" aria-expanded="false" data-i18n-attr="title:brand">
-        <!-- Logo：航空邮票（无文字） -->
-        <img class="brand-mark" src="brand/stamp.png" srcset="brand/stamp.png 1x, brand/stamp@2x.png 2x" alt="" />
-        <span class="brand-text"><b class="wordmark"><i>Dear</i> Elsewhere</b><small data-i18n="brandSub">致远方 · 旅行手账</small></span>
-        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
-      </button>
-      <span class="tb-rule" aria-hidden="true"></span>
-      <button class="tb-tab" data-drop="friends" aria-expanded="false">
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5" /><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7" /></svg>
-        <span data-i18n="friends">好友</span><i class="tb-dot" hidden></i>
-        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
-      </button>
-    </div>
-
-    <nav id="crumbs" data-i18n-attr="aria-label:here"></nav>
-
-    <div class="tb-group">
-      <button class="tb-tab" data-drop="feed" aria-expanded="false">
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 9.5h16M8 13h5M8 16h8" /></svg>
-        <span data-i18n="feed">动态</span><i class="tb-dot" hidden></i>
-        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
-      </button>
-      <span class="tb-rule" aria-hidden="true"></span>
-      <button class="tb-me" data-drop="me" aria-expanded="false" data-i18n-attr="title:profile">
-        <span class="avatar" id="meAvatar">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9.5" r="3.6" /><path d="M5.5 19.5c1-3.3 3.4-5 6.5-5s5.5 1.7 6.5 5" /></svg>
-        </span>
-        <i class="tb-dot" hidden></i>
-        <svg class="ic tb-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
-      </button>
+  <!-- ================= 顶栏 ================= -->
+  <header class="nav">
+    <a class="nav-brand" href="#top">
+      <img src="/brand/stamp.png" srcset="/brand/stamp.png 1x, /brand/stamp@2x.png 2x" alt="" />
+      <span><b class="wordmark"><i>Dear</i> Elsewhere</b><small>致远方 · A travel journal</small></span>
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#guide"><span data-lang="zh">教程</span><span data-lang="en">Guide</span></a>
+      <a href="#updates"><span data-lang="zh">最近更新</span><span data-lang="en">What's new</span></a>
+      <a href="#rules"><span data-lang="zh">规则与限制</span><span data-lang="en">Rules &amp; limits</span></a>
+      <a href="#faq"><span data-lang="zh">常见问题</span><span data-lang="en">FAQ</span></a>
+    </nav>
+    <div class="nav-end">
+      <div class="lang" role="group" aria-label="Language">
+        <button type="button" data-set="zh">中</button>
+        <button type="button" data-set="en">EN</button>
+      </div>
+      <a class="btn btn-ink btn-sm" href="/app/">
+        <span data-lang="zh">进入</span><span data-lang="en">Open</span> →
+      </a>
     </div>
   </header>
 
-  <!-- 我的足迹：搜索 + 当前层级的内容 + 备份 -->
-  <section class="drop drop-left" id="drop-footprints" hidden>
-    <div class="search">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
-      <input id="searchInput" type="search" data-i18n-attr="placeholder:searchPlaceholder title:searchTitle" autocomplete="off" />
-      <ul id="searchResults"></ul>
-    </div>
+  <main id="top">
+    <!-- ================= 首屏 ================= -->
+    <section class="hero">
+      <svg class="hero-route" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M-20 520 C 220 420, 300 180, 560 230 S 930 470, 1220 90" />
+      </svg>
 
-    <div id="panel"></div>
-
-    <footer>
-      <p class="sync" id="syncStatus" role="status" hidden></p>
-    </footer>
-  </section>
-
-  <section class="drop drop-left" id="drop-friends" hidden>
-    <p class="drop-head"><b data-i18n="friends">好友</b><span>Friends</span></p>
-    <div class="empty-card">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5" /><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7" /></svg>
-      <b data-i18n="fr.none">还没有好友</b>
-      <span data-i18n="fr.noneGuest">登录后输入对方的 ID，就能互相看到足迹</span>
-    </div>
-  </section>
-
-  <section class="drop drop-right" id="drop-feed" hidden>
-    <p class="drop-head"><b data-i18n="feed">动态</b><span>Postcards from friends</span></p>
-    <div class="empty-card">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 9.5h16M8 13h5M8 16h8" /></svg>
-      <b data-i18n="feed.empty">信箱还是空的</b>
-      <span data-i18n="feed.emptyGuest">好友盖了带照片的章后，明信片会寄到这里</span>
-    </div>
-  </section>
-
-  <section class="drop drop-right drop-narrow" id="drop-me" hidden></section>
-
-  <!-- 设置：语言、主题色、数据（下载照片、备份、导出账号数据、注销），由 src/settings.js 渲染 -->
-  <div id="settings" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-    <div class="st-paper">
-      <header class="st-head">
-        <button type="button" id="settingsBack" class="st-icon" hidden data-i18n-attr="title:st.back">‹</button>
-        <h2 id="settingsTitle"></h2>
-        <button type="button" class="st-icon" data-st-close data-i18n-attr="title:close">✕</button>
-      </header>
-      <div id="settingsBody"></div>
-      <div id="settingsBackup" class="st-backup">
-        <!-- 导出备份暂时隐藏，代码保留，后续再开放：去掉 hidden 即可 -->
-        <button id="exportBtn" type="button" class="st-row" hidden>
-          <span><b data-i18n="exportBackup">导出备份</b><small data-i18n="st.exportSub"></small></span><i aria-hidden="true">↓</i>
-        </button>
-        <button type="button" class="st-row" data-export-account>
-          <span><b data-i18n="me.exportData">下载我的数据</b><small data-i18n="st.exportDataSub"></small></span><i aria-hidden="true">↓</i>
-        </button>
-        <a class="st-row" id="settingsLegal" href="legal.html" target="_blank" rel="noopener">
-          <span><b data-i18n="me.legal">条款与隐私</b></span><i aria-hidden="true">↗</i>
-        </a>
-        <button type="button" class="st-row st-danger" data-delete-account data-st-close>
-          <span><b data-i18n="me.deleteAccount">注销账号</b><small data-i18n="st.deleteSub"></small></span><i aria-hidden="true">›</i>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 手机：底部标签栏 -->
-  <nav id="tabbar" data-i18n-attr="aria-label:mainNav">
-    <button data-drop="footprints" aria-expanded="false">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.1-6.5-11a6.5 6.5 0 0 1 13 0c0 4.9-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></svg><span data-i18n="footprints">足迹</span>
-    </button>
-    <button data-drop="friends" aria-expanded="false">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5" /><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7" /></svg><span data-i18n="friends">好友</span><i class="tb-dot" hidden></i>
-    </button>
-    <button data-drop="feed" aria-expanded="false">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 9.5h16M8 13h5M8 16h8" /></svg><span data-i18n="feed">动态</span><i class="tb-dot" hidden></i>
-    </button>
-  </nav>
-  <div id="scrim" hidden></div>
-
-  <main id="map" data-level="world"></main>
-  <div id="loading" hidden data-i18n="loading">加载中…</div>
-
-  <!-- 打卡明信片：正面是照片，背面是留言与「地址」（标准行政层级） -->
-  <div id="editor" hidden>
-    <div class="pc-backdrop"></div>
-    <article class="postcard" role="dialog" aria-modal="true" aria-labelledby="editName">
-      <div class="pc-paper">
-        <button id="closeEditor" class="pc-close" data-i18n-attr="title:close">×</button>
-
-        <section class="pc-front" id="photoDrop">
-          <div id="photoGrid"></div>
-          <label class="pc-add">
-            <b>＋</b><span data-i18n="addPhotos">添加照片</span><small id="photoRoom" data-i18n="dropPhotos">或直接拖到明信片上</small>
-            <input id="photoInput" type="file" accept="image/*" multiple hidden />
-          </label>
-        </section>
-
-        <section class="pc-back">
-          <div class="pc-message">
-            <p class="pc-kicker" id="editKicker"></p>
-            <input id="editName" data-i18n-attr="placeholder:namePlaceholder" autocomplete="off" />
-            <textarea id="editNote" rows="4" data-i18n-attr="placeholder:notePlaceholder"></textarea>
-          </div>
-
-          <div class="pc-address">
-            <div class="stamp-wrap">
-              <button class="pc-stamp" id="stamp" type="button" data-i18n-attr="title:changeDate">
-                <span class="stamp-inner">
-                  <span class="st-level" id="stampLevel"></span>
-                  <span class="st-day" id="stampDay"></span>
-                  <span class="st-month" id="stampMonth"></span>
-                </span>
-              </button>
-            </div>
-            <input id="editDate" type="date" class="pc-date" tabindex="-1" data-i18n-attr="aria-label:dateLabel" />
-            <svg class="pc-postmark" viewBox="0 0 220 120" aria-hidden="true">
-              <defs><path id="pm-arc" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0" /></defs>
-              <circle cx="60" cy="60" r="56" />
-              <circle cx="60" cy="60" r="35" />
-              <text class="pm-ring"><textPath href="#pm-arc" data-i18n="postmarkRing">DEAR ELSEWHERE ✦ 致远方 ✦ DEAR ELSEWHERE ✦</textPath></text>
-              <text class="pm-center" x="60" y="64" text-anchor="middle" id="postmarkText"></text>
-              <path d="M122 38 q11 -7 22 0 t22 0 t22 0 t22 0" />
-              <path d="M122 60 q11 -7 22 0 t22 0 t22 0 t22 0" />
-              <path d="M122 82 q11 -7 22 0 t22 0 t22 0 t22 0" />
-            </svg>
-            <ol class="pc-lines" id="editAddress"></ol>
-          </div>
-        </section>
-
-        <section class="pc-marker" id="markerPicker" hidden>
-          <p class="pc-marker-title"><span data-i18n="markerTitle">ON THE MAP · 地图上的样子</span><small id="markerHint"></small></p>
-          <div class="mk-options" id="markerOptions"></div>
-          <div class="mk-config">
-            <label class="mk-field">
-              <span data-i18n="markerLabel">牌子上的文字</span>
-              <input id="markerLabel" maxlength="30" autocomplete="off" />
-              <button type="button" id="useName" hidden data-i18n="useName">改回地名</button>
-            </label>
-            <div class="mk-field">
-              <span data-i18n="markerIcon">插在地图上的图标</span>
-              <div class="mk-icons" id="markerIcons" role="group" data-i18n-attr="aria-label:iconGroup"></div>
-            </div>
-          </div>
-        </section>
-
-        <footer class="pc-foot">
-          <button id="deleteRecord" class="pc-delete" data-i18n="delete">删除</button>
-          <span class="pc-saved" id="savedHint" data-i18n="autosaved">✓ 已自动保存</span>
-          <button id="doneEditor" class="pc-done" data-i18n="done">收进足迹 →</button>
-        </footer>
-      </div>
-    </article>
-  </div>
-
-  <div id="lightbox" hidden><img alt="" /></div>
-  <div id="toast" role="status" hidden></div>
-
-  <!-- 一键截图：暗房里冲洗当前画面 -->
-  <div id="shot" hidden>
-    <div class="shot-backdrop"></div>
-    <section class="shot-panel" role="dialog" aria-modal="true" aria-labelledby="shotTitle">
-      <header class="shot-head">
-        <div><p data-i18n="darkroom">DARKROOM · 冲印这一页足迹</p><h2 id="shotTitle"></h2></div>
-        <button class="pc-close" id="shotClose" data-i18n-attr="title:close">×</button>
-      </header>
-      <div class="shot-stage">
-        <figure class="shot-print"><img id="shotImg" data-i18n-attr="alt:shotPreview" /><figcaption data-i18n="developing">显影中…</figcaption></figure>
-      </div>
-      <footer class="shot-foot">
-        <div class="shot-ratios" role="radiogroup" data-i18n-attr="aria-label:ratio">
-          <button type="button" role="radio" data-ratio="4:5"><i style="--w: 16px; --h: 20px"></i><span>4:5<small data-i18n="portrait">竖版</small></span></button>
-          <button type="button" role="radio" data-ratio="1:1"><i style="--w: 18px; --h: 18px"></i><span>1:1<small data-i18n="square">方形</small></span></button>
-          <button type="button" role="radio" data-ratio="9:16"><i style="--w: 12px; --h: 21px"></i><span>9:16<small data-i18n="story">故事</small></span></button>
+      <div class="hero-copy">
+        <p class="kicker">PAR AVION · <span data-lang="zh">旅行手账</span><span data-lang="en">a travel journal</span></p>
+        <h1>
+          <span data-lang="zh">把去过的地方，<br />盖成一枚<em>邮戳</em>。</span>
+          <span data-lang="en">Every place you've been,<br />pressed into a <em>postmark</em>.</span>
+        </h1>
+        <p class="lead">
+          <span data-lang="zh">Dear Elsewhere 是一本铺在世界地图上的旅行手账。按住地图盖个章，给那里写一张带照片的明信片，再把它寄给好友。</span>
+          <span data-lang="en">Dear Elsewhere is a travel journal laid over a world map. Press and hold to stamp a place, write it a postcard with photos, and send it to your friends.</span>
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-accent" href="/app/">
+            <span data-lang="zh">进入 Dear Elsewhere</span><span data-lang="en">Open Dear Elsewhere</span> →
+          </a>
+          <a class="btn btn-ghost" href="#guide"><span data-lang="zh">先看看怎么玩</span><span data-lang="en">See how it works</span></a>
         </div>
-        <button class="au-submit shot-save" id="shotSave" type="button"><span data-i18n="saveImage">保存图片</span><b aria-hidden="true">↓</b></button>
-      </footer>
+        <p class="hero-note">
+          <span data-lang="zh">✦ 目前仅限受邀用户注册，请向邀请你的朋友要一个邀请码</span>
+          <span data-lang="en">✦ Invite-only for now — ask the friend who invited you for a code</span>
+        </p>
+      </div>
+
+      <!-- 一张盖了章的航空信 -->
+      <div class="hero-art" aria-hidden="true">
+        <div class="envelope">
+          <div class="env-paper">
+            <div class="env-stamp"><img src="/brand/stamp@2x.png" alt="" /></div>
+            <p class="env-to">To · <span class="hand">Elsewhere</span></p>
+            <p class="env-line">Kyoto · Lisbon · Reykjavík</p>
+            <p class="env-line">Cambridge · 大理 · Valparaíso</p>
+            <p class="env-line short">PAR AVION</p>
+            <div class="postmark">
+              <svg viewBox="0 0 200 200">
+                <defs><path id="pm-ring" d="M100 100 m-74 0 a74 74 0 1 1 148 0 a74 74 0 1 1 -148 0" /></defs>
+                <circle class="pm-outer" cx="100" cy="100" r="92" />
+                <circle class="pm-inner" cx="100" cy="100" r="60" />
+                <text class="pm-text"><textPath href="#pm-ring">DEAR ELSEWHERE ✦ 致远方 ✦ DEAR ELSEWHERE ✦ PAR AVION ✦</textPath></text>
+              </svg>
+              <span class="pm-date" data-today>29 · OCT · 2026</span>
+              <span class="pm-ink"></span>
+            </div>
+          </div>
+        </div>
+        <div class="polaroid p1"><img src="/avatars/a12.svg" alt="" /><span>✦ first stamp</span></div>
+        <div class="polaroid p2"><img src="/avatars/a33.svg" alt="" /><span>with friends</span></div>
+      </div>
     </section>
-  </div>
 
-  <!-- 账号：登录 / 注册（航空信）与首次填写资料（旅行护照），内容由 src/auth.js 渲染 -->
-  <div id="auth" data-view="checking">
-    <div class="au-backdrop"></div>
-    <div class="au-stage" id="authStage"></div>
-  </div>
+    <div class="stripe" aria-hidden="true"></div>
 
-  <script type="module" src="/src/main.js"></script>
+    <!-- ================= 能做什么 ================= -->
+    <section class="features">
+      <article>
+        <i class="f-ic">✺</i>
+        <h3><span data-lang="zh">按住盖章</span><span data-lang="en">Hold to stamp</span></h3>
+        <p><span data-lang="zh">从国家逐级走进城市，在地图上按住任意位置，一枚邮戳「啪」地落下。</span><span data-lang="en">Drill from country to city, then press and hold anywhere — a postmark lands with a thud.</span></p>
+      </article>
+      <article>
+        <i class="f-ic">✉</i>
+        <h3><span data-lang="zh">写明信片</span><span data-lang="en">Write a postcard</span></h3>
+        <p><span data-lang="zh">每个地方装下 5 张最心动的照片、一句话和日期，挑一个路牌、霓虹或图钉立在地图上。</span><span data-lang="en">Five favourite photos, a line and a date — then pick a sign, neon or pin to plant on the map.</span></p>
+      </article>
+      <article>
+        <i class="f-ic">☍</i>
+        <h3><span data-lang="zh">寄给好友</span><span data-lang="en">Send to friends</span></h3>
+        <p><span data-lang="zh">带照片的章会寄到好友的信箱；评论像小纸条一样轻轻飘在地图标记上。</span><span data-lang="en">Stamps with photos arrive in friends' feeds; comments drift like tiny notes over the map marker.</span></p>
+      </article>
+      <article>
+        <i class="f-ic">◐</i>
+        <h3><span data-lang="zh">冲印一座城</span><span data-lang="en">Print a city</span></h3>
+        <p><span data-lang="zh">在暗房里把一座城市的足迹冲印成竖版、方形或故事比例的图片，保存或分享。</span><span data-lang="en">In the darkroom, print a whole city of footprints as a portrait, square or story image.</span></p>
+      </article>
+    </section>
+
+    <!-- ================= 教程 ================= -->
+    <section class="section" id="guide">
+      <header class="sec-head">
+        <p class="kicker">HOW TO · <span data-lang="zh">使用教程</span><span data-lang="en">a short guide</span></p>
+        <h2><span data-lang="zh">从拿到邀请码，到寄出第一张明信片</span><span data-lang="en">From invite code to your first postcard</span></h2>
+      </header>
+
+      <ol class="steps">
+        <li class="step">
+          <span class="step-no">01</span>
+          <div>
+            <h3><span data-lang="zh">注册账号</span><span data-lang="en">Sign up</span></h3>
+            <p data-lang="zh">点「注册」，填写<b>邀请码</b>、邮箱和至少 <b>8 位</b>的密码，勾选同意条款（需年满 16 周岁）。我们会寄一封验证邮件，点开里面的链接就完成了。</p>
+            <p data-lang="en">Tap “Sign up” and enter your <b>invite code</b>, email and a password of at least <b>8 characters</b>, and accept the terms (16+). Open the link in the verification email and you're in.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">02</span>
+          <div>
+            <h3><span data-lang="zh">签发你的旅行护照</span><span data-lang="en">Issue your passport</span></h3>
+            <p data-lang="zh">第一次登录要填护照资料：一个 <b>ID</b>（3–20 位小写字母、数字或下划线，好友靠它找到你）、名字、国家，出生地和生日选填（生日只有自己可见）。系统会随机分配一位普通旅伴当头像，可以一直换到满意为止。</p>
+            <p data-lang="en">On first sign-in, fill in your passport: an <b>ID</b> (3–20 lowercase letters, digits or _ — friends find you by it), a name and a nationality. Place of birth and birthday are optional (birthday stays private). You get a random Common companion as your avatar — shuffle until you like it.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">03</span>
+          <div>
+            <h3><span data-lang="zh">一层层走进地图</span><span data-lang="en">Walk into the map</span></h3>
+            <p data-lang="zh">点地图上的国家，进入省 / 州，再进入城市。也可以直接在左上角搜索国家、城市，甚至具体地点（比如 King's College Chapel）。</p>
+            <p data-lang="en">Click a country to enter its regions, then its cities. Or search from the top-left for countries, cities and even specific places (e.g. King's College Chapel).</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">04</span>
+          <div>
+            <h3><span data-lang="zh">按住，盖章</span><span data-lang="en">Press, hold, stamp</span></h3>
+            <p data-lang="zh">在城市里<b>按住地图任意位置</b>，墨圈走完一圈，邮戳就落下了。中途松手会取消。搜索到的地点可以直接点「盖个章」。</p>
+            <p data-lang="en">Inside a city, <b>press and hold anywhere on the map</b>. When the ink ring closes, the postmark lands; let go early to cancel. Searched places have a “Stamp it” button.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">05</span>
+          <div>
+            <h3><span data-lang="zh">写一张明信片</span><span data-lang="en">Write the postcard</span></h3>
+            <p data-lang="zh">盖章后会翻开一张明信片：正面放照片（最多 <b>5 张</b>，可设封面），背面写名字、一句话、日期，再挑选地图上的样式——路牌、旗帜、霓虹、印章或图钉，以及咖啡、博物馆、海边等图标。内容会自动保存。</p>
+            <p data-lang="en">A postcard opens: photos on the front (up to <b>5</b>, with a cover), and on the back a name, a line, the date, and how it looks on the map — sign, flag, neon, stamp or pin, plus icons like coffee, museum or beach. Everything autosaves.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">06</span>
+          <div>
+            <h3><span data-lang="zh">加好友</span><span data-lang="en">Add friends</span></h3>
+            <p data-lang="zh">打开「好友」，输入对方的 ID 发送申请，对方接受后就能互相看到所有章和照片。打开「在地图上显示好友的足迹」，好友的明信片会叠在你的地图上；也可以只看某一位。</p>
+            <p data-lang="en">Open “Friends”, enter their ID and send a request. Once accepted, you see each other's stamps and photos. Turn on “Show friends on my map” to overlay their postcards — or show just one friend.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">07</span>
+          <div>
+            <h3><span data-lang="zh">动态与评论</span><span data-lang="en">Feed &amp; comments</span></h3>
+            <p data-lang="zh">只有<b>带照片</b>的章才会作为明信片寄到好友的「动态」里，单纯盖章不会打扰别人。好友可以评论，评论会以走马灯的小纸条形式出现在地图标记上。</p>
+            <p data-lang="en">Only stamps <b>with photos</b> are sent to friends' feeds as postcards — a bare stamp stays quiet. Friends can comment, and comments scroll as tiny notes on the map marker.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">08</span>
+          <div>
+            <h3><span data-lang="zh">私信与群聊</span><span data-lang="en">Messages &amp; groups</span></h3>
+            <p data-lang="zh">和好友互寄航空信：发文字、emoji，或把自己的章转发过去，能看到对方是否已读。也可以拉好友建群（最多 20 人），群消息只有群成员可见。</p>
+            <p data-lang="en">Trade airmail with friends: text, emoji, or one of your stamps, with read receipts. Start a group of up to 20 friends — group messages are visible to members only.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">09</span>
+          <div>
+            <h3><span data-lang="zh">冲印城市截图</span><span data-lang="en">Print a snapshot</span></h3>
+            <p data-lang="zh">在城市页点「截图」进入暗房，选择竖版、方形或故事比例，把这座城里所有去过的地方冲印成一张图，保存到本地。</p>
+            <p data-lang="en">On a city, tap “Snapshot” to enter the darkroom. Choose portrait, square or story and print every place you've been there into a single image.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-no">10</span>
+          <div>
+            <h3><span data-lang="zh">设置与数据</span><span data-lang="en">Settings &amp; data</span></h3>
+            <p data-lang="zh">在头像菜单的「设置」里切换语言和五套邮政主题色（航空信、海岸明信片、森林邮局、暗房胶片、夜航），按年份和地点打包下载照片，下载账号数据，或注销账号。</p>
+            <p data-lang="en">In Settings (under your avatar), switch language and one of five postal themes — Airmail, Coastal postcard, Forest post, Darkroom, Night flight — download photos by year and place, export your data, or delete your account.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="themes" aria-hidden="true">
+        <span data-theme="airmail"><i></i><i></i><i></i></span>
+        <span data-theme="coast"><i></i><i></i><i></i></span>
+        <span data-theme="forest"><i></i><i></i><i></i></span>
+        <span data-theme="darkroom"><i></i><i></i><i></i></span>
+        <span data-theme="night"><i></i><i></i><i></i></span>
+      </div>
+    </section>
+
+
+    <!-- ================= 最近更新 + 旅伴图鉴 ================= -->
+    <section class="section" id="updates">
+      <header class="sec-head">
+        <p class="kicker">LATEST POST · <span data-lang="zh">最近更新</span><span data-lang="en">what's new</span></p>
+        <h2><span data-lang="zh">邮局最近添了些什么</span><span data-lang="en">New at the post office</span></h2>
+      </header>
+
+      <div class="updates">
+        <ol class="timeline">
+          <li>
+            <time>2026 · 10 · 29</time>
+            <span class="tag tag-new">NEW</span>
+            <h3><span data-lang="zh">稀有旅伴登场</span><span data-lang="en">Rare companions arrive</span></h3>
+            <p data-lang="zh">旅伴从 60 位扩充到 236 位，分为普通、高级、稀有、传说四档。每天可以抽 3 次，抽到喜欢的就换上。</p>
+            <p data-lang="en">Companions grow from 60 to 236 across four tiers: Common, Premium, Rare and Legendary. Draw 3 times a day and wear the ones you love.</p>
+          </li>
+          <li>
+            <time>2026 · 10 · 29</time>
+            <span class="tag tag-new">NEW</span>
+            <h3><span data-lang="zh">护照加上出生地，ID 可以每 7 天改一次</span><span data-lang="en">Place of birth, and IDs change every 7 days</span></h3>
+            <p data-lang="zh">护照资料新增选填的出生地；ID 的修改间隔从 30 天缩短为 7 天。</p>
+            <p data-lang="en">Passports gain an optional place of birth, and you can now change your ID every 7 days instead of 30.</p>
+          </li>
+          <li>
+            <time>2026 · 10 · 29</time>
+            <h3><span data-lang="zh">群聊、主题色与数据下载</span><span data-lang="en">Groups, themes and data export</span></h3>
+            <p data-lang="zh">最多 20 人的群聊，能看到几人已读，可以转发章、拉人和移出；五套邮政主题色；按年份和地点打包下载照片、下载账号数据、注销账号。</p>
+            <p data-lang="en">Group chats of up to 20 with read counts, stamp sharing, invites and removals; five postal colour themes; photo zips by year and place, data export and account deletion.</p>
+          </li>
+          <li>
+            <time>2026 · 10 · 29</time>
+            <h3><span data-lang="zh">邀请制注册与安全加固</span><span data-lang="en">Invite-only sign-up and hardening</span></h3>
+            <p data-lang="zh">注册需要邀请码和邮箱验证；上线每日额度与频率限制；照片上传自动去除 GPS 信息。</p>
+            <p data-lang="en">Sign-up now needs an invite code and a verified email; daily quotas and rate limits are in place; photo GPS data is stripped on upload.</p>
+          </li>
+          <li>
+            <time>2026 · 10 · 28</time>
+            <h3><span data-lang="zh">旅程航线、已读回执和新 Logo</span><span data-lang="en">Journeys, read receipts and a new logo</span></h3>
+            <p data-lang="zh">在不同城市盖章后，地图会连出你的旅程航线，可以按年份回放、切换交通工具；私信显示已读；换上了新的航空邮票 Logo。</p>
+            <p data-lang="en">Stamp two cities and your journeys appear as routes you can replay by year and switch vehicles on; messages show read receipts; and a new airmail-stamp logo.</p>
+          </li>
+          <li>
+            <time>2026 · 10 · 28</time>
+            <h3><span data-lang="zh">Dear Elsewhere 第一封信</span><span data-lang="en">The first letter</span></h3>
+            <p data-lang="zh">足迹地图、按住盖章、明信片、好友、动态与评论、城市截图。</p>
+            <p data-lang="en">The footprint map, hold-to-stamp, postcards, friends, feed and comments, and city snapshots.</p>
+          </li>
+        </ol>
+
+        <!-- 旅伴图鉴：按稀有度切换，头像由 site.js 填充 -->
+        <aside class="dex" aria-labelledby="dexTitle">
+          <div class="dex-bar">
+            <i></i><i></i><i></i>
+            <b id="dexTitle"><span data-lang="zh">旅伴图鉴</span><span data-lang="en">Companion catalogue</span></b>
+          </div>
+          <div class="dex-tabs" role="tablist">
+            <button type="button" role="tab" data-tier="3"><span data-lang="zh">传说</span><span data-lang="en">Legendary</span></button>
+            <button type="button" role="tab" data-tier="2"><span data-lang="zh">稀有</span><span data-lang="en">Rare</span></button>
+            <button type="button" role="tab" data-tier="1"><span data-lang="zh">高级</span><span data-lang="en">Premium</span></button>
+            <button type="button" role="tab" data-tier="0"><span data-lang="zh">普通</span><span data-lang="en">Common</span></button>
+          </div>
+          <div class="dex-stage" role="tabpanel">
+            <div class="dex-hero"><img id="dexHero" alt="" /></div>
+            <p class="dex-meta"><b id="dexOdds"></b><span id="dexCount"></span></p>
+            <div class="dex-grid" id="dexGrid"></div>
+          </div>
+          <p class="dex-foot">
+            <span data-lang="zh">每天抽 3 次 · 普通 70% · 高级 20% · 稀有 8% · 传说 2%</span>
+            <span data-lang="en">3 draws a day · Common 70% · Premium 20% · Rare 8% · Legendary 2%</span>
+          </p>
+          <small class="dex-credit">Avatars by DiceBear: Notionists (Zoish) · Thumbs · Bottts (Pablo Stanley)</small>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= 规则与限制 ================= -->
+    <section class="section section-ledger" id="rules">
+      <header class="sec-head">
+        <p class="kicker">POSTAL REGULATIONS · <span data-lang="zh">邮局规章</span><span data-lang="en">house rules</span></p>
+        <h2><span data-lang="zh">慢一点，才寄得远</span><span data-lang="en">Slow mail travels further</span></h2>
+        <p class="sec-lead">
+          <span data-lang="zh">为了让每一张明信片都值得被寄出，也为了保护服务不被滥用，Dear Elsewhere 设了一些额度。超出时会有提示，第二天自动恢复。</span>
+          <span data-lang="en">So every postcard is worth sending — and to keep the service safe from abuse — Dear Elsewhere has a few quotas. You'll see a note when you hit one; it resets the next day.</span>
+        </p>
+      </header>
+
+      <div class="tickets">
+        <div class="ticket">
+          <b>10</b><small data-lang="zh">个地点 / 天</small><small data-lang="en">places / day</small>
+          <p data-lang="zh">每天最多盖 10 个章。慢一点，把脚步留一些给明天。</p>
+          <p data-lang="en">Up to 10 stamps a day. Save some footsteps for tomorrow.</p>
+        </div>
+        <div class="ticket">
+          <b>5</b><small data-lang="zh">张照片 / 地点</small><small data-lang="en">photos / place</small>
+          <p data-lang="zh">一张明信片只装得下 5 张，请精心挑选最打动你的那几张。</p>
+          <p data-lang="en">A postcard holds five. Choose the ones that moved you most.</p>
+        </div>
+        <div class="ticket">
+          <b>50</b><small data-lang="zh">张照片 / 24 小时</small><small data-lang="en">photos / 24 h</small>
+          <p data-lang="zh">今天的「胶卷」。删掉再传也会计数，额度逐张滚动恢复。</p>
+          <p data-lang="en">Today's roll of film. Deleted-and-reuploaded photos still count; frames return on a rolling basis.</p>
+        </div>
+        <div class="ticket">
+          <b>20</b><small data-lang="zh">人 / 群</small><small data-lang="en">people / group</small>
+          <p data-lang="zh">每个群最多 20 人（含群主），每天最多新建 10 个群。</p>
+          <p data-lang="en">Up to 20 per group, owner included; up to 10 new groups a day.</p>
+        </div>
+      </div>
+
+      <div class="ledger">
+        <table>
+          <thead>
+            <tr>
+              <th><span data-lang="zh">项目</span><span data-lang="en">What</span></th>
+              <th><span data-lang="zh">限制</span><span data-lang="en">Limit</span></th>
+              <th><span data-lang="zh">说明</span><span data-lang="en">Notes</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span data-lang="zh">盖章</span><span data-lang="en">Stamps</span></td>
+              <td><span data-lang="zh">每天 10 个</span><span data-lang="en">10 per day</span></td>
+              <td><span data-lang="zh">按账号所在时区的自然日计算</span><span data-lang="en">Counted by calendar day in your account's time zone</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">照片</span><span data-lang="en">Photos</span></td>
+              <td><span data-lang="zh">每个地点 5 张；任意 24 小时 50 张；总共 1000 张</span><span data-lang="en">5 per place; 50 in any 24 h; 1,000 in total</span></td>
+              <td><span data-lang="zh">上传时自动压缩（长边 1600 像素），并去除 GPS 等 EXIF 信息</span><span data-lang="en">Resized to 1600 px on the long edge; GPS and other EXIF data removed</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">评论</span><span data-lang="en">Comments</span></td>
+              <td><span data-lang="zh">每分钟 10 条；每天 300 条</span><span data-lang="en">10 / min; 300 / day</span></td>
+              <td><span data-lang="zh">发太快会提示「歇一口气再发」</span><span data-lang="en">Too fast? You'll be asked to take a breath</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">私信与群聊</span><span data-lang="en">Messages &amp; groups</span></td>
+              <td><span data-lang="zh">每分钟 30 条；每天 2000 条</span><span data-lang="en">30 / min; 2,000 / day</span></td>
+              <td><span data-lang="zh">私信和群消息合并计算</span><span data-lang="en">Direct and group messages count together</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">好友申请</span><span data-lang="en">Friend requests</span></td>
+              <td><span data-lang="zh">每天 30 个；待处理最多 50 个</span><span data-lang="en">30 / day; 50 pending</span></td>
+              <td><span data-lang="zh">等对方回应一些后，再发新的</span><span data-lang="en">Wait for some replies before sending more</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">群聊</span><span data-lang="en">Groups</span></td>
+              <td><span data-lang="zh">每群 20 人；每天建 10 个</span><span data-lang="en">20 members; 10 new / day</span></td>
+              <td><span data-lang="zh">新成员看不到入群前的消息</span><span data-lang="en">New members can't see earlier messages</span></td>
+            </tr>
+            <tr>
+              <td>ID</td>
+              <td><span data-lang="zh">3–20 位；7 天改一次</span><span data-lang="en">3–20 chars; once every 7 days</span></td>
+              <td><span data-lang="zh">只能用小写字母、数字和下划线，不能和别人重复</span><span data-lang="en">Lowercase letters, digits and _ only; must be unique</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">抽旅伴</span><span data-lang="en">Companion draws</span></td>
+              <td><span data-lang="zh">每天 3 次</span><span data-lang="en">3 per day</span></td>
+              <td><span data-lang="zh">抽到后可以换上，也可以保留原来的头像</span><span data-lang="en">Use the new one or keep your current avatar</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">时区</span><span data-lang="en">Time zone</span></td>
+              <td><span data-lang="zh">24 小时内改一次</span><span data-lang="en">Once per 24 h</span></td>
+              <td><span data-lang="zh">「每天」以账号时区为准，跟随浏览器自动上报</span><span data-lang="en">“A day” follows your account time zone, reported by your browser</span></td>
+            </tr>
+            <tr>
+              <td><span data-lang="zh">注册</span><span data-lang="en">Sign-up</span></td>
+              <td><span data-lang="zh">邀请码 · 年满 16 岁 · 邮箱验证</span><span data-lang="en">Invite code · 16+ · verified email</span></td>
+              <td><span data-lang="zh">密码至少 8 位；邀请码查询有频率限制</span><span data-lang="en">Password ≥ 8 characters; invite checks are rate-limited</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rules-grid">
+        <div class="rule-card">
+          <h3><span data-lang="zh">谁能看到什么</span><span data-lang="en">Who sees what</span></h3>
+          <ul data-lang="zh">
+            <li>所有登录用户：你的 ID、名字、国家和头像</li>
+            <li>好友：你盖的全部章和照片</li>
+            <li>私信只有双方可见，群聊只有群成员可见</li>
+            <li>邮箱和生日：只有你自己</li>
+          </ul>
+          <ul data-lang="en">
+            <li>Every signed-in user: your ID, name, nationality and avatar</li>
+            <li>Friends: all your stamps and photos</li>
+            <li>Messages: only the two of you; groups: only members</li>
+            <li>Email and birthday: only you</li>
+          </ul>
+        </div>
+        <div class="rule-card">
+          <h3><span data-lang="zh">请遵守</span><span data-lang="en">Please</span></h3>
+          <ul data-lang="zh">
+            <li>只上传你有权分享的照片和文字</li>
+            <li>不侵犯他人隐私，不骚扰他人</li>
+            <li>不攻击、不爬取、不滥用服务</li>
+            <li>违反规则的账号可能被限制或停用</li>
+          </ul>
+          <ul data-lang="en">
+            <li>Only upload photos and words you have the right to share</li>
+            <li>Respect others' privacy; don't harass anyone</li>
+            <li>Don't attack, scrape or abuse the service</li>
+            <li>Accounts that break the rules may be limited or suspended</li>
+          </ul>
+        </div>
+        <div class="rule-card">
+          <h3><span data-lang="zh">你的数据</span><span data-lang="en">Your data</span></h3>
+          <ul data-lang="zh">
+            <li>内容归你所有，不投广告、不出售数据</li>
+            <li>随时可在「设置 → 数据」下载照片与账号数据</li>
+            <li>注销账号会立即永久删除所有数据</li>
+            <li>免费且按现状提供，请定期下载备份；如停止运营，至少提前 30 天通知</li>
+          </ul>
+          <ul data-lang="en">
+            <li>Your content stays yours — no ads, no selling data</li>
+            <li>Download photos and data anytime in Settings → Data</li>
+            <li>Deleting your account removes everything permanently</li>
+            <li>Free and as-is: keep backups. If it ever shuts down, you'll get 30 days' notice</li>
+          </ul>
+        </div>
+      </div>
+      <p class="legal-link">
+        <a href="/legal.html"><span data-lang="zh">阅读完整的服务条款与隐私政策 ↗</span><span data-lang="en">Read the full Terms of Service &amp; Privacy Policy ↗</span></a>
+      </p>
+    </section>
+
+    <!-- ================= 常见问题 ================= -->
+    <section class="section" id="faq">
+      <header class="sec-head">
+        <p class="kicker">QUESTIONS · <span data-lang="zh">常见问题</span><span data-lang="en">frequently asked</span></p>
+        <h2><span data-lang="zh">寄信前，你可能想知道</span><span data-lang="en">Before you post</span></h2>
+      </header>
+      <div class="faq">
+        <details>
+          <summary><span data-lang="zh">怎么拿到邀请码？</span><span data-lang="en">How do I get an invite code?</span></summary>
+          <p data-lang="zh">Dear Elsewhere 目前是朋友之间的小站，请向邀请你的朋友要一个邀请码。</p>
+          <p data-lang="en">Dear Elsewhere is a small place among friends for now — ask the friend who invited you.</p>
+        </details>
+        <details>
+          <summary><span data-lang="zh">收不到验证邮件怎么办？</span><span data-lang="en">The verification email never came.</span></summary>
+          <p data-lang="zh">先看看垃圾邮件文件夹，再在注册页点「没收到？重新发送」。一直收不到的话，请联系邀请你的朋友。</p>
+          <p data-lang="en">Check your spam folder, then tap “Didn't get it? Resend”. If it still doesn't arrive, tell the friend who invited you.</p>
+        </details>
+        <details>
+          <summary><span data-lang="zh">为什么我盖的章没有出现在好友动态里？</span><span data-lang="en">Why didn't my stamp show up in friends' feeds?</span></summary>
+          <p data-lang="zh">只有带照片的章才会作为明信片寄出。给这个地方加上至少一张照片，点「收进足迹 · 寄给好友」即可。</p>
+          <p data-lang="en">Only stamps with photos are sent as postcards. Add at least one photo, then tap “Keep &amp; send to friends”.</p>
+        </details>
+        <details>
+          <summary><span data-lang="zh">没网的时候能用吗？</span><span data-lang="en">Does it work offline?</span></summary>
+          <p data-lang="zh">可以浏览已经加载的内容；盖章和加照片需要联网。已有的修改会排队，联网后自动同步到云端。</p>
+          <p data-lang="en">You can browse what's already loaded; stamping and adding photos need a connection. Pending changes queue up and sync once you're online.</p>
+        </details>
+        <details>
+          <summary><span data-lang="zh">超出额度会怎样？</span><span data-lang="en">What happens when I hit a limit?</span></summary>
+          <p data-lang="zh">会弹出一句提示，告诉你什么时候恢复。照片额度是按 24 小时滚动的，其余每日额度按账号时区的第二天恢复；没传完的内容会自动续传。</p>
+          <p data-lang="en">You'll see a note saying when it resets. Photo frames return on a rolling 24-hour basis; other daily limits reset the next day in your time zone, and unfinished uploads resume automatically.</p>
+        </details>
+        <details>
+          <summary><span data-lang="zh">能下载原图吗？</span><span data-lang="en">Can I download my original photos?</span></summary>
+          <p data-lang="zh">云端保存的是压缩后的版本（长边 1600 像素）。在「设置 → 下载照片」可按年份和地点打包成 zip，原图请自己保管。</p>
+          <p data-lang="en">The cloud keeps resized copies (1600 px long edge). Settings → Download photos packs them into a zip by year and place — keep your originals yourself.</p>
+        </details>
+        <details>
+          <summary><span data-lang="zh">怎么注销账号？</span><span data-lang="en">How do I delete my account?</span></summary>
+          <p data-lang="zh">头像菜单 → 设置 → 注销账号。所有数据会立即永久删除，建议先下载照片和数据。</p>
+          <p data-lang="en">Avatar menu → Settings → Delete account. Everything is permanently removed at once, so download your photos and data first.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ================= 结尾 ================= -->
+    <section class="closing">
+      <div class="closing-card">
+        <p class="kicker">PAR AVION</p>
+        <h2><span data-lang="zh">去下一个地方之前，<br />先把上一个盖成邮戳。</span><span data-lang="en">Before the next place,<br />stamp the last one.</span></h2>
+        <a class="btn btn-accent btn-lg" href="/app/"><span data-lang="zh">进入 Dear Elsewhere</span><span data-lang="en">Open Dear Elsewhere</span> →</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="stripe" aria-hidden="true"></div>
+    <div class="foot-in">
+      <span class="wordmark"><i>Dear</i> Elsewhere</span>
+      <nav>
+        <a href="/app/"><span data-lang="zh">进入网站</span><span data-lang="en">Open app</span></a>
+        <a href="#guide"><span data-lang="zh">教程</span><span data-lang="en">Guide</span></a>
+        <a href="#updates"><span data-lang="zh">最近更新</span><span data-lang="en">What's new</span></a>
+        <a href="#rules"><span data-lang="zh">规则</span><span data-lang="en">Rules</span></a>
+        <a href="/legal.html"><span data-lang="zh">条款与隐私</span><span data-lang="en">Terms &amp; privacy</span></a>
+        <a href="mailto:privacy@dear-elsewhere.com">privacy@dear-elsewhere.com</a>
+      </nav>
+      <small>© 2026 Dear Elsewhere · 致远方</small>
+    </div>
+  </footer>
 </body>
 </html>

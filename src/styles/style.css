@@ -516,3 +516,20 @@ button, input, textarea { font: inherit; }
   .mk-field, .mk-field:has(.mk-icons) { grid-template-columns: 1fr auto; }
   .mk-field > span { grid-column: 1 / -1; }
 }
+
+/* 出生地：一枚圆形的「出生」邮戳，压在其他标记下面 */
+.birth-anchor { background: none; border: none; }
+.birth-mark {
+  position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: 2px;
+  translate: -50% -50%; pointer-events: none;
+}
+.birth-mark svg {
+  box-sizing: content-box; width: 18px; height: 18px; padding: 6px;
+  fill: none; stroke: #2f6f5b; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round;
+  background: #f4f8ef; border: 1.5px dashed #2f6f5b; border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(244, 248, 239, .9), 0 4px 10px -4px rgba(42, 39, 35, .5);
+}
+.birth-mark span {
+  padding: 0 6px; white-space: nowrap; font: 700 10.5px/1.6 "Noto Serif SC", "Songti SC", serif; letter-spacing: .08em;
+  color: #2f6f5b; background: rgba(244, 248, 239, .92); border-radius: 3px;
+}

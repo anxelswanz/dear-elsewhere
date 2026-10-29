@@ -198,3 +198,51 @@
   #toast { bottom: calc(76px + env(safe-area-inset-bottom)); }
   .map-btn span { display: none; }
 }
+
+/* ---------- 动态组：同一个人 72 小时内的动态 ---------- */
+.post-fly-in { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; background: var(--card); }
+.post-card .post-text { padding-right: 26px; }
+/* 「不看 TA 的动态」：平时淡一些，悬停整条动态时才清楚 */
+.post-mute { margin-left: auto; border-color: transparent; opacity: .45; transition: opacity .15s, color .15s, border-color .15s; }
+.post:hover .post-mute, .post-mute:focus-visible { opacity: 1; border-color: var(--rule); }
+.post > header .person-text { flex: 1; }
+.pg-new {
+  flex: none; padding: 1px 8px; font: 700 11px/1.6 -apple-system, "PingFang SC", sans-serif; font-style: normal;
+  color: #fff; background: var(--air-red); border-radius: 999px;
+}
+.pg-title { margin: -2px 0 10px; font: italic 13px var(--serif-en), var(--serif-zh); color: var(--ink-soft); }
+.pg-strip { display: flex; gap: 6px; margin-top: 10px; }
+.pg-thumb {
+  display: grid; flex: none; place-items: center; width: 44px; height: 44px; padding: 3px; cursor: pointer;
+  background: var(--card); border: none; border-radius: 3px; box-shadow: 0 0 0 1px var(--rule), 0 4px 8px -6px rgba(42, 39, 35, .6);
+  transition: translate .15s;
+}
+.pg-thumb:nth-child(odd) { rotate: -2deg; }
+.pg-thumb:nth-child(even) { rotate: 2deg; }
+.pg-thumb:hover { translate: 0 -2px; }
+.pg-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
+.pg-more { font: 600 12px var(--serif-en); color: var(--ink-soft); cursor: default; }
+.pg-comments { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; overflow: hidden; font-size: 12.5px; white-space: nowrap; }
+.pg-comments span { flex: none; color: var(--ink-soft); }
+.pg-comments img { flex: none; width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 0 1px var(--rule); }
+.pg-comments b { flex: none; font-weight: 600; }
+.pg-toggle {
+  display: block; width: 100%; margin-top: 10px; padding: 8px 0; cursor: pointer;
+  font: 600 12.5px -apple-system, "PingFang SC", sans-serif; color: var(--ink);
+  background: var(--paper-2); border: 1px dashed var(--rule-strong); border-radius: 8px; transition: background .15s;
+}
+.pg-toggle:hover { background: var(--accent-soft); border-color: var(--accent); }
+/* 展开：竖向虚线把每一站串起来，像一段行程 */
+.pg-stops { position: relative; margin: 0; padding: 0 0 0 18px; list-style: none; }
+.pg-stops::before { content: ''; position: absolute; top: 6px; bottom: 18px; left: 5px; border-left: 1.5px dashed var(--rule-strong); }
+.pg-stop { position: relative; padding-bottom: 16px; scroll-margin-top: 8px; }
+.pg-stop::before {
+  content: ''; position: absolute; top: 4px; left: -17px; width: 9px; height: 9px;
+  background: var(--paper-hi); border: 2px solid var(--ink-soft); border-radius: 50%;
+}
+.pg-stop.fresh::before { border-color: var(--air-red); background: var(--air-red); }
+.pg-when { display: block; margin-bottom: 6px; font: 600 11px var(--serif-en); letter-spacing: .04em; color: var(--ink-soft); }
+.pg-stop.flash .post-card { animation: post-flash 1.4s ease; }
+.feed-muted { margin: 14px 0 4px; text-align: center; font-size: 12px; color: var(--ink-soft); }
+.fr-btn.fr-muted { color: var(--air-red); border-color: rgb(var(--red-rgb) / .4); }
+.post-group.fresh > header .person-text b::after { display: none; } /* 组用「新 N」代替 */

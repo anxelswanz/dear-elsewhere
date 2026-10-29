@@ -69,3 +69,10 @@
 
 /* 线条和规则线跟着文字颜色走 */
 :root { --rule: rgb(var(--ink-rgb) / .13); --rule-strong: rgb(var(--ink-rgb) / .27); }
+
+/* 始终是深色底的浮层（暗房截图、取景条、登录遮罩上的语言签）：文字用 --paper 系列当浅色，
+   夜航主题的纸面是深蓝，在这里换回浅色纸，否则深蓝字压在深色底上看不清 */
+#shot, .sf-bar, .sf-hint, .au-lang {
+  --paper: #f8f2e4; --paper-rgb: 248 242 228;
+  --paper-hi: #fbf8f1; --paper-hi-rgb: 251 248 241;
+}

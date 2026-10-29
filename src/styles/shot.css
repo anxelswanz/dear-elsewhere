@@ -83,3 +83,57 @@
   .shot-ratios button { flex: 1; justify-content: center; padding: 0 8px; }
   .shot-save { width: 100%; }
 }
+
+/* ---------- 取景相框：可拖动，相框外压暗但不挡地图 ---------- */
+#shotFrame { position: fixed; inset: 0; z-index: 1150; pointer-events: none; }
+#shotFrame[hidden] { display: none; }
+.sf-window {
+  position: fixed; pointer-events: auto; cursor: grab; touch-action: none;
+  border: 1.5px dashed rgb(var(--paper-hi-rgb) / .95); border-radius: 3px;
+  box-shadow: 0 0 0 100vmax rgba(26, 19, 16, .42), inset 0 0 0 1px rgba(26, 19, 16, .25);
+}
+.sf-window:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sf-window.dragging { cursor: grabbing; }
+.sf-corner { position: absolute; width: 18px; height: 18px; border: 3px solid var(--paper-hi); }
+.sf-corner.tl { top: -3px; left: -3px; border-right: 0; border-bottom: 0; }
+.sf-corner.tr { top: -3px; right: -3px; border-left: 0; border-bottom: 0; }
+.sf-corner.bl { bottom: -3px; left: -3px; border-right: 0; border-top: 0; }
+.sf-corner.br { bottom: -3px; right: -3px; border-left: 0; border-top: 0; }
+.sf-hint {
+  position: absolute; top: 10px; left: 50%; translate: -50% 0; padding: 4px 12px; white-space: nowrap; pointer-events: none;
+  font-size: 12px; color: var(--paper-hi); background: rgba(26, 19, 16, .62); border-radius: 999px;
+  transition: opacity .2s;
+}
+.sf-window.dragging .sf-hint { opacity: 0; }
+.sf-bar {
+  position: fixed; bottom: calc(18px + env(safe-area-inset-bottom)); left: 50%; translate: -50% 0;
+  display: flex; align-items: center; gap: 14px; padding: 10px; pointer-events: auto;
+  color: var(--paper); background: #1a1310; border-radius: 16px; box-shadow: 0 18px 40px -14px rgba(0, 0, 0, .7);
+}
+.sf-actions { display: flex; align-items: center; gap: 8px; }
+.sf-cancel {
+  height: 40px; padding: 0 14px; font: 500 13px -apple-system, "PingFang SC", sans-serif; cursor: pointer;
+  color: rgb(var(--paper-rgb) / .75); background: none; border: none; border-radius: 10px;
+}
+.sf-cancel:hover { color: var(--paper); background: rgb(var(--paper-rgb) / .1); }
+.sf-shoot { width: auto; min-width: 110px; margin: 0; padding: 0 20px; color: #1a1310; background: var(--paper); }
+.sf-shoot:hover { color: #fff; }
+/* 取景时收起右侧的地图按钮，画面更干净 */
+.shot-framing .leaflet-right { visibility: hidden; }
+
+/* 暗房里的「重新取景」 */
+.shot-reframe {
+  display: flex; align-items: center; gap: 7px; height: 44px; padding: 0 16px; cursor: pointer;
+  font: 500 13px -apple-system, "PingFang SC", sans-serif;
+  color: rgb(var(--paper-rgb) / .8); background: none; border: 1px solid rgb(var(--paper-rgb) / .2); border-radius: 12px;
+}
+.shot-reframe:hover { color: var(--paper); border-color: rgb(var(--paper-rgb) / .4); }
+.shot-reframe .ic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (max-width: 700px) {
+  .sf-bar { right: 10px; left: 10px; translate: none; flex-direction: column; align-items: stretch; gap: 8px; }
+  .sf-bar .shot-ratios button { flex: 1; justify-content: center; padding: 0 8px; }
+  .sf-actions { justify-content: space-between; }
+  .sf-shoot { flex: 1; }
+  .shot-reframe { justify-content: center; }
+}

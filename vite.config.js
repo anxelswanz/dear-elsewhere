@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => {
   else console.log(`\n▶ Dear Elsewhere · ${target === 'prod' ? '生产环境 PROD' : '测试环境 TEST'} · ${url}\n`);
 
   return {
+    // 两个页面：官网（/，介绍、教程、规则）和软件本身（/app/）
+    build: {
+      rollupOptions: {
+        input: { site: 'index.html', app: 'app/index.html' },
+      },
+    },
     define: {
       'import.meta.env.VITE_APP_ENV': JSON.stringify(target),
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(url),

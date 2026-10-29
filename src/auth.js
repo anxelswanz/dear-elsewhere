@@ -4,14 +4,22 @@ import { supabase, supabaseReady } from './supabase.js';
 import { playWelcome } from './welcome.js';
 import { t, lang, localName, langSwitch } from './i18n.js';
 import { applyAccountSettings } from './settings.js';
+import { limitText } from './limits.js';
 
-const AVATAR_COUNT = 60;
-const AVATARS = Array.from({ length: AVATAR_COUNT }, (_, i) => `a${String(i + 1).padStart(2, '0')}`);
+// 头像分四个稀有度，用文件名前缀区分（见 scripts/build-avatars.mjs 与 0013_avatars_birthplace.sql）。
+// 不能自己挑：注册时在普通头像里随机，之后每天抽 3 次
+const avatarIds = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
+const COMMON = avatarIds('a', 130);
+const ALL_AVATARS = [...COMMON, ...avatarIds('p', 50), ...avatarIds('r', 40), ...avatarIds('l', 16)];
+export const avatarTier = id => ({ a: 0, p: 1, r: 2, l: 3 })[id?.[0]] ?? 0;
+const randomOf = list => list[Math.floor(Math.random() * list.length)];
 const BRAND = `${import.meta.env.BASE_URL}brand/`; // Logo：航空邮票（无文字）
+// 出生地（城市 ID），仅自己可见；修改时派发 birthplace:change
+export const myBirthplace = () => birthplace;
 export const avatarUrl = id => `${import.meta.env.BASE_URL}avatars/${id}.svg`;
 const HANDLE_MIN = 3, HANDLE_MAX = 20;
 const HANDLE_RE = new RegExp(`^[a-z0-9_]{${HANDLE_MIN},${HANDLE_MAX}}$`);
-const HANDLE_COOLDOWN_DAYS = 30;
+const HANDLE_COOLDOWN_DAYS = 7;
 // 条款版本：改动 public/legal.html 的实质内容时更新，注册时记进 user_metadata 作为同意凭证
 const TERMS_VERSION = '2026-10-29';
 const legalUrl = hash => `${import.meta.env.BASE_URL}legal.html?lang=${lang}${hash ? `#${lang}-${hash}` : ''}`;
@@ -23,6 +31,8 @@ const today = () => new Date().toISOString().slice(0, 10);
 let session = null;
 let profile = null;      // public.profiles 中自己的一行
 let birthday = '';       // public.profile_private，仅自己可见
+let birthplace = '';     // 同上：出生的城市（地图数据里的城市 ID）
+let cities = null;       // 出生地候选，第一次打开护照时加载：[{ id, name, zh, en, country }]
 let countries = [];      // [{ id, name, en }]，按中文名排序
 let view = 'checking';
 let email = '';          // 在登录 / 注册 / 找回密码之间切换时保留
@@ -77,6 +87,7 @@ async function handleSession(s) {
   session = s;
   profile = null;
   birthday = '';
+  birthplace = '';
   renderMe();
   if (!s) return showGate('login');
   showGate('checking');
@@ -88,6 +99,7 @@ async function handleSession(s) {
   if (pub.error) return showGate('login', t('au.loadFailed', { msg: pub.error.message }));
   profile = pub.data;
   birthday = priv.data?.birthday || '';
+  birthplace = priv.data?.birthplace || '';
   if (applyAccountSettings(uid, priv.data)) return; // 账号的语言和本机不同，页面即将刷新
   renderMe();
   if (profile) accountReady();
@@ -156,7 +168,7 @@ function renderLetter(message = '') {
     stage.innerHTML = `<article class="au-letter"><div class="au-paper">${brandHtml}
       <div class="au-notice">
         <b>${t('au.noConfig')}</b>
-        <p>${t('au.noConfigBody')}</p>
+        <p>${t('au.noConfigBody', { env: import.meta.env.VITE_APP_ENV || 'test', ENV: (import.meta.env.VITE_APP_ENV || 'test').toUpperCase() })}</p>
       </div></div></article>`;
     return;
   }
@@ -292,12 +304,12 @@ export function askLetter({ title, body, ok, cancel }) {
 }
 
 // ---------- 旅行护照：首次填写 / 编辑资料 ----------
-let pp = null; // 正在编辑的护照 { mode, avatar, handle, name, country, birthday, handleState }
+let pp = null; // 正在编辑的护照 { mode, avatar, handle, name, country, birthday, birthplace, handleState, draw }
 
 function openPassport(mode) {
   pp = mode === 'create'
-    ? { mode, avatar: AVATARS[Math.floor(Math.random() * AVATAR_COUNT)], handle: '', name: '', country: '', birthday: '' }
-    : { mode, avatar: profile.avatar, handle: profile.handle, name: profile.name, country: profile.country, birthday };
+    ? { mode, avatar: randomOf(COMMON), handle: '', name: '', country: '', birthday: '', birthplace: '' }
+    : { mode, avatar: profile.avatar, handle: profile.handle, name: profile.name, country: profile.country, birthday, birthplace };
   pp.handleState = mode === 'create' ? '' : 'mine';
   view = 'passport';
   const gate = $('#auth');
@@ -305,9 +317,11 @@ function openPassport(mode) {
   gate.dataset.view = 'passport';
   renderPassport();
   $(mode === 'create' ? '#ppHandle' : '#ppName')?.focus();
+  loadCities();
+  if (mode === 'edit') loadDrawState();
 }
 
-// 30 天内改过 ID 时，返回下次可以修改的日期
+// 7 天内改过 ID 时，返回下次可以修改的日期
 function handleLockedUntil() {
   if (pp.mode !== 'edit' || !profile.handle_changed_at) return '';
   const until = new Date(new Date(profile.handle_changed_at).getTime() + HANDLE_COOLDOWN_DAYS * 864e5);
@@ -376,6 +390,157 @@ function pickCountry(id) {
   refreshPassportBits();
 }
 
+// ---------- 出生地：城市，输入后自动提示（只有自己能看到） ----------
+async function loadCities() {
+  if (cities) return;
+  try {
+    const index = await (await fetch(`${import.meta.env.BASE_URL}data/index.json`)).json();
+    cities = index.cities.map(([id, zh, en, country, , , , rank]) => ({ id, zh, en: en || '', name: localName(zh, en), country, rank }));
+  } catch {
+    return;
+  }
+  // 编辑时城市名晚于护照页到达：补上已存的出生地
+  const input = $('#ppBirthplace');
+  if (input && pp && document.activeElement !== input) input.value = cityLabel(pp.birthplace);
+}
+
+const cityLabel = id => {
+  const c = id && cities?.find(x => x.id === id);
+  if (!c) return '';
+  const country = countries.find(x => x.id === c.country);
+  return country ? `${c.name} · ${country.name}` : c.name;
+};
+
+// 中文名、英文名都能搜；完全匹配 > 开头匹配 > 包含，同分时大城市在前
+function matchCities(q) {
+  q = q.trim().toLowerCase();
+  if (!q || !cities) return [];
+  const score = c => {
+    const zh = c.zh.toLowerCase(), en = c.en.toLowerCase();
+    if (zh === q || en === q || zh.replace(/[市县区]$/, '') === q) return 0;
+    if (zh.startsWith(q) || en.startsWith(q)) return 1;
+    if (en.split(/[\s-]+/).some(w => w.startsWith(q))) return 2;
+    if (zh.includes(q) || en.includes(q)) return 3;
+    return -1;
+  };
+  return cities.map(c => [score(c), c]).filter(([n]) => n >= 0)
+    .sort((a, b) => a[0] - b[0] || a[1].rank - b[1].rank).slice(0, 8).map(([, c]) => c);
+}
+
+let cityActive = 0;
+function showCityOptions() {
+  const input = $('#ppBirthplace'), list = $('#ppBirthplaceList');
+  const q = input.value === cityLabel(pp.birthplace) ? '' : input.value;
+  if (!q.trim()) return hideCityOptions();
+  const items = matchCities(q);
+  cityActive = Math.min(cityActive, Math.max(0, items.length - 1));
+  list.innerHTML = items.length
+    ? items.map((c, i) => `<li role="option" id="ppb-${c.id}" data-city="${c.id}" aria-selected="${i === cityActive}">
+        <span>${escapeHtml(c.name)}</span><em>${escapeHtml(countries.find(x => x.id === c.country)?.name || c.country)}</em></li>`).join('')
+    : `<li class="pp-none">${cities ? t('pp.noCity') : t('loading')}</li>`;
+  list.hidden = false;
+  input.setAttribute('aria-expanded', 'true');
+  input.setAttribute('aria-activedescendant', items[cityActive] ? `ppb-${items[cityActive].id}` : '');
+  list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+}
+
+function hideCityOptions() {
+  const list = $('#ppBirthplaceList');
+  if (!list) return;
+  list.hidden = true;
+  $('#ppBirthplace').setAttribute('aria-expanded', 'false');
+}
+
+function pickCity(id) {
+  pp.birthplace = id;
+  $('#ppBirthplace').value = cityLabel(id);
+  hideCityOptions();
+}
+
+// ---------- 头像：注册时随机普通头像；之后每天抽 3 次 ----------
+const tierBadge = tier => `<span class="tier-badge tier-${tier}">${t(`tier.${tier}`)}</span>`;
+
+async function loadDrawState() {
+  pp.draw = { loading: true };
+  renderDraw();
+  const { data, error } = await supabase.rpc('avatar_draw_state');
+  if (pp?.mode !== 'edit') return;
+  pp.draw = error ? { left: 0, error: t('pp.drawFailed', { msg: error.message }) } : { left: data.left, pending: data.pending };
+  renderDraw();
+}
+
+function renderDraw() {
+  const box = $('#ppDraw');
+  const d = pp?.draw;
+  if (!box || !d) return;
+  if (d.loading) { box.innerHTML = `<p class="pp-draw-note">${t('loading')}</p>`; return; }
+  const p = d.pending;
+  const card = p
+    ? `<figure class="pp-draw-card tier-${p.tier}${d.reveal ? ' reveal' : ''}" id="ppDrawCard"><img src="${avatarUrl(p.avatar)}" alt="" />${tierBadge(p.tier)}</figure>`
+    : `<figure class="pp-draw-card ${d.busy ? 'spinning' : 'back'}" id="ppDrawCard">${d.busy ? `<img src="${avatarUrl(randomOf(ALL_AVATARS))}" alt="" />` : `<img src="${BRAND}stamp.png" alt="" />`}</figure>`;
+  const body = p
+    ? `<p class="pp-draw-title">${t('pp.drawGot', { tier: t(`tier.${p.tier}`) })}</p>
+       <div class="pp-draw-actions">
+         <button type="button" class="pp-draw-btn ghost" data-draw-keep>${t('pp.drawKeep')}</button>
+         <button type="button" class="pp-draw-btn" data-draw-use>${t('pp.drawUse')}</button>
+       </div>`
+    : `<p class="pp-draw-title">${d.left > 0 ? t('pp.drawLeft', { n: d.left }) : t('pp.drawNone')}</p>
+       <div class="pp-draw-actions">
+         <button type="button" class="pp-draw-btn" data-draw ${d.left > 0 && !d.busy ? '' : 'disabled'}>${t('pp.draw')}</button>
+       </div>`;
+  const note = d.error || d.note || '';
+  box.innerHTML = `${card}<div class="pp-draw-body">${body}${note ? `<small class="pp-draw-msg${d.error ? ' bad' : ''}">${escapeHtml(note)}</small>` : ''}</div>`;
+}
+
+async function drawAvatar() {
+  const d = pp.draw;
+  if (d.busy || d.left <= 0) return;
+  Object.assign(d, { busy: true, error: '', note: '', reveal: false });
+  renderDraw();
+  // 洗牌：至少转一秒再揭晓
+  const spin = setInterval(() => { const img = $('#ppDrawCard img'); if (img) img.src = avatarUrl(randomOf(ALL_AVATARS)); }, 90);
+  const [res] = await Promise.all([supabase.rpc('draw_avatar'), new Promise(r => setTimeout(r, 1100))]);
+  clearInterval(spin);
+  if (pp?.draw !== d) return;
+  d.busy = false;
+  if (res.error) {
+    d.error = limitText(res.error) || t('pp.drawFailed', { msg: res.error.message });
+    if (limitText(res.error)) d.left = 0;
+  } else {
+    d.left = res.data.left;
+    d.pending = { id: res.data.id, avatar: res.data.avatar, tier: res.data.tier };
+    d.reveal = true;
+  }
+  renderDraw();
+}
+
+async function useDraw() {
+  const d = pp.draw;
+  const { data, error } = await supabase.rpc('accept_avatar', { draw: d.pending.id });
+  if (pp?.draw !== d) return;
+  d.pending = null;
+  d.reveal = false;
+  if (error) {
+    d.error = error.message?.includes('DRAW_EXPIRED') ? t('pp.drawExpired') : t('pp.drawFailed', { msg: error.message });
+    return renderDraw();
+  }
+  profile = { ...profile, avatar: data };
+  pp.avatar = data;
+  d.note = t('pp.drawUsed');
+  renderMe();
+  refreshPassportBits();
+  renderDraw();
+  document.dispatchEvent(new CustomEvent('avatar:change', { detail: data }));
+}
+
+async function keepMine() {
+  const d = pp.draw;
+  const id = d.pending.id;
+  Object.assign(d, { pending: null, reveal: false, note: t('pp.drawKept') });
+  renderDraw();
+  await supabase.rpc('decline_avatar', { draw: id });
+}
+
 const HANDLE_HINT = {
   '': ['', t('pp.hint', { min: HANDLE_MIN, max: HANDLE_MAX })],
   short: ['bad', t('pp.short', { min: HANDLE_MIN })],
@@ -406,8 +571,9 @@ function renderPassport() {
       <form class="pp-page" novalidate>
         <div class="pp-main">
           <div class="pp-photo">
-            <span class="pp-photo-frame"><img id="ppPhoto" src="${avatarUrl(pp.avatar)}" alt="${t('pp.photoAlt')}" /></span>
-            <button type="button" class="au-link" data-pp-random>${t('pp.random')}</button>
+            <span class="pp-photo-frame tier-${avatarTier(pp.avatar)}" id="ppPhotoFrame"><img id="ppPhoto" src="${avatarUrl(pp.avatar)}" alt="${t('pp.photoAlt')}" />
+              <span id="ppTier">${tierBadge(avatarTier(pp.avatar))}</span></span>
+            ${create ? `<button type="button" class="au-link" data-pp-random>${t('pp.random')}</button>` : ''}
           </div>
 
           <div class="pp-fields">
@@ -433,15 +599,20 @@ function renderPassport() {
               <span>${fieldLabel('pp.birthday', 'pp.birthdayEn')}<em>${t('pp.birthdayNote')}</em></span>
               <input id="ppBirthday" name="birthday" type="date" min="1900-01-01" max="${today()}" value="${escapeHtml(pp.birthday)}" />
             </label>
+            <div class="pp-field pp-country pp-birthplace">
+              <label for="ppBirthplace">${fieldLabel('pp.birthplace', 'pp.birthplaceEn')}<em>${t('pp.birthdayNote')}</em></label>
+              <input id="ppBirthplace" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ppBirthplaceList"
+                autocomplete="off" spellcheck="false" value="${escapeHtml(cityLabel(pp.birthplace))}" placeholder="${t('pp.birthplacePh')}" />
+              <ul class="pp-options" id="ppBirthplaceList" role="listbox" hidden></ul>
+            </div>
           </div>
         </div>
 
         <section class="pp-avatars">
-          <p class="pp-section"><span>${t('pp.avatars')}</span><i>${AVATAR_COUNT} companions</i></p>
-          <div class="pp-grid" role="radiogroup" aria-label="${t('pp.avatarGroup')}">
-            ${AVATARS.map(id => `<button type="button" role="radio" aria-checked="${id === pp.avatar}" data-avatar="${id}" title="${id}">
-              <img src="${avatarUrl(id)}" alt="" loading="lazy" /></button>`).join('')}
-          </div>
+          <p class="pp-section"><span>${t('pp.avatars')}</span><i>${ALL_AVATARS.length} companions</i></p>
+          ${create ? `<p class="pp-draw-note">${t('pp.avatarsNew')}</p>` : '<div class="pp-draw" id="ppDraw"></div>'}
+          <p class="pp-odds">${[0, 1, 2, 3].map(tierBadge).join('')}<span>${t('pp.odds')}</span></p>
+          <p class="pp-credit">${t('pp.avatarCredit')}</p>
         </section>
 
         <div class="pp-mrz" aria-hidden="true">${mrz().map(l => `<span>${escapeHtml(l)}</span>`).join('')}</div>
@@ -453,6 +624,7 @@ function renderPassport() {
         </footer>
       </form>
     </article>`;
+  renderDraw();
 }
 
 // ID 长度计数：不足 3 位时标红
@@ -464,7 +636,8 @@ function refreshPassportBits() {
   count.value = handleCount();
   count.className = `pp-count${pp.handle && pp.handle.length < HANDLE_MIN ? ' short' : ''}${pp.handle.length >= HANDLE_MAX ? ' full' : ''}`;
   $('#ppPhoto').src = avatarUrl(pp.avatar);
-  for (const b of document.querySelectorAll('[data-avatar]')) b.setAttribute('aria-checked', b.dataset.avatar === pp.avatar);
+  $('#ppPhotoFrame').className = `pp-photo-frame tier-${avatarTier(pp.avatar)}`;
+  $('#ppTier').innerHTML = tierBadge(avatarTier(pp.avatar));
   const [hintClass, hintText] = handleLockedUntil() ? ['', $('#ppHandleHint').textContent] : HANDLE_HINT[pp.handleState];
   $('#ppHandleHint').className = `pp-hint ${hintClass}`;
   $('#ppHandleHint').textContent = hintText;
@@ -503,11 +676,16 @@ async function submitPassport(form) {
   if (!name) return say(t('pp.needName')), $('#ppName').focus();
   if (!pp.country) return say(t('pp.needCountry')), $('#ppCountry').focus();
   if (pp.birthday && (pp.birthday < '1900-01-01' || pp.birthday > today())) return say(t('pp.badBirthday')), $('#ppBirthday').focus();
+  // 出生地：输入框清空 = 不填；输入了但没从候选里选 = 提示
+  const bp = $('#ppBirthplace').value.trim();
+  if (!bp) pp.birthplace = '';
+  else if (bp !== cityLabel(pp.birthplace)) return say(t('pp.needCity')), $('#ppBirthplace').focus();
 
   const button = form.querySelector('.au-submit');
   button.disabled = true;
   const uid = session.user.id;
-  const fields = { name, country: pp.country, avatar: pp.avatar };
+  // 头像只在注册时随资料提交；之后只能经由抽取（accept_avatar）更换
+  const fields = { name, country: pp.country, ...(pp.mode === 'create' ? { avatar: pp.avatar } : {}) };
   if (!handleLockedUntil()) fields.handle = pp.handle;
   try {
     const pub = pp.mode === 'create'
@@ -518,12 +696,18 @@ async function submitPassport(form) {
       if (pub.error.message?.includes('HANDLE_COOLDOWN')) return say(t('pp.locked', { date: pub.error.details }));
       return say(t('saveFailed', { msg: pub.error.message }));
     }
-    if (pp.birthday || birthday) {
-      const priv = await supabase.from('profile_private').upsert({ id: uid, birthday: pp.birthday || null });
+    if (pp.birthday || birthday || pp.birthplace || birthplace) {
+      const row = { id: uid, birthday: pp.birthday || null };
+      if (pp.birthplace || birthplace) row.birthplace = pp.birthplace || null; // 还没执行 0013 时没有这一列
+      const priv = await supabase.from('profile_private').upsert(row);
       if (priv.error) return say(t('pp.birthdayFailed', { msg: priv.error.message }));
     }
     profile = pub.data;
     birthday = pp.birthday;
+    if (birthplace !== pp.birthplace) {
+      birthplace = pp.birthplace;
+      document.dispatchEvent(new CustomEvent('birthplace:change', { detail: birthplace }));
+    }
     if (pp.mode === 'create') welcome = 'signup';
     pp = null;
     renderMe();
@@ -547,6 +731,7 @@ const langRow = () => `<div class="me-lang"><span>${t('language')}${lang === 'zh
 
 function renderMe() {
   $('#meAvatar').innerHTML = profile ? `<img src="${avatarUrl(profile.avatar)}" alt="" />` : GUEST_SVG;
+  $('#meAvatar').dataset.tier = profile ? avatarTier(profile.avatar) : '';
   const panel = $('#drop-me');
   if (!profile) {
     panel.innerHTML = `<div class="me-card"><span class="avatar avatar-lg">${GUEST_SVG}</span><b>${t('me.guest')}</b><span>${t('me.signedOut')}</span></div>${langRow()}`;
@@ -555,7 +740,7 @@ function renderMe() {
   const country = countries.find(c => c.id === profile.country);
   panel.innerHTML = `
     <div class="me-card">
-      <span class="avatar avatar-lg"><img src="${avatarUrl(profile.avatar)}" alt="" /></span>
+      <span class="avatar-tiered"><span class="avatar avatar-lg tier-${avatarTier(profile.avatar)}"><img src="${avatarUrl(profile.avatar)}" alt="" /></span>${tierBadge(avatarTier(profile.avatar))}</span>
       <b>${escapeHtml(profile.name)}</b>
       <span class="me-handle">@${escapeHtml(profile.handle)}${country ? ` · ${escapeHtml(country.name)}` : ''}</span>
     </div>
@@ -587,7 +772,7 @@ async function exportAccount(button) {
         if (data.length < 1000) return rows;
       }
     };
-    const [friendships, messages, comments, checkins, groups, groupMessages] = await Promise.all([
+    const [friendships, messages, comments, checkins, groups, groupMessages, feedMutes] = await Promise.all([
       all(() => supabase.from('friendships').select('*').order('created_at')),
       all(() => supabase.from('messages').select('*').order('created_at')),
       all(() => supabase.from('comments').select('*').eq('author', uid).order('created_at')),
@@ -595,14 +780,16 @@ async function exportAccount(button) {
       // 群聊：所在的群和成员，以及自己在群里发的消息（还没执行 0010 时为空）
       all(() => supabase.from('chat_groups').select('*, group_members(*)').order('created_at')).catch(() => []),
       all(() => supabase.from('group_messages').select('*').eq('sender', uid).order('created_at')).catch(() => []),
+      // 不看动态的好友（还没执行 0015 时为空）
+      all(() => supabase.from('feed_mutes').select('muted, created_at').order('created_at')).catch(() => []),
     ]);
     const { user } = session;
     const data = {
       exported_at: new Date().toISOString(),
       account: { id: user.id, email: user.email, created_at: user.created_at, email_confirmed_at: user.email_confirmed_at,
         terms_version: user.user_metadata?.terms_version ?? null, terms_accepted_at: user.user_metadata?.terms_accepted_at ?? null },
-      profile, private: { birthday: birthday || null },
-      checkins, friendships, comments, messages, groups, group_messages: groupMessages,
+      profile, private: { birthday: birthday || null, birthplace: birthplace || null },
+      checkins, friendships, comments, messages, groups, group_messages: groupMessages, feed_mutes: feedMutes,
       note: 'Photos are included in the backup exported from the Map panel. 照片请用「足迹」里的「导出备份」。',
     };
     const a = document.createElement('a');
@@ -627,15 +814,20 @@ async function deleteAccount() {
   showGate('checking');
   try {
     // 先删 Storage 里的照片（SQL 删不了），再删账号，数据库里的其余数据随外键级联删除
-    for (;;) {
-      const { data, error } = await supabase.storage.from('photos').list(uid, { limit: 1000 });
-      if (error) throw error;
-      if (!data.length) break;
-      const { error: rmError } = await supabase.storage.from('photos').remove(data.map(f => `${uid}/${f.name}`));
-      if (rmError) throw rmError;
+    // 服务端发现还有照片会拒绝（PHOTOS_REMAIN）：多半是后台同步刚好又传上来一张，再清一轮
+    for (let attempt = 0; ; attempt++) {
+      for (;;) {
+        const { data, error } = await supabase.storage.from('photos').list(uid, { limit: 1000 });
+        if (error) throw error;
+        if (!data.length) break;
+        const { error: rmError } = await supabase.storage.from('photos').remove(data.map(f => `${uid}/${f.name}`));
+        if (rmError) throw rmError;
+      }
+      const { error } = await supabase.rpc('delete_my_account');
+      if (!error) break;
+      if (attempt < 2 && error.message?.includes('PHOTOS_REMAIN')) continue;
+      throw error;
     }
-    const { error } = await supabase.rpc('delete_my_account');
-    if (error) throw error;
   } catch (err) {
     return showGate('login', t('me.deleteFailed', { msg: err.message || err }));
   }
@@ -666,12 +858,15 @@ document.addEventListener('click', async e => {
   if (e.target.closest('[data-delete-account]')) return deleteAccount();
   if (e.target.closest('[data-pp-edit]')) return openPassport('edit');
   if (e.target.closest('[data-pp-close]')) return closePassport();
-  if (e.target.closest('[data-pp-random]')) {
-    pp.avatar = AVATARS.filter(id => id !== pp.avatar)[Math.floor(Math.random() * (AVATAR_COUNT - 1))];
+  if (e.target.closest('[data-pp-random]') && pp?.mode === 'create') {
+    pp.avatar = randomOf(COMMON.filter(id => id !== pp.avatar));
     return refreshPassportBits();
   }
-  const avatar = e.target.closest('[data-avatar]');
-  if (avatar) { pp.avatar = avatar.dataset.avatar; refreshPassportBits(); }
+  if (e.target.closest('[data-draw]')) return drawAvatar();
+  if (e.target.closest('[data-draw-use]')) return useDraw();
+  if (e.target.closest('[data-draw-keep]')) return keepMine();
+  const city = e.target.closest('[data-city]');
+  if (city) return pickCity(city.dataset.city);
 });
 
 // 登录页：重新输入时清掉上一次的错误提示
@@ -697,6 +892,10 @@ document.addEventListener('input', e => {
   if (e.target.id === 'ppCountry') {
     countryActive = 0; // 输入只是搜索，没选中候选前保留原来的国家
     return showCountryOptions();
+  }
+  if (e.target.id === 'ppBirthplace') {
+    cityActive = 0;
+    return showCityOptions();
   }
   if (name in pp) { pp[name] = value; refreshPassportBits(); }
 });
@@ -742,6 +941,36 @@ document.addEventListener('mousedown', e => {
   if (!li) return;
   e.preventDefault();
   pickCountry(li.dataset.country);
+});
+
+// 出生地候选：同上；清空输入框 = 不填
+document.addEventListener('keydown', e => {
+  if (e.target.id !== 'ppBirthplace') return;
+  const list = $('#ppBirthplaceList');
+  const options = [...list.querySelectorAll('[data-city]')];
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && options.length) {
+    e.preventDefault();
+    cityActive = (cityActive + (e.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+    showCityOptions();
+  } else if (e.key === 'Enter' && !list.hidden && options[cityActive]) {
+    e.preventDefault();
+    pickCity(options[cityActive].dataset.city);
+  } else if (e.key === 'Escape' && !list.hidden) {
+    e.stopPropagation();
+    hideCityOptions();
+  }
+}, true);
+document.addEventListener('focusout', e => {
+  if (e.target.id !== 'ppBirthplace' || !pp) return;
+  if (!e.target.value.trim()) pp.birthplace = '';
+  e.target.value = cityLabel(pp.birthplace);
+  hideCityOptions();
+});
+document.addEventListener('mousedown', e => {
+  const li = e.target.closest('#ppBirthplaceList [data-city]');
+  if (!li) return;
+  e.preventDefault();
+  pickCity(li.dataset.city);
 });
 
 document.addEventListener('keydown', e => {

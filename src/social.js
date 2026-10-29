@@ -1,6 +1,7 @@
 // 好友、动态与评论
 //   · 好友：输入 ID 发申请，对方接受后互为好友；可以撤回、忽略、删除
-//   · 动态：带照片、点过「收进足迹」的打卡（自己和好友的），可以评论
+//   · 动态：带照片、点过「收进足迹」的打卡（自己和好友的），可以评论；
+//           同一个人 72 小时内的动态合成一组，可以展开；可以不看某位好友的动态（feed_mutes，见 0015）
 //   · 地图：可叠加好友的足迹；有评论的标记上方滚动显示最新评论
 //   · 红点：新的好友申请、好友新动态、别人对我的打卡的新评论
 // 数据权限见 supabase/migrations/0003_social.sql
@@ -11,6 +12,8 @@ import { limitText } from './limits.js';
 
 const BUCKET = 'photos';
 const URL_TTL = 3600;           // 签名链接有效期（秒）
+const FEED_DAYS = 30;           // 动态流读取最近多少天
+const GROUP_HOURS = 72;         // 同一个人从第一条起多少小时内的动态合成一组
 const $ = sel => document.querySelector(sel);
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const keyOf = (owner, id) => `${owner}/${id}`;
@@ -31,6 +34,7 @@ const ICON = {
   send: '<path d="M4 12l16-7-6 16-3-7z"/><path d="M11 14l9-9"/>',
   feed: '<rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 9.5h16M8 13h5M8 16h8" />',
   bubble: '<path d="M5 6.5h14v9H10l-4 3.5v-3.5H5z"/>',
+  mute: '<path d="M6 9.5h2.5L13 5.5v13l-4.5-4H6z"/><path d="M16.5 9.5l4 5M20.5 9.5l-4 5"/>',
   chat: '<path d="M4.5 6.5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H11l-4.5 3.5v-3.5h0a2 2 0 0 1-2-2z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>',
 };
 const icon = name => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
@@ -55,6 +59,8 @@ export function initSocial({ me, helpers }) {
     commentsSeen: Number(localStorage.getItem(seenKey('commentsSeen'))) || Date.now(),
     lookup: null,      // 按 ID 查到的人
     expanded: new Set(), // 展开全部评论的动态
+    openGroups: new Set(), // 展开的动态组
+    muted: new Set(),  // 不看动态的好友（feed_mutes）
   };
   localStorage.setItem(seenKey('feedSeen'), state.feedSeen);
   localStorage.setItem(seenKey('commentsSeen'), state.commentsSeen);
@@ -91,12 +97,17 @@ export function initSocial({ me, helpers }) {
       const cols = 'user_id, id, level, name, label, marker, icon, date, note, lat, lng, country, region, city, photos, published_at';
       const [fr, posts, pins, comments] = await Promise.all([
         supabase.from('friendships').select('*'),
+        // 最近 30 天的动态，前端再按 72 小时分组；高产的好友也挤不掉别人
         supabase.from('checkins').select(cols).not('published_at', 'is', null).eq('deleted', false)
-          .order('published_at', { ascending: false }).limit(60),
+          .gte('published_at', new Date(Date.now() - FEED_DAYS * 864e5).toISOString())
+          .order('published_at', { ascending: false }).limit(300),
         supabase.from('checkins').select(cols).neq('user_id', me.id).eq('deleted', false).not('lat', 'is', null).limit(2000),
         supabase.from('comments').select('*').order('created_at', { ascending: false }).limit(500),
       ]);
       for (const r of [fr, posts, pins, comments]) if (r.error) throw r.error;
+      // 静音列表：还没执行 0015 时没有这张表，当作没静音任何人
+      const mutes = await supabase.from('feed_mutes').select('muted');
+      state.muted = new Set(mutes.error ? [] : mutes.data.map(m => m.muted));
 
       const rows = fr.data;
       const other = f => (f.requester === me.id ? f.addressee : f.requester);
@@ -106,7 +117,7 @@ export function initSocial({ me, helpers }) {
       state.incoming = rows.filter(f => f.status === 'pending' && f.addressee === me.id).map(f => ({ profile: state.profiles.get(f.requester), at: f.created_at })).filter(f => f.profile);
       state.outgoing = rows.filter(f => f.status === 'pending' && f.requester === me.id).map(f => ({ profile: state.profiles.get(f.addressee), at: f.created_at })).filter(f => f.profile);
 
-      state.posts = posts.data.filter(p => p.photos.length);
+      state.posts = posts.data.filter(p => p.photos.length && !state.muted.has(p.user_id));
       state.pins = pins.data;
       state.comments = new Map();
       for (const c of [...comments.data].reverse()) {
@@ -215,8 +226,10 @@ export function initSocial({ me, helpers }) {
         ${state.friends.length ? `<ul class="people">${state.friends.map(f => personRow(f.profile,
           `<button class="fr-btn fr-icon fr-chat" data-chat title="${t('chat.open')}">${icon('chat')}${chatBadge(f.profile.id)}</button>
            ${pinsOf(f.profile.id) ? `<button class="fr-btn fr-icon" data-only title="${t('fr.onlyTitle')}">${icon('pin')}</button>` : ''}
+           <button class="fr-btn fr-icon${state.muted.has(f.profile.id) ? ' fr-muted' : ''}" data-toggle-mute aria-pressed="${state.muted.has(f.profile.id)}"
+             title="${t(state.muted.has(f.profile.id) ? 'fr.unmuteTitle' : 'fr.muteTitle')}">${icon('mute')}</button>
            <button class="fr-btn fr-more" data-unfriend title="${t('fr.removeTitle')}">${t('fr.remove')}</button>`,
-          '')).join('')}</ul>`
+          state.muted.has(f.profile.id) ? ` · ${t('fr.muted')}` : '')).join('')}</ul>`
         : `<div class="empty-card">${icon('users')}<b>${t('fr.none')}</b><span>${t('fr.noneSub')}</span></div>`}
       </div>`;
     if (focused) { const i = box.querySelector('#friendHandle'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
@@ -240,6 +253,91 @@ export function initSocial({ me, helpers }) {
       }).join('')}</ul>`;
   }
 
+  // ---------- 动态分组：同一个人从第一条起 72 小时内的动态合成一组 ----------
+  // 组按最新一条的时间排序；组内按时间正序，读起来像一段行程
+  function feedGroups() {
+    const byUser = new Map();
+    for (const p of [...state.posts].sort((a, b) => Date.parse(a.published_at) - Date.parse(b.published_at))) {
+      if (!byUser.has(p.user_id)) byUser.set(p.user_id, []);
+      const list = byUser.get(p.user_id);
+      const last = list[list.length - 1];
+      if (last && Date.parse(p.published_at) - Date.parse(last[0].published_at) < GROUP_HOURS * 3600e3) last.push(p);
+      else list.push([p]);
+    }
+    return [...byUser.values()].flat()
+      .map(posts => ({ key: keyOf(posts[0].user_id, posts[0].id), user: posts[0].user_id, posts, latest: posts[posts.length - 1] }))
+      .sort((a, b) => Date.parse(b.latest.published_at) - Date.parse(a.latest.published_at));
+  }
+  const isFresh = p => p.user_id !== me.id && Date.parse(p.published_at) > state.feedSeen;
+  const titleOf = p => (p.label || '').trim() || p.name || t('unnamed');
+
+  function postHead(p, fresh, extra = '') {
+    const a = state.profiles.get(p.user_id);
+    const mine = p.user_id === me.id;
+    return `<header>${avatarImg(a)}<span class="person-text"><b>${escapeHtml(mine ? t('feed.me') : a?.name)}</b><small>@${escapeHtml(a?.handle)} · ${ago(p.published_at)}</small></span>
+      ${extra}${mine ? '' : `<button class="post-fly post-mute" data-mute title="${t('feed.mute')}">${icon('mute')}</button>`}</header>`;
+  }
+
+  function postCard(p) {
+    return `<div class="post-card">
+      <button class="post-photos" data-photo title="${t('feed.photo')}"><span class="post-stack n${Math.min(3, p.photos.length)}">${photoStack(p)}</span></button>
+      <div class="post-text">
+        <b>${escapeHtml(titleOf(p))}</b>
+        <small>${escapeHtml(helpers.placeText(p))}</small>
+        ${p.note ? `<p>${escapeHtml(p.note)}</p>` : ''}
+        <time>${fmtDate(p.date)}</time>
+      </div>
+      <button class="post-fly post-fly-in" data-fly title="${t('feed.fly')}">${icon('pin')}</button>
+    </div>`;
+  }
+
+  // 一条完整的动态（单独一条，或展开的组里的一站）
+  function postBody(p, drafts) {
+    const k = keyOf(p.user_id, p.id);
+    return `${postCard(p)}
+      ${commentList(k, p.user_id)}
+      <form class="post-reply"><input maxlength="140" placeholder="${t('feed.reply')}" value="${escapeHtml(drafts.get(k) || '')}" />
+        <button type="submit" title="${t('feed.send')}">${icon('send')}</button></form>`;
+  }
+
+  function groupHtml(g, drafts) {
+    const p0 = g.posts[0];
+    if (g.posts.length === 1) {
+      return `<article class="post${isFresh(p0) ? ' fresh' : ''}" data-post="${keyOf(p0.user_id, p0.id)}" data-user="${p0.user_id}">
+        ${postHead(p0, isFresh(p0))}${postBody(p0, drafts)}</article>`;
+    }
+    const fresh = g.posts.filter(isFresh).length;
+    const open = state.openGroups.has(g.key);
+    const span = Date.parse(g.latest.published_at) - Date.parse(p0.published_at);
+    const days = Math.max(1, Math.ceil(span / 864e5));
+    const places = [...new Set(g.posts.map(titleOf))];
+    const title = t('feed.groupTitle', { d: days, n: g.posts.length, places: escapeHtml(places.slice(0, 3).join(t('listSep')) + (places.length > 3 ? '…' : '')) });
+    const badge = fresh ? `<i class="pg-new">${t('feed.newN', { n: fresh })}</i>` : '';
+    const head = postHead(g.latest, fresh, badge);
+    const toggle = `<button class="pg-toggle" data-group-toggle aria-expanded="${open}">${open ? t('feed.collapseGroup') : t('feed.expandGroup', { n: g.posts.length })}</button>`;
+    if (open) {
+      return `<article class="post post-group open${fresh ? ' fresh' : ''}" data-group="${g.key}" data-user="${g.user}">
+        ${head}<p class="pg-title">${title}</p>
+        <ol class="pg-stops">${g.posts.map(p => `<li class="pg-stop${isFresh(p) ? ' fresh' : ''}" data-post="${keyOf(p.user_id, p.id)}">
+          <span class="pg-when">${ago(p.published_at)}</span>${postBody(p, drafts)}</li>`).join('')}</ol>
+        ${toggle}</article>`;
+    }
+    // 收起：最新一条做封面，下面一排其余地点的缩略图
+    const others = g.posts.slice(0, -1).reverse();
+    const strip = others.slice(0, 6).map(p => `<button class="pg-thumb" data-group-toggle title="${escapeHtml(titleOf(p))}"><img src="${thumbUrl(p.user_id, p.photos[0].id)}" alt="" loading="lazy" /></button>`).join('')
+      + (others.length > 6 ? `<span class="pg-thumb pg-more">+${others.length - 6}</span>` : '');
+    const comments = g.posts.flatMap(p => state.comments.get(keyOf(p.user_id, p.id)) || []).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+    const lastC = comments[comments.length - 1];
+    const lastA = lastC && state.profiles.get(lastC.author);
+    return `<article class="post post-group${fresh ? ' fresh' : ''}" data-group="${g.key}" data-user="${g.user}">
+      ${head}<p class="pg-title">${title}</p>
+      <div data-post="${keyOf(g.latest.user_id, g.latest.id)}">${postCard(g.latest)}</div>
+      <div class="pg-strip">${strip}</div>
+      ${comments.length ? `<p class="pg-comments"><span>${t('feed.groupComments', { n: comments.length })}</span>
+        <img src="${avatarUrl(lastA?.avatar || 'a01')}" alt="" /><b>${escapeHtml(lastA?.name || t('feed.friend'))}</b>${escapeHtml(lastC.body)}</p>` : ''}
+      ${toggle}</article>`;
+  }
+
   function renderFeed() {
     const box = $('#drop-feed');
     const scroll = box.querySelector('.drop-scroll')?.scrollTop || 0;
@@ -248,28 +346,9 @@ export function initSocial({ me, helpers }) {
     const active = document.activeElement?.closest?.('#drop-feed [data-post]')?.dataset.post;
     box.innerHTML = `
       <p class="drop-head"><b>${t('feed')}</b><span>${t('feed.subtitle')}</span></p>
-      <div class="drop-scroll">${state.posts.length ? state.posts.map(p => {
-        const k = keyOf(p.user_id, p.id);
-        const a = state.profiles.get(p.user_id);
-        const mine = p.user_id === me.id;
-        const fresh = !mine && Date.parse(p.published_at) > state.feedSeen;
-        return `<article class="post${fresh ? ' fresh' : ''}" data-post="${k}">
-          <header>${avatarImg(a)}<span class="person-text"><b>${escapeHtml(mine ? t('feed.me') : a?.name)}</b><small>@${escapeHtml(a?.handle)} · ${ago(p.published_at)}</small></span>
-            <button class="post-fly" data-fly title="${t('feed.fly')}">${icon('pin')}</button></header>
-          <div class="post-card">
-            <button class="post-photos" data-photo title="${t('feed.photo')}"><span class="post-stack n${Math.min(3, p.photos.length)}">${photoStack(p)}</span></button>
-            <div class="post-text">
-              <b>${escapeHtml((p.label || '').trim() || p.name || t('unnamed'))}</b>
-              <small>${escapeHtml(helpers.placeText(p))}</small>
-              ${p.note ? `<p>${escapeHtml(p.note)}</p>` : ''}
-              <time>${fmtDate(p.date)}</time>
-            </div>
-          </div>
-          ${commentList(k, p.user_id)}
-          <form class="post-reply"><input maxlength="140" placeholder="${t('feed.reply')}" value="${escapeHtml(drafts.get(k) || '')}" />
-            <button type="submit" title="${t('feed.send')}">${icon('send')}</button></form>
-        </article>`;
-      }).join('') : `<div class="empty-card">${icon('feed')}<b>${t('feed.empty')}</b><span>${t('feed.emptySub')}</span></div>`}</div>`;
+      <div class="drop-scroll">${state.posts.length ? feedGroups().map(g => groupHtml(g, drafts)).join('')
+        : `<div class="empty-card">${icon('feed')}<b>${t('feed.empty')}</b><span>${t('feed.emptySub')}</span></div>`}
+        ${state.muted.size ? `<p class="feed-muted">${t('feed.mutedNote', { n: state.muted.size })}</p>` : ''}</div>`;
     box.querySelector('.drop-scroll').scrollTop = scroll;
     if (active) box.querySelector(`[data-post="${CSS.escape(active)}"] .post-reply input`)?.focus();
   }
@@ -387,6 +466,21 @@ export function initSocial({ me, helpers }) {
     }
     if (el.closest('[data-only-all]')) { e.preventDefault(); state.only = null; renderFriends(); return helpers.onChange(); }
 
+    // 静音 / 取消静音
+    const muteFrom = el.closest('[data-mute]') ? el.closest('[data-user]')?.dataset.user
+      : el.closest('[data-toggle-mute]') ? person : null;
+    if (muteFrom) {
+      const p = state.profiles.get(muteFrom);
+      if (state.muted.has(muteFrom)) return act(supabase.from('feed_mutes').delete().eq('muted', muteFrom));
+      if (!confirm(t('feed.muteConfirm', { name: p?.name || '' }))) return;
+      return act(supabase.from('feed_mutes').insert({ user_id: me.id, muted: muteFrom }));
+    }
+    const group = el.closest('[data-group]')?.dataset.group;
+    if (group && el.closest('[data-group-toggle]')) {
+      if (state.openGroups.has(group)) state.openGroups.delete(group); else state.openGroups.add(group);
+      renderFeed();
+      return document.querySelector(`#drop-feed [data-group="${CSS.escape(group)}"]`)?.scrollIntoView({ block: 'nearest' });
+    }
     const post = el.closest('[data-post]')?.dataset.post;
     if (post && el.closest('[data-expand]')) { state.expanded.add(post); return renderFeed(); }
     if (post && el.closest('[data-del-comment]')) {
@@ -427,9 +521,13 @@ export function initSocial({ me, helpers }) {
 
   // 打开动态面板并滚到这条明信片
   function openPost(k) {
+    // 在收起的组里：先展开
+    const g = feedGroups().find(x => x.posts.length > 1 && x.posts.some(p => keyOf(p.user_id, p.id) === k));
+    if (g && !state.openGroups.has(g.key)) { state.openGroups.add(g.key); renderFeed(); }
     helpers.openDrop('feed');
     requestAnimationFrame(() => {
       const el = document.querySelector(`#drop-feed [data-post="${CSS.escape(k)}"]`);
+      // 展开的组里滚到那一站
       if (!el) return;
       el.scrollIntoView({ block: 'start', behavior: 'smooth' });
       el.classList.remove('flash');

@@ -7,6 +7,8 @@ import { loadStreets, STREETS_CREDIT } from './streets.js';
 
 const RATIOS = { '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16 };
 const SCALE = 2;
+const OUT_WIDTH = 1400; // 导出图片的目标宽度（像素）
+const FRAME_FILL = .8;  // 相框占可用范围的比例
 const C = {
   sea: '#dde5e3', rule: 'rgba(31, 75, 143, .07)', land: '#f6efdf', ink: '#2a2723', inkSoft: '#7a7064',
   lake: '#d3e0e1', water: 'rgba(43, 122, 140, .5)',
@@ -23,6 +25,7 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
   let ratio = '4:5';
   let blob = null;
   let rendering = 0;
+  let framePos = null; // 相框左上角（地图容器内的像素坐标）；null = 居中
 
   // ---------- 坐标：投影一次，再按「一个世界宽」平移出左右的副本 ----------
   const project = (lat, lng) => {
@@ -123,7 +126,7 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
   async function loadDetail(crop) {
     if (map.getZoom() < DETAIL_ZOOM) return null;
     try {
-      detailIndex ||= fetch('data/detail/index.json').then(r => r.json()).then(j => ({ size: j.cell, has: new Set(j.cells) }));
+      detailIndex ||= fetch(`${import.meta.env.BASE_URL}data/detail/index.json`).then(r => r.json()).then(j => ({ size: j.cell, has: new Set(j.cells) }));
       const { size, has } = await detailIndex;
       const nw = map.containerPointToLatLng([crop.x, crop.y]);
       const se = map.containerPointToLatLng([crop.x + crop.w, crop.y + crop.h]);
@@ -138,7 +141,7 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
       if (keys.size > 40) return null;
       const cells = await Promise.all([...keys].map(key => {
         if (!detailCells.has(key)) {
-          detailCells.set(key, fetch(`data/detail/${key}.json`).then(r => r.json()).catch(() => { detailCells.delete(key); return {}; }));
+          detailCells.set(key, fetch(`${import.meta.env.BASE_URL}data/detail/${key}.json`).then(r => r.json()).catch(() => { detailCells.delete(key); return {}; }));
         }
         return detailCells.get(key);
       }));
@@ -727,22 +730,37 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
   }
 
   // ---------- 合成 ----------
-  function cropRect() {
+  // 相框的大小：按比例能放进地图的最大矩形，再缩小一些，留出拖动的余地
+  function frameSize() {
     const size = map.getSize();
     const r = RATIOS[ratio];
-    let w = size.x, h = w / r;
-    if (h > size.y) { h = size.y; w = h * r; }
-    return { x: (size.x - w) / 2, y: (size.y - h) / 2, w, h };
+    let w = size.x - 32, h = w / r;
+    if (h > size.y - 150) { h = size.y - 150; w = h * r; }
+    return { w: w * FRAME_FILL, h: h * FRAME_FILL };
+  }
+  // 截图范围（地图容器内的像素坐标）：取景时由相框决定；没取过景时用画面正中
+  function cropRect() {
+    const size = map.getSize();
+    const { w, h } = frameSize();
+    const x = framePos ? framePos.x : (size.x - w) / 2;
+    const y = framePos ? framePos.y : (size.y - h) / 2;
+    return {
+      x: Math.max(0, Math.min(size.x - w, x)),
+      y: Math.max(0, Math.min(size.y - h, y)),
+      w, h,
+    };
   }
 
   async function render() {
     const s = scene();
     const crop = cropRect();
+    // 相框比整屏小：提高倍率，导出的图片仍有约 1400px 宽
+    const scale = Math.max(SCALE, Math.min(5, OUT_WIDTH / crop.w));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round(crop.w * SCALE);
-    canvas.height = Math.round(crop.h * SCALE);
+    canvas.width = Math.round(crop.w * scale);
+    canvas.height = Math.round(crop.h * scale);
     const ctx = canvas.getContext('2d');
-    ctx.scale(SCALE, SCALE);
+    ctx.scale(scale, scale);
     ctx.translate(-crop.x, -crop.y);
     await Promise.all([`700 13px ${SANS}`, `600 10.5px ${SERIF_EN}`, `800 13px ${SERIF_EN}`, `700 13px ${SERIF_ZH}`, `500 11.5px ${SERIF_ZH}`]
       .map(f => document.fonts.load(f).catch(() => null)));
@@ -786,11 +804,36 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     $('#shotSave').disabled = false;
   }
 
+  // ---------- 取景：可以拖动的相框 ----------
+  // 相框外压暗，但不挡地图：相框外照样可以拖动、缩放地图
+  const frameBox = $('#shotFrame');
+  const frameEl = frameBox.querySelector('.sf-window');
+
+  function placeFrame() {
+    const c = cropRect();
+    framePos = { x: c.x, y: c.y };
+    const box = map.getContainer().getBoundingClientRect();
+    Object.assign(frameEl.style, { left: `${box.left + c.x}px`, top: `${box.top + c.y}px`, width: `${c.w}px`, height: `${c.h}px` });
+  }
+
   function open() {
-    const s = scene();
-    $('#shotTitle').textContent = s.title;
-    $('#shot').hidden = false;
+    $('#shot').hidden = true;
+    frameBox.hidden = false;
+    document.body.classList.add('shot-framing');
     for (const b of document.querySelectorAll('[data-ratio]')) b.setAttribute('aria-checked', b.dataset.ratio === ratio);
+    placeFrame();
+  }
+
+  function closeFrame() {
+    frameBox.hidden = true;
+    document.body.classList.remove('shot-framing');
+  }
+
+  // 冲洗：按相框里的范围出图
+  function shoot() {
+    closeFrame();
+    $('#shotTitle').textContent = scene().title;
+    $('#shot').hidden = false;
     develop();
   }
 
@@ -798,6 +841,52 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     $('#shot').hidden = true;
     rendering++;
   }
+
+  // 拖动相框（鼠标和手指都行）
+  let drag = null;
+  frameEl.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: framePos.x, y: framePos.y };
+    frameEl.setPointerCapture(e.pointerId);
+    frameEl.classList.add('dragging');
+    e.preventDefault();
+  });
+  frameEl.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    framePos = { x: drag.x + e.clientX - drag.sx, y: drag.y + e.clientY - drag.sy };
+    placeFrame(); // 会把相框限制在地图范围内
+  });
+  const endDrag = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag = null;
+    frameEl.classList.remove('dragging');
+  };
+  frameEl.addEventListener('pointerup', endDrag);
+  frameEl.addEventListener('pointercancel', endDrag);
+  // 方向键微调
+  frameEl.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 40 : 8;
+    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (e.key === 'Enter') { e.preventDefault(); return shoot(); }
+    if (!d) return;
+    e.preventDefault();
+    framePos = { x: framePos.x + d[0], y: framePos.y + d[1] };
+    placeFrame();
+  });
+  addEventListener('resize', () => { if (!frameBox.hidden) placeFrame(); });
+  $('#sfShoot').onclick = shoot;
+  $('#sfCancel').onclick = closeFrame;
+  frameBox.addEventListener('click', e => {
+    const b = e.target.closest('[data-ratio]');
+    if (!b || b.dataset.ratio === ratio) return;
+    // 换比例：保持相框中心不动
+    const c = cropRect();
+    ratio = b.dataset.ratio;
+    const { w, h } = frameSize();
+    framePos = { x: c.x + c.w / 2 - w / 2, y: c.y + c.h / 2 - h / 2 };
+    for (const x of document.querySelectorAll('[data-ratio]')) x.setAttribute('aria-checked', x === b);
+    placeFrame();
+  });
 
   async function save() {
     if (!blob) return;
@@ -817,16 +906,13 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
   $('#shotClose').onclick = close;
   $('#shot .shot-backdrop').onclick = close;
   $('#shotSave').onclick = save;
-  $('#shot').addEventListener('click', e => {
-    const b = e.target.closest('[data-ratio]');
-    if (!b || b.dataset.ratio === ratio) return;
-    ratio = b.dataset.ratio;
-    for (const x of document.querySelectorAll('[data-ratio]')) x.setAttribute('aria-checked', x === b);
-    develop();
-  });
+  // 重新取景：回到相框，位置不变
+  $('#shotReframe').onclick = () => { close(); open(); };
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !$('#shot').hidden) { e.stopImmediatePropagation(); close(); }
+    if (e.key !== 'Escape') return;
+    if (!$('#shot').hidden) { e.stopImmediatePropagation(); close(); }
+    else if (!frameBox.hidden) { e.stopImmediatePropagation(); closeFrame(); }
   }, true);
 
-  return { open, render, setRatio: r => { ratio = r; } };
+  return { open, shoot, render, setRatio: r => { ratio = r; }, moveFrame: (x, y) => { framePos = { x, y }; placeFrame(); } };
 }

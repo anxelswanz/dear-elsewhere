@@ -4,7 +4,7 @@
 //   migrate  执行 supabase/migrations 里还没执行过的文件（记录在 secrets/prod_migrated.json）
 //   auth     登录设置、Resend SMTP、邮件模板
 //   env      把项目地址和 publishable key 写进 .env.local 的 SUPABASE_URL_PROD / SUPABASE_KEY_PROD
-//   invite   生成一个随机邀请码，存到 secrets/prod_invite_code
+//   invite   生成一个随机邀请码：node scripts/setup-prod.mjs invite "给谁的"（记录在 secrets/prod_invite_codes.txt）
 // 需要的密钥都在 secrets/（已被 git 忽略）：supabase_pat、resend_api_key.md；本脚本不会打印任何密钥。
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
@@ -115,11 +115,15 @@ async function env() {
   console.log('已更新 .env.local 里的生产环境地址和 key');
 }
 
+// 用法：node scripts/setup-prod.mjs invite "给谁的"
+// 码是 12 位随机十六进制（约 2^48 种），没法猜；生成的码追加记录到 secrets/prod_invite_codes.txt
 async function invite() {
+  const note = (process.argv[3] || '').trim().slice(0, 100);
   const code = randomBytes(6).toString('hex').toUpperCase();
-  await query(`insert into public.invite_codes (code, note) values ('${code}', '生产环境第一个邀请码')`);
-  writeFileSync(secret('prod_invite_code'), code + '\n', { mode: 0o600 });
-  console.log('已生成邀请码，存在 secrets/prod_invite_code');
+  await query(`insert into public.invite_codes (code, note) values ('${code}', ${note ? `'${note.replaceAll("'", "''")}'` : 'null'})`);
+  const line = `${code}\t${new Date().toISOString().slice(0, 10)}\t${note}\n`;
+  writeFileSync(secret('prod_invite_codes.txt'), line, { flag: 'a', mode: 0o600 });
+  console.log(`新邀请码：${code}${note ? `（${note}）` : ''}`);
 }
 
 const steps = { create, migrate, auth, env, invite };

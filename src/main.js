@@ -6,7 +6,7 @@ import '@fontsource-variable/fraunces/opsz-italic.css';
 import '@fontsource/noto-serif-sc/500.css';
 import '@fontsource/noto-serif-sc/700.css';
 import { t, lang, applyStatic, localName } from './i18n.js';
-import { initAuth, avatarUrl } from './auth.js';
+import { initAuth, avatarUrl, myBirthplace } from './auth.js';
 import { initSocial } from './social.js';
 import { initChat } from './chat.js';
 import { initSnapshot } from './snapshot.js';
@@ -367,6 +367,26 @@ function applySynced(r) {
   requestAnimationFrame(() => { refreshQueued = false; refresh(); });
 }
 
+// ---------- 出生地：一枚小小的「出生」邮戳，只出现在自己的地图上 ----------
+let birthLayer = null; // 地图在后面才创建，第一次用到时再加
+function renderBirthplace() {
+  birthLayer ||= L.layerGroup().addTo(map);
+  birthLayer.clearLayers();
+  const c = geo.cityById.get(myBirthplace());
+  if (!c) return;
+  const label = t('birth.marker');
+  const html = `<div class="birth-mark" title="${label} · ${escapeHtml(c.name)}">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7" /><path d="M5.5 9.5V20h13V9.5" /><path d="M12 17.2s-3.2-1.9-3.2-3.9a1.7 1.7 0 0 1 3.2-.8 1.7 1.7 0 0 1 3.2.8c0 2-3.2 3.9-3.2 3.9z" /></svg>
+    <span>${label}</span></div>`;
+  for (const off of WORLD_COPIES) {
+    L.marker(toMapAt(c.lat, c.lng, off), {
+      icon: L.divIcon({ className: 'birth-anchor', iconSize: [0, 0], iconAnchor: [0, 0], html }),
+      interactive: false, keyboard: false, zIndexOffset: -500,
+    }).addTo(birthLayer);
+  }
+}
+document.addEventListener('birthplace:change', () => renderBirthplace());
+
 function refresh() {
   visited = { country: new Set(), region: new Set(), city: new Set() };
   for (const r of records) {
@@ -379,6 +399,7 @@ function refresh() {
   renderPlaces();
   renderSidebar();
   journey?.refresh();
+  renderBirthplace();
   const cur = records.find(r => r.id === currentId);
   if (cur) fillEditor(cur);
 }
@@ -1619,7 +1640,8 @@ async function addPhotos(files) {
   }
   // 本地还没传上去的照片也会占额度
   const queued = records.reduce((n, x) => n + x.photos.filter(p => !p.up && p.blob).length, 0);
-  const left = Math.max(0, quota.left - queued);
+  if (quota.totalLeft - queued <= 0) return toast(t('limit.photos_total', LIMITS));
+  const left = Math.max(0, Math.min(quota.left, quota.totalLeft) - queued);
   if (!left) return toast(quota.nextAt ? t('photosQuotaUntil', { t: hhmm(quota.nextAt) }) : t('limit.photos_per_day', LIMITS));
   if (files.length > Math.min(room, left)) {
     toast(room <= left ? t('photosPick', { n: LIMITS.photosPerPlace }) : t('photosTodayLeft', { n: left }));

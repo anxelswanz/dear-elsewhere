@@ -11,7 +11,7 @@
 
 ## 1. 数据库（Supabase → SQL Editor）
 
-- [ ] 按编号顺序执行 `supabase/migrations/0001` … `0011`，已经执行过的跳过。**0010（群聊）和 0011（安全加固）是新的。**
+- [ ] 按编号顺序执行 `supabase/migrations/0001` … `0014`，已经执行过的跳过（或 `node scripts/setup-prod.mjs migrate`）。**0014（堵住限额绕过、照片总量 1000 张）是新的。**
 - [ ] 执行完打开 **Advisors → Security Advisor**，确认没有 “RLS disabled” 或 “Function search path mutable” 之类的警告。
 - [ ] 邀请码：旧的 `ANSEL-FRIEND` 太短，而且写在过代码里。换成随机码，再停用旧的：
   ```sql

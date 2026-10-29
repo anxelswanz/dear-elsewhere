@@ -167,6 +167,7 @@
 .pp-country { position: relative; }
 .pp-country > label { display: flex; align-items: baseline; gap: 4px; font: 700 12px var(--serif-zh); letter-spacing: .08em; color: var(--navy); }
 .pp-country > label i { font: italic 400 11.5px var(--serif-en); letter-spacing: .02em; color: var(--ink-soft); }
+.pp-country > label em { margin-left: auto; font: 400 11px var(--serif-zh); letter-spacing: 0; color: var(--ink-soft); }
 .pp-options {
   position: absolute; top: calc(100% + 4px); left: -6px; right: -6px; z-index: 5; max-height: 264px; overflow-y: auto;
   margin: 0; padding: 5px; list-style: none;
@@ -190,18 +191,45 @@
   font: 700 13px var(--serif-zh); letter-spacing: .06em; border-bottom: 1px solid var(--rule);
 }
 .pp-section i { font: italic 400 12px var(--serif-en); color: var(--ink-soft); }
-.pp-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 8px;
-  max-height: 180px; overflow-y: auto; padding: 7px; margin: -3px -7px 0;
+/* 抽头像：左边一张翻开的卡片，右边说明和按钮 */
+.pp-draw { display: flex; align-items: center; gap: 20px; padding: 4px 2px 6px; }
+.pp-draw-card {
+  position: relative; display: grid; flex: none; place-items: center; width: 88px; height: 104px; margin: 0; padding: 6px; rotate: 2deg;
+  background: var(--card); box-shadow: 0 8px 16px -10px rgba(42, 39, 35, .6), 0 0 0 1px var(--rule);
 }
-.pp-grid button {
-  position: relative; aspect-ratio: 1; padding: 0; overflow: hidden; cursor: pointer;
-  background: none; border: none; border-radius: 50%;
-  box-shadow: 0 0 0 1px var(--rule); transition: translate .15s, box-shadow .15s;
+.pp-draw-card img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
+.pp-draw-card.back { background: repeating-linear-gradient(45deg, rgb(var(--blue-rgb) / .07) 0 6px, transparent 6px 12px), var(--card); }
+.pp-draw-card.back img { width: 54px; height: auto; opacity: .5; }
+.pp-draw-card.spinning { animation: pp-shuffle .16s ease-in-out infinite alternate; }
+.pp-draw-card.reveal { animation: pp-reveal .6s cubic-bezier(.3, 1.5, .5, 1) both; }
+.pp-draw-card[class*="tier-"] { box-shadow: 0 8px 16px -10px rgba(42, 39, 35, .6), 0 0 0 2px var(--tier); }
+.pp-draw-card.tier-3 { box-shadow: 0 0 0 2px var(--tier), 0 0 22px rgba(233, 196, 106, .75); }
+.pp-draw-card .tier-badge { position: absolute; bottom: -9px; left: 50%; translate: -50% 0; }
+@keyframes pp-shuffle { from { rotate: -3deg; } to { rotate: 4deg; } }
+@keyframes pp-reveal { 0% { scale: .6; rotate: -12deg; opacity: 0; } 100% { scale: 1; rotate: 2deg; opacity: 1; } }
+.pp-draw-body { display: grid; gap: 9px; min-width: 0; }
+.pp-draw-title { margin: 0; font: 600 14.5px var(--serif-zh); letter-spacing: .03em; }
+.pp-draw-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp-draw-btn {
+  height: 34px; padding: 0 18px; font: 600 13px -apple-system, "PingFang SC", sans-serif; cursor: pointer;
+  color: var(--paper); background: var(--ink); border: none; border-radius: 999px; transition: background .15s;
 }
-.pp-grid button:hover { translate: 0 -2px; box-shadow: 0 0 0 1px var(--rule-strong), 0 6px 10px -6px rgba(42, 39, 35, .6); }
-.pp-grid button[aria-checked="true"] { box-shadow: 0 0 0 2.5px var(--paper), 0 0 0 4.5px var(--accent); }
-.pp-grid img { display: block; width: 100%; height: 100%; }
+.pp-draw-btn:hover:not(:disabled) { background: var(--accent); }
+.pp-draw-btn.ghost { color: var(--ink); background: transparent; box-shadow: inset 0 0 0 1px var(--rule-strong); }
+.pp-draw-btn.ghost:hover { color: var(--paper); }
+.pp-draw-btn:disabled { opacity: .4; cursor: default; }
+.pp-draw-msg { font-size: 12px; color: var(--ink-soft); }
+.pp-draw-msg.bad { color: var(--air-red); }
+.pp-draw-note, .pp-odds, .pp-credit { margin: 8px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
+.pp-odds { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.pp-odds > span:last-child { margin-left: 4px; }
+.pp-credit { font-size: 11px; opacity: .8; }
+
+/* 护照照片上的稀有度 */
+.pp-photo-frame { position: relative; }
+.pp-photo-frame.tier-1, .pp-photo-frame.tier-2 { box-shadow: 0 8px 18px -10px rgba(42, 39, 35, .6), 0 0 0 2px var(--tier); }
+.pp-photo-frame.tier-3 { box-shadow: 0 0 0 2px var(--tier), 0 0 26px rgba(233, 196, 106, .7); }
+#ppTier { position: absolute; bottom: -10px; left: 50%; translate: -50% 0; rotate: 1.5deg; }
 
 /* 机读码 */
 .pp-mrz {
@@ -249,7 +277,7 @@
   .pp-photo { grid-template-columns: auto auto; align-items: end; justify-content: start; gap: 16px; }
   .pp-photo-frame { width: 104px; height: 124px; padding: 6px; }
   .pp-fields { grid-template-columns: minmax(0, 1fr); }
-  .pp-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; max-height: 150px; }
+  .pp-draw { gap: 16px; }
   .pp-mrz { margin: 16px -18px 0; padding: 8px 18px; font-size: 11px; }
   .pp-foot { flex-wrap: wrap; }
   .pp-foot .au-msg { flex-basis: 100%; }

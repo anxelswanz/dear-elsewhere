@@ -113,3 +113,37 @@
   #welcome { transition: opacity .3s; }
   #welcome.wl-out { clip-path: none; opacity: 0; }
 }
+
+/* =====================================================================
+   从官网进入（public/boot/arrive.js 加上 html.de-arrive）：
+   开场画面和官网转场的最后一帧一样——满屏信纸、上下航空条纹、中央一枚邮票，
+   然后信纸向中心收拢，露出后面的登录信（或已登录用户的地图）
+   ===================================================================== */
+html.de-arrive body::before, html.de-arrive body::after {
+  content: ''; position: fixed; z-index: 3000; pointer-events: none;
+}
+html.de-arrive body::before {
+  inset: 0;
+  background:
+    repeating-linear-gradient(135deg, var(--air-red) 0 16px, var(--paper) 16px 26px, var(--air-blue) 26px 42px, var(--paper) 42px 52px) top / 100% 10px no-repeat,
+    repeating-linear-gradient(135deg, var(--air-red) 0 16px, var(--paper) 16px 26px, var(--air-blue) 26px 42px, var(--paper) 42px 52px) bottom / 100% 10px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .35 0 0 0 0 .22 0 0 0 .1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    var(--paper);
+  clip-path: circle(150% at 50% 50%);
+  animation: de-lift .75s cubic-bezier(.7, 0, .25, 1) .2s forwards;
+}
+/* 邮票：和官网最后一帧同样大小、同样歪着，随信纸一起收走 */
+html.de-arrive body::after {
+  left: 50%; top: 50%; width: 92px; aspect-ratio: 437 / 512; translate: -50% -50%; rotate: -6deg;
+  background: url(/brand/stamp@2x.png) center / contain no-repeat;
+  filter: drop-shadow(0 8px 16px rgb(var(--ink-rgb) / .25));
+  animation: de-stamp-out .6s cubic-bezier(.6, 0, .4, 1) .2s forwards;
+}
+@keyframes de-lift { to { clip-path: circle(0 at 50% 50%); } }
+@keyframes de-stamp-out { 40% { scale: 1.08; } to { scale: .3; opacity: 0; rotate: 8deg; } }
+/* 信纸收走之后，登录信再从下方滑进来 */
+html.de-arrive .au-letter { animation-delay: .55s; }
+@media (prefers-reduced-motion: reduce) {
+  html.de-arrive body::before, html.de-arrive body::after { display: none; }
+  html.de-arrive .au-letter { animation-delay: 0s; }
+}
