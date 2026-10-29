@@ -20,7 +20,7 @@
 .fr-input:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(42, 39, 35, .08); }
 .fr-input b { font: 600 17px var(--serif-en); color: var(--accent); }
 .fr-input input { flex: 1; min-width: 0; height: 100%; padding: 0 0 0 4px; font: 600 15px var(--serif-en); color: var(--ink); background: none; border: none; outline: none; }
-.fr-input input::placeholder { font: 400 14px -apple-system, "PingFang SC", sans-serif; color: rgba(42, 39, 35, .42); }
+.fr-input input::placeholder { font: 400 14px -apple-system, "PingFang SC", sans-serif; color: rgb(var(--ink-rgb) / .42); }
 
 .fr-btn {
   flex: none; height: 32px; padding: 0 12px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer;
@@ -62,7 +62,6 @@
 .person-text b { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .person-text small { overflow: hidden; font: italic 12.5px var(--serif-en); color: var(--ink-soft); text-overflow: ellipsis; white-space: nowrap; }
 .person-acts { display: flex; gap: 6px; }
-.fr-public { font: 600 11px -apple-system, "PingFang SC", sans-serif; font-style: normal; color: var(--accent); }
 
 /* ---------- 动态：每条是一张小明信片 ---------- */
 .post { padding: 14px 0 16px; border-bottom: 1px dashed var(--rule-strong); scroll-margin-top: 8px; }
@@ -157,7 +156,7 @@
   background: #fff; box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, .3);
 }
 .mk-hi { animation: mk-hi 1s ease-in-out 3; }
-@keyframes mk-hi { 50% { filter: drop-shadow(0 0 10px rgba(232, 89, 12, .9)); scale: 1.08; } }
+@keyframes mk-hi { 50% { filter: drop-shadow(0 0 10px rgb(var(--accent-rgb) / .9)); scale: 1.08; } }
 
 /* 评论气泡：一行，最宽 170px，每 3 秒向上换一条 */
 .mk-chat { order: -1; max-width: 190px; height: 24px; margin-bottom: 6px; overflow: hidden; pointer-events: none; }
@@ -178,16 +177,16 @@
 /* 地图右上角的「好友」开关 */
 .map-btn.leaflet-bar {
   display: flex; align-items: center; gap: 5px; height: 34px; padding: 0 11px; cursor: pointer;
-  font: 600 13px -apple-system, "PingFang SC", sans-serif; color: var(--ink); background: #fbf8f1;
+  font: 600 13px -apple-system, "PingFang SC", sans-serif; color: var(--ink); background: var(--paper-hi);
 }
 .map-btn .ic { width: 16px; height: 16px; color: var(--ink-soft); }
-.map-btn[aria-pressed="true"] { color: #fbf8f1; background: var(--ink); }
+.map-btn[aria-pressed="true"] { color: var(--paper-hi); background: var(--ink); }
 .map-btn[aria-pressed="true"] .ic { color: #ffb68a; }
 
 /* ---------- 轻提示 ---------- */
 #toast {
   position: fixed; left: 50%; bottom: 32px; z-index: 1700; max-width: calc(100vw - 32px); padding: 10px 18px;
-  font-size: 13.5px; color: #fbf8f1; background: var(--ink); border-radius: 999px;
+  font-size: 13.5px; color: var(--paper-hi); background: var(--ink); border-radius: 999px;
   box-shadow: 0 14px 28px -12px rgba(0, 0, 0, .5); translate: -50% 0; animation: toast-in .3s cubic-bezier(.2, .8, .2, 1) both;
 }
 #toast[hidden] { display: none; }

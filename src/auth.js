@@ -3,6 +3,7 @@
 import { supabase, supabaseReady } from './supabase.js';
 import { playWelcome } from './welcome.js';
 import { t, lang, localName, langSwitch } from './i18n.js';
+import { applyAccountSettings } from './settings.js';
 
 const AVATAR_COUNT = 60;
 const AVATARS = Array.from({ length: AVATAR_COUNT }, (_, i) => `a${String(i + 1).padStart(2, '0')}`);
@@ -11,6 +12,9 @@ export const avatarUrl = id => `${import.meta.env.BASE_URL}avatars/${id}.svg`;
 const HANDLE_MIN = 3, HANDLE_MAX = 20;
 const HANDLE_RE = new RegExp(`^[a-z0-9_]{${HANDLE_MIN},${HANDLE_MAX}}$`);
 const HANDLE_COOLDOWN_DAYS = 30;
+// 条款版本：改动 public/legal.html 的实质内容时更新，注册时记进 user_metadata 作为同意凭证
+const TERMS_VERSION = '2026-10-29';
+const legalUrl = hash => `${import.meta.env.BASE_URL}legal.html?lang=${lang}${hash ? `#${lang}-${hash}` : ''}`;
 
 const $ = sel => document.querySelector(sel);
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -22,6 +26,7 @@ let birthday = '';       // public.profile_private，仅自己可见
 let countries = [];      // [{ id, name, en }]，按中文名排序
 let view = 'checking';
 let email = '';          // 在登录 / 注册 / 找回密码之间切换时保留
+let invite = '';         // 注册用的邀请码，同上
 let resolveReady;        // 第一次拿到完整资料时，把账号交给地图
 let readyUser = null;
 let welcome = null;      // 'login' | 'signup'：只在主动登录、刚签发护照时播放欢迎动画，刷新页面不播
@@ -78,11 +83,12 @@ async function handleSession(s) {
   const uid = s.user.id;
   const [pub, priv] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
-    supabase.from('profile_private').select('birthday').eq('id', uid).maybeSingle(),
+    supabase.from('profile_private').select('*').eq('id', uid).maybeSingle(), // 还没执行 0008 时没有 theme / lang 列
   ]);
   if (pub.error) return showGate('login', t('au.loadFailed', { msg: pub.error.message }));
   profile = pub.data;
   birthday = priv.data?.birthday || '';
+  if (applyAccountSettings(uid, priv.data)) return; // 账号的语言和本机不同，页面即将刷新
   renderMe();
   if (profile) accountReady();
   else openPassport('create');
@@ -107,19 +113,30 @@ function hideGate() {
 // ---------- 航空信：登录 / 注册 / 找回密码 ----------
 const LETTER = {
   login: { lead: t('au.loginLead'), submit: t('au.login'), fields: ['email', 'password'] },
-  signup: { lead: t('au.signupLead'), submit: t('au.signup'), fields: ['email', 'password', 'password2'] },
+  signup: { lead: t('au.signupLead'), submit: t('au.signup'), fields: ['invite', 'email', 'password', 'password2', 'consent'] },
   forgot: { lead: t('au.forgotLead'), submit: t('au.sendReset'), fields: ['email'] },
   reset: { lead: t('au.resetLead'), submit: t('au.saveNew'), fields: ['password', 'password2'] },
 };
 
 const FIELD = {
+  invite: () => `<label class="au-field"><span>${t('au.invite')}</span>
+    <input name="invite" type="text" required autocomplete="off" autocapitalize="characters" spellcheck="false" value="${escapeHtml(invite)}" placeholder="${t('au.invitePh')}" /></label>`,
   email: () => `<label class="au-field"><span>${t('au.email')}</span>
     <input name="email" type="email" autocomplete="email" required value="${escapeHtml(email)}" placeholder="you@example.com" /></label>`,
   password: v => `<label class="au-field"><span>${t(v === 'reset' ? 'au.newPassword' : 'au.password')}</span>
-    <input name="password" type="password" minlength="6" required autocomplete="${v === 'login' ? 'current-password' : 'new-password'}" placeholder="${v === 'login' ? '' : t('au.min6')}" /></label>`,
+    <input name="password" type="password" ${v === 'login' ? '' : `minlength="${PASSWORD_MIN}"`} required autocomplete="${v === 'login' ? 'current-password' : 'new-password'}" placeholder="${v === 'login' ? '' : t('au.min6', { n: PASSWORD_MIN })}" /></label>`,
   password2: () => `<label class="au-field"><span>${t('au.confirm')}</span>
-    <input name="password2" type="password" minlength="6" required autocomplete="new-password" /></label>`,
+    <input name="password2" type="password" minlength="${PASSWORD_MIN}" required autocomplete="new-password" /></label>`,
+  consent: () => `<label class="au-consent"><input name="consent" type="checkbox" required />
+    <span>${t('au.consent', { terms: `<a href="${legalUrl('terms')}" target="_blank" rel="noopener">${t('au.terms')}</a>`, privacy: `<a href="${legalUrl('privacy')}" target="_blank" rel="noopener">${t('au.privacy')}</a>` })}</span></label>`,
 };
+
+// 登录 / 注册页底部：条款要点，全文在 legal.html
+const termsHtml = () => `<details class="au-terms" open>
+  <summary>${t(view === 'signup' ? 'au.termsTitleSignup' : 'au.termsTitleLogin')}</summary>
+  <ul>${t('au.termsPoints').map(p => `<li>${p}</li>`).join('')}</ul>
+  <p><a href="${legalUrl('terms')}" target="_blank" rel="noopener">${t('au.terms')}</a> · <a href="${legalUrl('privacy')}" target="_blank" rel="noopener">${t('au.privacy')}</a> · ${t('au.termsVersion', { v: TERMS_VERSION })}</p>
+</details>`;
 
 const brandHtml = `
   <header class="au-head">
@@ -172,8 +189,11 @@ function renderLetter(message = '') {
         ${view === 'login' ? `<button type="button" class="au-link" data-go="forgot">${t('au.forgot')}</button>` : ''}
         ${view === 'forgot' ? `<button type="button" class="au-link" data-go="login">${t('au.backToLogin')}</button>` : ''}
       </div>
+      ${view === 'login' ? `<p class="au-agree">${t('au.loginAgree', { terms: `<a href="${legalUrl('terms')}" target="_blank" rel="noopener">${t('au.terms')}</a>`, privacy: `<a href="${legalUrl('privacy')}" target="_blank" rel="noopener">${t('au.privacy')}</a>` })}</p>` : ''}
+      ${tabs ? termsHtml() : ''}
     </form></div></article>`;
-  const first = stage.querySelector(email && view !== 'reset' ? 'input[name="password"]' : 'input');
+  const first = stage.querySelector(view === 'signup' && !invite ? 'input[name="invite"]'
+    : email && view !== 'reset' ? 'input[name="password"]' : 'input');
   first?.focus();
 }
 
@@ -184,11 +204,14 @@ function authError(err) {
   if (err?.code === 'user_already_exists' || /already registered/i.test(m)) return t('err.exists');
   if (err?.code === 'weak_password' || /password should/i.test(m)) return t('err.weak');
   if (err?.code === 'same_password') return t('err.same');
-  if (err?.status === 429 || /rate limit/i.test(m)) return t('err.rate');
+  // 邀请码在数据库里校验，未通过时 Supabase 只会返回笼统的「Database error saving new user」
+  if (/database error saving new user/i.test(m)) return t('err.invite');
+  if (err?.status === 429 || /rate limit|LIMIT:too_fast/i.test(m)) return t('err.rate'); // LIMIT：邀请码查询太频繁（0011）
   if (/fetch|network/i.test(m)) return t('err.network');
   return m || t('err.unknown');
 }
 
+const PASSWORD_MIN = 8; // 与 Supabase 控制台 Auth → Password 的最短长度保持一致
 const redirectTo = () => location.origin + location.pathname;
 
 async function submitLetter(form) {
@@ -198,8 +221,14 @@ async function submitLetter(form) {
     email = data.email.trim();
     if (!/^\S+@\S+\.\S+$/.test(email)) return say(t('err.emailFormat'));
   }
-  if ('password' in data && data.password.length < 6) return say(t('err.pw6'));
+  if ('invite' in data) {
+    invite = data.invite.trim().toUpperCase();
+    if (!invite) return say(t('err.invite'));
+  }
+  // 新密码至少 8 位；登录时不检查长度，老账号的 6 位密码照样能登录
+  if ('password' in data && view !== 'login' && data.password.length < PASSWORD_MIN) return say(t('err.pw6', { n: PASSWORD_MIN }));
   if ('password2' in data && data.password !== data.password2) return say(t('err.pwMatch'));
+  if (view === 'signup' && !data.consent) return say(t('err.consent'));
 
   const button = form.querySelector('.au-submit');
   button.disabled = true;
@@ -210,7 +239,13 @@ async function submitLetter(form) {
       welcome = 'login';
       // 成功后由 onAuthStateChange 接手
     } else if (view === 'signup') {
-      const { data: res, error } = await supabase.auth.signUp({ email, password: data.password, options: { emailRedirectTo: redirectTo() } });
+      const { data: ok, error: inviteError } = await supabase.rpc('check_invite', { code: invite });
+      if (inviteError) return say(authError(inviteError));
+      if (!ok) return say(t('err.invite'));
+      const { data: res, error } = await supabase.auth.signUp({
+        email, password: data.password,
+        options: { emailRedirectTo: redirectTo(), data: { invite_code: invite, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() } },
+      });
       if (error) return say(authError(error));
       // 开启邮箱验证时，已注册的邮箱会返回一个没有 identities 的假用户
       if (res.user && !res.user.identities?.length) return say(t('err.exists'));
@@ -523,11 +558,10 @@ function renderMe() {
       <b>${escapeHtml(profile.name)}</b>
       <span class="me-handle">@${escapeHtml(profile.handle)}${country ? ` · ${escapeHtml(country.name)}` : ''}</span>
     </div>
-    <label class="me-switch">
-      <span><b>${t('me.public')}</b><small>${t(profile.map_public ? 'me.publicOn' : 'me.publicOff')}</small></span>
-      <input type="checkbox" id="mapPublic" ${profile.map_public ? 'checked' : ''} /><i aria-hidden="true"></i>
-    </label>
-    ${langRow()}
+    <button type="button" class="me-settings" data-open-settings data-close-drop>
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+      <span><b>${t('st.title')}</b><small>${t('st.entrySub')}</small></span><i aria-hidden="true">›</i>
+    </button>
     <div id="meInbox"></div>
     <div class="me-actions">
       <button type="button" data-pp-edit data-close-drop>${t('me.edit')}</button>
@@ -535,6 +569,83 @@ function renderMe() {
     </div>
     <p class="me-email">${escapeHtml(session?.user.email || '')}</p>`;
   document.dispatchEvent(new Event('me:render')); // 让「收到的评论」重新填进来
+}
+
+// ---------- 数据导出与注销（GDPR 第 15、17、20 条） ----------
+// 打卡和照片用「足迹」里的导出备份；这里导出账号、好友、评论、私信
+async function exportAccount(button) {
+  button.disabled = true;
+  try {
+    const uid = session.user.id;
+    const all = async query => {
+      const rows = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await query().range(from, from + 999);
+        if (error) throw error;
+        rows.push(...data);
+        if (data.length < 1000) return rows;
+      }
+    };
+    const [friendships, messages, comments, checkins, groups, groupMessages] = await Promise.all([
+      all(() => supabase.from('friendships').select('*').order('created_at')),
+      all(() => supabase.from('messages').select('*').order('created_at')),
+      all(() => supabase.from('comments').select('*').eq('author', uid).order('created_at')),
+      all(() => supabase.from('checkins').select('*').eq('user_id', uid).eq('deleted', false).order('created_at')),
+      // 群聊：所在的群和成员，以及自己在群里发的消息（还没执行 0010 时为空）
+      all(() => supabase.from('chat_groups').select('*, group_members(*)').order('created_at')).catch(() => []),
+      all(() => supabase.from('group_messages').select('*').eq('sender', uid).order('created_at')).catch(() => []),
+    ]);
+    const { user } = session;
+    const data = {
+      exported_at: new Date().toISOString(),
+      account: { id: user.id, email: user.email, created_at: user.created_at, email_confirmed_at: user.email_confirmed_at,
+        terms_version: user.user_metadata?.terms_version ?? null, terms_accepted_at: user.user_metadata?.terms_accepted_at ?? null },
+      profile, private: { birthday: birthday || null },
+      checkins, friendships, comments, messages, groups, group_messages: groupMessages,
+      note: 'Photos are included in the backup exported from the Map panel. 照片请用「足迹」里的「导出备份」。',
+    };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = `dear-elsewhere-${profile.handle}-${today()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (err) {
+    alert(t('me.exportFailed', { msg: err.message || err }));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deleteAccount() {
+  const yes = await askLetter({
+    title: t('me.deleteTitle'), body: t('me.deleteBody', { handle: escapeHtml(profile.handle) }),
+    ok: t('me.deleteOk'), cancel: t('pp.cancel'),
+  });
+  if (!yes) return;
+  const uid = session.user.id;
+  showGate('checking');
+  try {
+    // 先删 Storage 里的照片（SQL 删不了），再删账号，数据库里的其余数据随外键级联删除
+    for (;;) {
+      const { data, error } = await supabase.storage.from('photos').list(uid, { limit: 1000 });
+      if (error) throw error;
+      if (!data.length) break;
+      const { error: rmError } = await supabase.storage.from('photos').remove(data.map(f => `${uid}/${f.name}`));
+      if (rmError) throw rmError;
+    }
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) throw error;
+  } catch (err) {
+    return showGate('login', t('me.deleteFailed', { msg: err.message || err }));
+  }
+  // 本机缓存也一起清掉
+  indexedDB.deleteDatabase(`mymap-${uid}`);
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith(`mymap:${uid}:`)).forEach(k => localStorage.removeItem(k));
+  } catch { /* 隐私模式 */ }
+  await supabase.auth.signOut({ scope: 'local' });
+  alert(t('me.deleted'));
+  location.reload();
 }
 
 // ---------- 事件 ----------
@@ -550,6 +661,8 @@ document.addEventListener('click', async e => {
     await supabase.auth.signOut();
     return;
   }
+  if (e.target.closest('[data-export-account]')) return exportAccount(e.target.closest('[data-export-account]'));
+  if (e.target.closest('[data-delete-account]')) return deleteAccount();
   if (e.target.closest('[data-pp-edit]')) return openPassport('edit');
   if (e.target.closest('[data-pp-close]')) return closePassport();
   if (e.target.closest('[data-pp-random]')) {
@@ -628,15 +741,6 @@ document.addEventListener('mousedown', e => {
   if (!li) return;
   e.preventDefault();
   pickCountry(li.dataset.country);
-});
-
-document.addEventListener('change', async e => {
-  if (e.target.id !== 'mapPublic') return;
-  const on = e.target.checked;
-  const { data, error } = await supabase.from('profiles').update({ map_public: on }).eq('id', session.user.id).select().single();
-  if (error) { e.target.checked = !on; return alert(t('saveFailed', { msg: error.message })); }
-  profile = data;
-  renderMe();
 });
 
 document.addEventListener('keydown', e => {

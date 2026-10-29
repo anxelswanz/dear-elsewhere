@@ -3,3 +3,4 @@ raw/
 dist/
 .env.local
 .DS_Store
+secrets/

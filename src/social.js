@@ -7,6 +7,7 @@
 import { supabase } from './supabase.js';
 import { avatarUrl } from './auth.js';
 import { t } from './i18n.js';
+import { limitText } from './limits.js';
 
 const BUCKET = 'photos';
 const URL_TTL = 3600;           // 签名链接有效期（秒）
@@ -79,7 +80,7 @@ export function initSocial({ me, helpers }) {
   async function profilesFor(ids) {
     const missing = [...new Set(ids)].filter(id => !state.profiles.has(id));
     if (!missing.length) return;
-    const { data } = await supabase.from('profiles').select('id, handle, name, country, avatar, map_public').in('id', missing);
+    const { data } = await supabase.from('profiles').select('id, handle, name, country, avatar').in('id', missing);
     for (const p of data || []) state.profiles.set(p.id, p);
   }
 
@@ -208,12 +209,14 @@ export function initSocial({ me, helpers }) {
         ${state.outgoing.length ? `<p class="fr-title"><span>${t('fr.waiting')}</span><i>${state.outgoing.length}</i></p>
           <ul class="people">${state.outgoing.map(f => personRow(f.profile, `<button class="fr-btn" data-withdraw>${t('fr.withdraw')}</button>`)).join('')}</ul>` : ''}
 
+        ${helpers.groupsHtml?.() || ''}
+
         <p class="fr-title"><span>${t('fr.mine')}</span><i>${state.friends.length}</i></p>
         ${state.friends.length ? `<ul class="people">${state.friends.map(f => personRow(f.profile,
           `<button class="fr-btn fr-icon fr-chat" data-chat title="${t('chat.open')}">${icon('chat')}${chatBadge(f.profile.id)}</button>
            ${pinsOf(f.profile.id) ? `<button class="fr-btn fr-icon" data-only title="${t('fr.onlyTitle')}">${icon('pin')}</button>` : ''}
            <button class="fr-btn fr-more" data-unfriend title="${t('fr.removeTitle')}">${t('fr.remove')}</button>`,
-          `${f.profile.map_public ? ` · <span class="fr-public">${t('fr.publicMap')}</span>` : ''}`)).join('')}</ul>`
+          '')).join('')}</ul>`
         : `<div class="empty-card">${icon('users')}<b>${t('fr.none')}</b><span>${t('fr.noneSub')}</span></div>`}
       </div>`;
     if (focused) { const i = box.querySelector('#friendHandle'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
@@ -326,7 +329,7 @@ export function initSocial({ me, helpers }) {
   // ---------- 操作 ----------
   async function act(promise) {
     const { error } = await promise;
-    if (error) { alert(t('opFailed', { msg: error.message })); return false; }
+    if (error) { alert(limitText(error) || t('opFailed', { msg: error.message })); return false; }
     await load();
     return true;
   }
@@ -335,7 +338,7 @@ export function initSocial({ me, helpers }) {
   async function findHandle(raw) {
     const h = raw.trim().replace(/^@/, '').toLowerCase();
     if (!/^[a-z0-9_]{3,20}$/.test(h)) { state.lookup = { error: t('fr.badHandle') }; return renderFriends(); }
-    const { data, error } = await supabase.from('profiles').select('id, handle, name, country, avatar, map_public').eq('handle', h).maybeSingle();
+    const { data, error } = await supabase.from('profiles').select('id, handle, name, country, avatar').eq('handle', h).maybeSingle();
     state.lookup = error ? { error: t('fr.lookupFailed', { msg: error.message }) } : data ? { profile: data } : { error: t('fr.notFound', { h }) };
     if (data) state.profiles.set(data.id, data);
     renderFriends();
@@ -355,7 +358,7 @@ export function initSocial({ me, helpers }) {
       input.disabled = true;
       const { error } = await supabase.from('comments').insert({ checkin_owner: owner, checkin_id: id, body });
       input.disabled = false;
-      if (error) return alert(t('feed.commentFailed', { msg: error.message }));
+      if (error) return alert(limitText(error) || t('feed.commentFailed', { msg: error.message }));
       input.value = '';
       load();
     }
@@ -461,6 +464,8 @@ export function initSocial({ me, helpers }) {
     // 某条打卡的评论（时间正序），用于标记上的滚动评论
     comments: key => state.comments.get(key) || [],
     author: id => state.profiles.get(id),
+    // 读取不在好友列表里的人（群成员）的资料，之后 author() 就能拿到
+    ensureProfiles: profilesFor,
     openPost,
   };
 }

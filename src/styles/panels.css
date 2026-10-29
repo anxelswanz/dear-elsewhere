@@ -4,11 +4,7 @@
    橙色只留给“去过”的数据，界面控件统一用墨色。
    ===================================================================== */
 #topbar, .drop, #tabbar {
-  --paper: #fbf8f1;
-  --paper-2: #f3ede1;
-  --card: #fffdf8;
-  --rule: rgba(42, 39, 35, .12);
-  --rule-strong: rgba(42, 39, 35, .24);
+  --paper: var(--paper-hi);
   color: var(--ink);
 }
 
@@ -78,20 +74,20 @@
 #crumbs a, #crumbs b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 #crumbs a { flex: 0 1 auto; color: var(--ink-soft); cursor: pointer; text-decoration: none; transition: color .15s; }
 #crumbs a:hover { color: var(--air-red); text-decoration: underline; text-underline-offset: 3px; }
-#crumbs .sep { flex: none; margin: 0 8px; color: rgba(42, 39, 35, .3); }
+#crumbs .sep { flex: none; margin: 0 8px; color: rgb(var(--ink-rgb) / .3); }
 #crumbs b { flex: 0 0 auto; max-width: 12em; font: 700 15px var(--serif-zh); letter-spacing: .03em; }
 
 /* 地图控件让出顶栏 */
 .leaflet-top { top: 74px; }
 /* 缩放、图层按钮换成同一套纸面 */
 .leaflet-touch .leaflet-bar, .leaflet-touch .leaflet-control-layers {
-  overflow: hidden; border: 1px solid rgba(42, 39, 35, .14); border-radius: 10px;
+  overflow: hidden; border: 1px solid rgb(var(--ink-rgb) / .14); border-radius: 10px;
   box-shadow: 0 10px 20px -14px rgba(42, 39, 35, .6), 0 1px 2px rgba(42, 39, 35, .06);
 }
-.leaflet-bar a, .leaflet-control-layers { color: var(--ink); background-color: #fbf8f1; }
-.leaflet-bar a { border-bottom-color: rgba(42, 39, 35, .12); }
-.leaflet-bar a:hover { background-color: #f3ede1; }
-.leaflet-bar a.leaflet-disabled { color: rgba(42, 39, 35, .3); background-color: #fbf8f1; }
+.leaflet-bar a, .leaflet-control-layers { color: var(--ink); background-color: var(--paper-hi); }
+.leaflet-bar a { border-bottom-color: rgb(var(--ink-rgb) / .12); }
+.leaflet-bar a:hover { background-color: var(--paper-2); }
+.leaflet-bar a.leaflet-disabled { color: rgb(var(--ink-rgb) / .3); background-color: var(--paper-hi); }
 
 /* ---------- 悬浮面板 ---------- */
 .drop {
@@ -132,7 +128,7 @@
   transition: border-color .15s, box-shadow .15s;
 }
 #searchInput::-webkit-search-cancel-button { filter: grayscale(1) opacity(.55); cursor: pointer; }
-#searchInput::placeholder { color: rgba(42, 39, 35, .42); }
+#searchInput::placeholder { color: rgb(var(--ink-rgb) / .42); }
 #searchInput:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(42, 39, 35, .08); }
 #searchResults {
   position: absolute; top: 46px; left: 0; right: 0; z-index: 10; max-height: 60vh; overflow-y: auto;
@@ -164,7 +160,7 @@
 .trail ol { display: flex; flex: 1; align-items: center; min-width: 0; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .trail li { display: flex; align-items: center; min-width: 0; }
 .trail li:first-child { flex: none; }
-.trail li + li::before { content: '/'; flex: none; margin: 0 6px; color: rgba(42, 39, 35, .28); }
+.trail li + li::before { content: '/'; flex: none; margin: 0 6px; color: rgb(var(--ink-rgb) / .28); }
 .trail li button {
   max-width: 100%; padding: 4px 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
   color: var(--ink-soft); background: none; border: none;
@@ -174,7 +170,7 @@
   display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; font-weight: 600; color: var(--ink);
   background: var(--card); border: 1px solid var(--rule-strong); border-radius: 999px; transition: border-color .15s, background .15s;
 }
-.trail .trail-home:hover { text-decoration: none; border-color: var(--ink); background: #fff; }
+.trail .trail-home:hover { text-decoration: none; border-color: var(--ink); background: var(--card); }
 .trail-home .ic { width: 14px; height: 14px; }
 @keyframes trail-in { from { opacity: 0; translate: -8px 0; } }
 
@@ -202,7 +198,7 @@
 .card-actions button.on:hover { background: #3d3934; }
 .card-actions i {
   display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
-  font: 600 11px/1 var(--serif-en); font-style: normal; color: #fff; background: var(--accent); border-radius: 9px;
+  font: 600 11px/1 var(--serif-en); font-style: normal; color: var(--on-accent); background: var(--accent); border-radius: 9px;
 }
 .thumbs { display: flex; gap: 6px; margin-top: 12px; }
 .thumbs img, .thumbs-more {
@@ -241,7 +237,7 @@
 .row:hover { background: var(--paper-2); }
 .row .label { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .row .label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid rgba(42, 39, 35, .3); }
+.row .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid rgb(var(--ink-rgb) / .3); }
 .row.visited .dot { background: var(--accent); border-color: var(--accent); }
 .row:not(.visited) .label { color: #5e574e; }
 .row small { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -279,7 +275,7 @@
 /* 空状态：一张空白明信片 */
 .empty-card {
   display: grid; justify-items: center; gap: 4px; margin: 10px 8px 0; padding: 24px 16px; text-align: center;
-  background: repeating-linear-gradient(to bottom, transparent 0 23px, rgba(31, 75, 143, .08) 23px 24px), var(--card);
+  background: repeating-linear-gradient(to bottom, transparent 0 23px, rgb(var(--blue-rgb) / .08) 23px 24px), var(--card);
   border: 1.5px dashed var(--rule-strong); border-radius: 8px; rotate: -1.5deg;
 }
 .empty-card .ic { width: 26px; height: 26px; margin-bottom: 4px; color: var(--accent); }
@@ -287,7 +283,9 @@
 .empty-card span { font-size: 12px; color: var(--ink-soft); }
 
 /* ---------- 底部 ---------- */
-.drop footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--rule); }
+.drop footer { display: grid; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--rule); }
+/* 足迹面板底部现在只剩同步状态：还没有状态时整行收起 */
+.drop footer:not(:has(> :not([hidden]))) { display: none; }
 .drop footer button, .drop footer label {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 10px;
   font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer;
@@ -306,6 +304,7 @@
 .sync[data-state="pending"] .ic { color: var(--accent); }
 .sync[data-state="offline"] .ic { color: var(--ink-soft); stroke-dasharray: 2.5 2.5; }
 .sync[data-state="error"] { color: var(--air-red); }
+.sync[data-state="limited"] .ic { color: var(--accent); }
 .sync[data-state="syncing"] .ic { animation: sync-float 1.2s ease-in-out infinite; }
 @keyframes sync-float { 50% { translate: 0 -2px; opacity: .55; } }
 

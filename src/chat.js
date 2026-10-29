@@ -1,12 +1,14 @@
-// 好友私聊
+// 好友私聊与群聊
 //   · 从好友列表点「聊天」打开对话窗：桌面是右下角的信笺，手机铺满全屏
+//   · 群聊：只能拉自己的好友，最多 20 人；群主可以改名、移出成员；自己的消息下显示几人已读
 //   · 可以发文字和 emoji，也可以转发自己的一次打卡（发送时存快照，照片读发送者的私有目录）
 //   · 好友点开转发的打卡能看全部照片、地址和留言，还能飞到地图上
 //   · 未读数显示在好友列表和「好友」红点上；对话窗开着时新消息直接标记已读
-// 数据权限见 supabase/migrations/0004_chat.sql
+// 数据权限见 supabase/migrations/0004_chat.sql、0010_groups.sql
 import { supabase } from './supabase.js';
 import { avatarUrl } from './auth.js';
 import { t, lang } from './i18n.js';
+import { limitText, LIMITS } from './limits.js';
 
 const PAGE = 50;
 const $ = sel => document.querySelector(sel);
@@ -31,6 +33,9 @@ const ICON = {
   camera: '<path d="M4 8.5h3l1.5-2h7l1.5 2h3v10H4z"/><circle cx="12" cy="13" r="3.2"/>',
   sent: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
   read: '<path d="M2.5 12.5l4.5 4.5L16.5 7.5"/><path d="M11.5 16.5l.5.5 9.5-9.5"/>',
+  users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  back: '<path d="M15 5l-7 7 7 7"/>',
 };
 const icon = name => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -53,6 +58,7 @@ function dayLabel(at) {
   if (d.toDateString() === yesterday.toDateString()) return t('chat.yesterday');
   return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en', { month: 'short', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
 }
+const after = (a, b) => Date.parse(a) >= Date.parse(b); // 时间 a 不早于 b
 const clock = at => new Date(at).toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en', { hour: '2-digit', minute: '2-digit' });
 
 // me: { id }；social：好友资料与照片签名；helpers 由地图提供：
@@ -60,13 +66,21 @@ const clock = at => new Date(at).toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'e
 //   showPhoto(url) 大图；flyTo(row) 飞到地图上；toast(text)；requestSync() 立即同步（让照片尽快上传）
 export function initChat({ me, social, helpers }) {
   const state = {
-    peer: null,          // 正在聊天的好友 id
+    conv: null,          // 正在看的对话：{ type: 'dm' | 'group', id }
     messages: [],        // 当前对话，时间正序
     more: false,         // 还有更早的消息
     unread: new Map(),   // 好友 id -> 未读数
+    groups: new Map(),   // 群 id -> { id, name, owner, last_message_at, members: [{ user_id, joined_at, read_at }] }
+    groupUnread: new Map(), // 群 id -> 未读数
     tray: null,          // 'emoji' | 'checkin' | null
     viewing: null,       // 正在查看的转发打卡消息
+    sheet: null,         // 盖在对话上的面板：'create' 建群 | 'info' 群聊信息 | null
+    picked: new Set(),   // 建群、拉人时勾选的好友
+    readersOf: null,     // 展开了已读名单的消息 id
   };
+  const peerOf = () => (state.conv?.type === 'dm' ? state.conv.id : null);
+  const groupOf = () => (state.conv?.type === 'group' ? state.groups.get(state.conv.id) : null);
+  const isOpenGroup = gid => !box.hidden && state.conv?.type === 'group' && state.conv.id === gid;
   const thumbs = new Map(); // 存储路径 -> 签名链接
   const justRead = new Set(); // 刚变成已读的消息，播一次盖章动画
 
@@ -74,12 +88,14 @@ export function initChat({ me, social, helpers }) {
     <section id="chat" hidden role="dialog" aria-labelledby="chatName">
       <header class="ch-head">
         <span class="ch-stamp" id="chatAvatar"></span>
-        <span class="person-text"><em class="ch-kicker">${t('chat.kicker')}</em><b id="chatName"></b><small id="chatHandle"></small></span>
+        <span class="person-text"><em class="ch-kicker" id="chatKicker">${t('chat.kicker')}</em><b id="chatName"></b><small id="chatHandle"></small></span>
+        <button class="ch-x" id="chatInfo" data-sheet="info" title="${t('grp.info')}" hidden>${icon('users')}</button>
         <button class="ch-x" data-chat-close title="${t('close')}">${icon('close')}</button>
       </header>
+      <div class="ch-sheet" id="chatSheet" hidden></div>
       <div class="ch-list" id="chatList" aria-live="polite"></div>
       <div class="ch-tray" id="chatTray" hidden></div>
-      <p class="ch-gone" id="chatGone" hidden>${t('chat.notFriend')}</p>
+      <p class="ch-gone" id="chatGone" hidden></p>
       <form class="ch-compose" id="chatForm" autocomplete="off">
         <button type="button" class="ch-tool" data-tray="emoji" title="${t('chat.emoji')}" aria-expanded="false">${icon('smile')}</button>
         <button type="button" class="ch-tool" data-tray="checkin" title="${t('chat.share')}" aria-expanded="false">${icon('postcard')}</button>
@@ -101,7 +117,7 @@ export function initChat({ me, social, helpers }) {
       .eq('recipient', me.id).is('read_at', null).limit(1000);
     if (error) return console.warn('读取未读消息失败', error);
     state.unread = new Map();
-    for (const m of data) if (m.sender !== state.peer || box.hidden) state.unread.set(m.sender, (state.unread.get(m.sender) || 0) + 1);
+    for (const m of data) if (m.sender !== peerOf() || box.hidden) state.unread.set(m.sender, (state.unread.get(m.sender) || 0) + 1);
     social.refresh();
   }
 
@@ -113,17 +129,85 @@ export function initChat({ me, social, helpers }) {
     if (error) console.warn('标记已读失败', error);
   }
 
+  // 群聊只记「读到哪」：有别人的新消息时才更新，免得每次打开都推送给全群
+  async function markGroupRead(gid) {
+    const g = state.groups.get(gid);
+    const mine = g?.members.find(x => x.user_id === me.id);
+    if (!mine) return;
+    const latest = isOpenGroup(gid) ? state.messages.findLast(m => m.sender !== me.id && m.kind !== 'system' && !m.pending) : null;
+    if (!state.groupUnread.has(gid) && !(latest && !after(mine.read_at, latest.created_at))) return;
+    state.groupUnread.delete(gid);
+    mine.read_at = new Date().toISOString();
+    social.refresh();
+    const { error } = await supabase.rpc('mark_group_read', { gid });
+    if (error) console.warn('标记已读失败', error);
+  }
+
+  // ---------- 群列表 ----------
+  let groupsSeq = 0;
+  async function loadGroups() {
+    const seq = ++groupsSeq;
+    const [res, unread] = await Promise.all([
+      supabase.from('chat_groups').select('id, name, owner, last_message_at, group_members(user_id, joined_at, read_at)'),
+      supabase.rpc('group_unread'),
+    ]);
+    if (res.error) return console.warn('读取群聊失败', res.error); // 还没执行 0010 时
+    await social.ensureProfiles(res.data.flatMap(g => g.group_members.map(m => m.user_id)));
+    if (seq !== groupsSeq) return;
+    state.groups = new Map(res.data.map(({ group_members, ...g }) => [g.id, { ...g, members: group_members }]));
+    state.groupUnread = new Map((unread.data || []).filter(r => r.n && !isOpenGroup(r.group_id)).map(r => [r.group_id, r.n]));
+    social.refresh();
+    if (state.conv?.type === 'group' && !box.hidden) {
+      renderHead();
+      renderCompose();
+      renderList();
+    }
+    if (state.sheet === 'info') renderSheet();
+  }
+
+  const nameOf = id => (id === me.id ? t('grp.you') : social.author(id)?.name || t('grp.someone'));
+  // 群头像：最多四位成员的头像拼成一枚邮票，自己排在最后
+  function groupAvatar(g, cls) {
+    const ids = g.members.map(m => m.user_id).sort((a, b) => (a === me.id) - (b === me.id)).slice(0, 4);
+    return `<span class="${cls} grp-avatar n${ids.length}">${ids.map(id => `<img src="${avatarUrl(social.author(id)?.avatar || 'a01')}" alt="" />`).join('')}</span>`;
+  }
+
+  // 好友面板里的「群聊」一节（由 social.js 嵌进好友列表）
+  function groupsHtml() {
+    const list = [...state.groups.values()].sort((a, b) => Date.parse(b.last_message_at) - Date.parse(a.last_message_at));
+    const canCreate = social.friends().length > 0;
+    if (!list.length && !canCreate) return '';
+    const badge = id => {
+      const n = state.groupUnread.get(id) || 0;
+      return n ? `<i class="fr-unread">${n > 99 ? '99+' : n}</i>` : '';
+    };
+    return `<p class="fr-title"><span>${t('grp.title')}</span><i>${list.length}</i>
+        ${canCreate ? `<button class="fr-btn fr-new-group" data-new-group>${icon('plus')}${t('grp.new')}</button>` : ''}</p>
+      ${list.length ? `<ul class="people">${list.map(g => `<li class="person grp-row" data-group="${g.id}">
+          ${groupAvatar(g, 'avatar')}
+          <span class="person-text"><b>${escapeHtml(g.name)}</b><small>${t('grp.count', { n: g.members.length })}</small></span>
+          <span class="person-acts"><button class="fr-btn fr-icon fr-chat" title="${t('grp.open')}">${icon('chat')}${badge(g.id)}</button></span>
+        </li>`).join('')}</ul>`
+        : `<p class="grp-none">${t('grp.none')}</p>`}`;
+  }
+
   // ---------- 读取对话 ----------
   const pairFilter = peer => `and(sender.eq.${me.id},recipient.eq.${peer}),and(sender.eq.${peer},recipient.eq.${me.id})`;
 
-  async function fetchPage(peer, before) {
-    let q = supabase.from('messages').select('*').or(pairFilter(peer)).order('created_at', { ascending: false }).limit(PAGE);
+  async function fetchPage(conv, before) {
+    let q = conv.type === 'group'
+      ? supabase.from('group_messages').select('*').eq('group_id', conv.id)
+      : supabase.from('messages').select('*').or(pairFilter(conv.id));
+    q = q.order('created_at', { ascending: false }).limit(PAGE);
     if (before) q = q.lt('created_at', before);
     const { data, error } = await q;
     if (error) throw error;
-    await signThumbs(data);
+    await Promise.all([signThumbs(data), people(data)]);
     return data.reverse();
   }
+
+  // 群里可能有不是好友的人，系统消息里还会提到已经退群的人
+  const people = msgs => social.ensureProfiles(msgs.flatMap(m => [m.sender, ...(m.meta?.users || [])]));
 
   // 转发打卡的缩略图：发送者目录里的 {照片 id}_t.jpg
   async function signThumbs(msgs) {
@@ -134,43 +218,69 @@ export function initChat({ me, social, helpers }) {
     paths.forEach((p, i) => urls[i] && thumbs.set(p, urls[i]));
   }
 
-  async function open(peer) {
-    const p = social.author(peer);
-    if (!p) return;
-    const switching = state.peer !== peer;
-    state.peer = peer;
-    if (switching) { state.messages = []; state.more = false; setTray(null); input.value = ''; }
-    $('#chatAvatar').innerHTML = `<img src="${avatarUrl(p.avatar || 'a01')}" alt="" />`;
-    $('#chatName').textContent = p.name;
-    $('#chatHandle').textContent = `@${p.handle}`;
+  function renderHead() {
+    const avatar = $('#chatAvatar');
+    const g = groupOf();
+    $('#chatInfo').hidden = !g;
+    if (g) {
+      avatar.className = 'ch-stamp group';
+      avatar.innerHTML = groupAvatar(g, 'ch-collage');
+      $('#chatKicker').textContent = t('grp.kicker');
+      $('#chatName').textContent = g.name;
+      $('#chatHandle').textContent = t('grp.count', { n: g.members.length });
+      return;
+    }
+    const p = social.author(peerOf());
+    avatar.className = 'ch-stamp';
+    avatar.innerHTML = `<img src="${avatarUrl(p?.avatar || 'a01')}" alt="" />`;
+    $('#chatKicker').textContent = t('chat.kicker');
+    $('#chatName').textContent = p?.name || '';
+    $('#chatHandle').textContent = p ? `@${p.handle}` : '';
+  }
+
+  async function show(type, id) {
+    if (type === 'dm' ? !social.author(id) : !state.groups.has(id)) return;
+    const switching = state.conv?.type !== type || state.conv.id !== id;
+    if (switching) {
+      state.conv = { type, id };
+      state.messages = []; state.more = false; state.readersOf = null;
+      setTray(null); input.value = '';
+    }
+    const conv = state.conv;
+    setSheet(null);
     box.hidden = false;
+    renderHead();
     renderCompose();
     if (switching) list.innerHTML = `<p class="ch-note">${t('loading')}</p>`;
     if (!matchMedia('(max-width: 700px)').matches) input.focus();
     try {
-      const msgs = await fetchPage(peer);
-      if (state.peer !== peer) return;
+      const msgs = await fetchPage(conv);
+      if (state.conv !== conv) return;
       state.messages = msgs;
       state.more = msgs.length === PAGE;
       renderList({ toBottom: true, enter: true });
-      markRead(peer);
+      if (type === 'dm') markRead(id);
+      else markGroupRead(id);
     } catch (err) {
       list.innerHTML = `<p class="ch-note">${escapeHtml(t('chat.loadFailed', { msg: err.message }))}</p>`;
     }
   }
+  const open = peer => show('dm', peer);
+  const openGroup = gid => show('group', gid);
 
   function close() {
     box.hidden = true;
-    state.peer = null;
+    state.conv = null;
     setTray(null);
+    setSheet(null);
   }
 
   async function loadEarlier() {
-    const peer = state.peer;
+    const conv = state.conv;
     const oldest = state.messages[0]?.created_at;
     try {
-      const msgs = await fetchPage(peer, oldest);
-      if (state.peer !== peer) return;
+      const msgs = await fetchPage(conv, oldest);
+      if (state.conv !== conv) return;
       const before = list.scrollHeight - list.scrollTop;
       state.messages = [...msgs, ...state.messages];
       state.more = msgs.length === PAGE;
@@ -204,13 +314,48 @@ export function initChat({ me, social, helpers }) {
       icon(read ? 'read' : 'sent')}${t(read ? 'chat.read' : 'chat.unread')}</span>`;
   }
 
+  // 群里：发出时已经在群里的其他人，按读到哪分成已读和未读
+  function readers(m) {
+    const others = (groupOf()?.members || []).filter(x => x.user_id !== m.sender && after(m.created_at, x.joined_at));
+    const read = others.filter(x => after(x.read_at, m.created_at));
+    return { others, read };
+  }
+
+  function groupReceipt(m) {
+    if (m.pending || m.failed) return '';
+    const { others, read } = readers(m);
+    if (!others.length) return '';
+    const all = read.length === others.length;
+    const pop = read.length && justRead.has(m.id) ? ' pop' : '';
+    const label = all ? t('grp.allRead') : read.length ? t('grp.nRead', { n: read.length }) : t('chat.unread');
+    return `<button type="button" class="ch-receipt ${read.length ? 'read' : 'unread'}${pop}" data-readers="${m.id}" title="${t('grp.whoRead')}" aria-expanded="${state.readersOf === m.id}">${
+      icon(all ? 'read' : 'sent')}${label}</button>`;
+  }
+
+  function readersList(m) {
+    const { others, read } = readers(m);
+    const readIds = new Set(read.map(x => x.user_id));
+    const names = list => list.map(x => escapeHtml(nameOf(x.user_id))).join(t('grp.sep')) || '—';
+    return `<div class="ch-readers">
+      <p><b>${t('grp.readBy')} ${read.length}</b>${names(read)}</p>
+      <p><b>${t('grp.unreadBy')} ${others.length - read.length}</b>${names(others.filter(x => !readIds.has(x.user_id)))}</p>
+    </div>`;
+  }
+
+  function systemText(m) {
+    const names = (m.meta.users || []).map(nameOf).join(t('grp.sep'));
+    return t(`grp.sys.${m.meta.event}`, { actor: nameOf(m.sender), names, name: m.meta.name || '' });
+  }
+
   // enter：刚打开对话，最近几条依次落下；fresh：这条刚到，单独做一次到达动画
   function renderList({ toBottom = false, enter = false, fresh = null } = {}) {
     const nearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    const group = groupOf();
     let html = state.more ? `<button class="ch-earlier" data-earlier>${t('chat.earlier')}</button>` : '';
-    if (!state.messages.length) {
-      const p = social.author(state.peer);
-      html += `<div class="ch-empty"><span>👋</span><b>${escapeHtml(t('chat.empty', { name: p?.name || '' }))}</b><small>${t('chat.emptySub')}</small></div>`;
+    if (!state.messages.some(m => m.kind !== 'system')) {
+      html += group
+        ? `<div class="ch-empty"><span>🎒</span><b>${t('grp.empty')}</b><small>${t('grp.emptySub')}</small></div>`
+        : `<div class="ch-empty"><span>👋</span><b>${escapeHtml(t('chat.empty', { name: social.author(peerOf())?.name || '' }))}</b><small>${t('chat.emptySub')}</small></div>`;
     }
     let lastDay = null;
     state.messages.forEach((m, i) => {
@@ -218,17 +363,28 @@ export function initChat({ me, social, helpers }) {
         lastDay = dayKey(m.created_at);
         html += `<p class="ch-day"><span class="ch-postmark"><small>${t('chat.posted')}</small>${dayLabel(m.created_at)}</span></p>`;
       }
+      if (m.kind === 'system') {
+        html += `<p class="ch-sys${m.id === fresh ? ' arrive' : ''}">${escapeHtml(systemText(m))}</p>`;
+        return;
+      }
       const mine = m.sender === me.id;
+      const prev = state.messages[i - 1];
       const next = state.messages[i + 1];
-      const tail = !next || next.sender !== m.sender || dayKey(next.created_at) !== lastDay;
+      const sameRun = o => o && o.kind !== 'system' && o.sender === m.sender && dayKey(o.created_at) === lastDay;
+      const tail = !sameRun(next);
+      // 群里别人的一组消息，开头写上是谁
+      const from = group && !mine && !sameRun(prev)
+        ? `<p class="ch-from"><img src="${avatarUrl(social.author(m.sender)?.avatar || 'a01')}" alt="" />${escapeHtml(nameOf(m.sender))}</p>` : '';
       const content = m.kind === 'checkin' ? checkinCard(m) + (m.body ? `<p class="ch-bubble">${escapeHtml(m.body)}</p>` : '')
         : bigEmoji(m.body) ? `<p class="ch-emoji">${escapeHtml(m.body.trim())}</p>`
         : `<p class="ch-bubble">${escapeHtml(m.body)}</p>`;
       const back = state.messages.length - 1 - i;
       const motion = enter && back < 10 ? ` enter" style="--i: ${9 - back}` : m.id === fresh ? ' arrive' : '';
       html += `<div class="ch-msg ${mine ? 'mine' : 'theirs'}${tail ? ' tail' : ''}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}${motion}" data-msg="${m.id}">
-        ${content}
-        ${tail ? `<p class="ch-meta"><time>${m.failed ? t('chat.failedShort') : m.pending ? t('chat.sending') : clock(m.created_at)}</time>${mine ? receipt(m) : ''}</p>` : ''}
+        ${from}${content}
+        ${tail ? `<p class="ch-meta"><time>${m.failed ? t('chat.failedShort') : m.pending ? t('chat.sending') : clock(m.created_at)}</time>${
+          mine ? (group ? groupReceipt(m) : receipt(m)) : ''}</p>` : ''}
+        ${tail && mine && group && state.readersOf === m.id ? readersList(m) : ''}
       </div>`;
     });
     list.innerHTML = html;
@@ -237,9 +393,12 @@ export function initChat({ me, social, helpers }) {
   }
 
   function renderCompose() {
-    const gone = state.peer && !social.isFriend(state.peer);
+    const gone = state.conv?.type === 'dm' ? !social.isFriend(state.conv.id)
+      : state.conv?.type === 'group' ? !state.groups.has(state.conv.id) : false;
+    $('#chatGone').textContent = state.conv?.type === 'group' ? t('grp.gone') : t('chat.notFriend');
     $('#chatGone').hidden = !gone;
     $('#chatForm').hidden = gone;
+    $('#chatInfo').hidden = !groupOf();
     if (gone) setTray(null);
   }
 
@@ -264,7 +423,7 @@ export function initChat({ me, social, helpers }) {
     const rows = helpers.myRecords().filter(r => !r.deleted && r.photos.length)
       .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.updatedAt || 0) - (a.updatedAt || 0));
     if (!rows.length) return `<p class="ch-note">${t('chat.pickEmpty')}</p>`;
-    return `<p class="ch-tray-title">${t('chat.pickTitle')}</p><ul>${rows.map(r => {
+    return `<p class="ch-tray-title">${t(groupOf() ? 'grp.pickTitle' : 'chat.pickTitle')}</p><ul>${rows.map(r => {
       const ready = r.photos.some(p => p.up);
       const cover = r.photos.find(p => p.blob) || r.photos[0];
       return `<li><button type="button" data-pick="${r.id}" ${ready ? '' : 'disabled'}>
@@ -288,22 +447,183 @@ export function initChat({ me, social, helpers }) {
     input.style.height = `${Math.min(input.scrollHeight, 120)}px`;
   }
 
+  // ---------- 群聊面板：建群 / 群聊信息 ----------
+  function setSheet(name) {
+    state.sheet = name;
+    state.picked = new Set();
+    const sheet = $('#chatSheet');
+    sheet.hidden = !name;
+    if (name) renderSheet();
+  }
+
+  function friendPicker(exclude = new Set(), room = Infinity) {
+    const friends = social.friends().filter(p => !exclude.has(p.id));
+    if (!friends.length) return `<p class="ch-note">${t('grp.allIn')}</p>`;
+    return `<ul class="sh-people">${friends.map(p => {
+      const on = state.picked.has(p.id);
+      return `<li><label class="sh-person">
+        <input type="checkbox" data-pick-friend value="${p.id}" ${on ? 'checked' : ''} ${!on && state.picked.size >= room ? 'disabled' : ''} />
+        <span class="avatar"><img src="${avatarUrl(p.avatar || 'a01')}" alt="" /></span>
+        <span class="person-text"><b>${escapeHtml(p.name)}</b><small>@${escapeHtml(p.handle)}</small></span>
+        <i class="sh-check" aria-hidden="true">${icon('sent')}</i>
+      </label></li>`;
+    }).join('')}</ul>`;
+  }
+
+  // 最多还能拉几个人
+  const roomLeft = () => LIMITS.groupSize - (state.sheet === 'info' ? groupOf()?.members.length || 0 : 1);
+
+  function renderSheet() {
+    const sheet = $('#chatSheet');
+    const head = (title, back) => `<header class="sh-head">
+      <button type="button" class="ch-x" data-sheet-close title="${t(back ? 'back' : 'close')}">${icon(back ? 'back' : 'close')}</button>
+      <b>${title}</b></header>`;
+    if (state.sheet === 'create') {
+      sheet.innerHTML = `${head(t('grp.createTitle'), !box.hidden && state.conv)}
+        <div class="sh-body">
+          <label class="sh-name"><span>${t('grp.name')}</span><input id="groupName" maxlength="30" placeholder="${t('grp.namePh')}" /></label>
+          <p class="fr-title"><span>${t('grp.pickFriends')}</span><i data-pick-count></i></p>
+          ${friendPicker(new Set(), roomLeft())}
+        </div>
+        <footer class="sh-foot"><button type="button" class="fr-btn fr-primary" data-create-group></button></footer>`;
+      return updatePicks();
+    }
+    const g = groupOf();
+    if (!g) return setSheet(null);
+    const owner = g.owner === me.id;
+    const ids = new Set(g.members.map(m => m.user_id));
+    const members = [...g.members].sort((a, b) => (b.user_id === g.owner) - (a.user_id === g.owner) || Date.parse(a.joined_at) - Date.parse(b.joined_at));
+    sheet.innerHTML = `${head(t('grp.info'), true)}
+      <div class="sh-body">
+        ${owner
+          ? `<form class="sh-name" id="groupRename" autocomplete="off"><span>${t('grp.name')}</span><input maxlength="30" value="${escapeHtml(g.name)}" required /><button class="fr-btn">${t('grp.save')}</button></form>`
+          : `<p class="sh-name"><span>${t('grp.name')}</span><b>${escapeHtml(g.name)}</b></p>`}
+        <p class="fr-title"><span>${t('grp.members')}</span><i>${g.members.length} / ${LIMITS.groupSize}</i></p>
+        <ul class="sh-people">${members.map(m => {
+          const p = social.author(m.user_id);
+          return `<li class="sh-person">
+            <span class="avatar"><img src="${avatarUrl(p?.avatar || 'a01')}" alt="" /></span>
+            <span class="person-text"><b>${escapeHtml(p?.name || t('grp.someone'))}${m.user_id === me.id ? ` <em>(${t('grp.you')})</em>` : ''}</b><small>${p ? `@${escapeHtml(p.handle)}` : ''}</small></span>
+            ${m.user_id === g.owner ? `<em class="sh-owner">${t('grp.owner')}</em>` : ''}
+            ${owner && m.user_id !== me.id ? `<button type="button" class="fr-btn fr-more" data-kick="${m.user_id}">${t('grp.kick')}</button>` : ''}
+          </li>`;
+        }).join('')}</ul>
+        ${roomLeft() > 0 ? `<p class="fr-title"><span>${t('grp.addTitle')}</span><i data-pick-count></i></p>${friendPicker(ids, roomLeft())}`
+          : `<p class="ch-note">${t('limit.group_full', LIMITS)}</p>`}
+      </div>
+      <footer class="sh-foot">
+        <button type="button" class="fr-btn sh-leave" data-leave-group>${t('grp.leave')}</button>
+        <button type="button" class="fr-btn fr-primary" data-add-members></button>
+      </footer>`;
+    updatePicks();
+  }
+
+  // 勾选变化时只更新按钮和计数，不重画列表（保留输入框内容）
+  function updatePicks() {
+    const n = state.picked.size;
+    const room = roomLeft();
+    const count = $('#chatSheet [data-pick-count]');
+    if (count) count.textContent = `${n} / ${room}`;
+    for (const cb of document.querySelectorAll('#chatSheet [data-pick-friend]')) cb.disabled = !cb.checked && n >= room;
+    const create = $('#chatSheet [data-create-group]');
+    if (create) { create.textContent = t('grp.create', { n }); create.disabled = !n; }
+    const add = $('#chatSheet [data-add-members]');
+    if (add) { add.textContent = t('grp.add', { n }); add.hidden = !n; }
+  }
+
+  async function rpc(name, args) {
+    const { data, error } = await supabase.rpc(name, args);
+    if (error) { helpers.toast(limitText(error) || t('opFailed', { msg: error.message })); throw error; }
+    return data;
+  }
+
+  async function createGroup(btn) {
+    const ids = [...state.picked];
+    const typed = $('#groupName').value.trim();
+    // 没填群名时用前几个人的名字
+    const auto = [me.id, ...ids].slice(0, 3).map(id => social.author(id)?.name || '').filter(Boolean).join(t('grp.sep'));
+    const name = (typed || auto + (ids.length > 2 ? '…' : '')).slice(0, 30) || t('grp.title');
+    btn.disabled = true;
+    try {
+      const gid = await rpc('create_group', { group_name: name, members: ids });
+      await loadGroups();
+      openGroup(gid);
+    } catch {
+      btn.disabled = false;
+    }
+  }
+
+  async function addMembers(btn) {
+    const g = groupOf();
+    btn.disabled = true;
+    try {
+      await rpc('add_group_members', { gid: g.id, members: [...state.picked] });
+      state.picked = new Set();
+      await loadGroups();
+    } catch {
+      btn.disabled = false;
+    }
+  }
+
+  async function kick(uid) {
+    const g = groupOf();
+    if (!confirm(t('grp.kickConfirm', { name: nameOf(uid) }))) return;
+    try { await rpc('remove_group_member', { gid: g.id, member: uid }); await loadGroups(); } catch {}
+  }
+
+  async function leave() {
+    const g = groupOf();
+    const sole = g.members.length === 1;
+    if (!confirm(t(sole ? 'grp.leaveLast' : g.owner === me.id ? 'grp.leaveOwner' : 'grp.leaveConfirm', { name: g.name }))) return;
+    try {
+      await rpc('leave_group', { gid: g.id });
+      close();
+      state.groups.delete(g.id);
+      state.groupUnread.delete(g.id);
+      social.refresh();
+    } catch {}
+  }
+
+  async function rename(form) {
+    const g = groupOf();
+    const name = form.querySelector('input').value.trim();
+    if (!name || name === g.name) return;
+    try { await rpc('rename_group', { gid: g.id, new_name: name }); await loadGroups(); } catch {}
+  }
+
+  function startCreate() {
+    if (box.hidden) {
+      state.conv = null;
+      state.messages = [];
+      list.innerHTML = '';
+      $('#chatAvatar').className = 'ch-stamp';
+      $('#chatAvatar').innerHTML = '';
+      box.hidden = false;
+    }
+    setSheet('create');
+    if (!matchMedia('(max-width: 700px)').matches) $('#groupName').focus();
+  }
+
   // ---------- 发送 ----------
   async function send(fields) {
-    const peer = state.peer;
-    const temp = { id: `tmp-${Date.now()}`, sender: me.id, recipient: peer, body: '', checkin: null, kind: 'text', ...fields, created_at: new Date().toISOString(), pending: true };
+    const conv = state.conv;
+    const group = conv.type === 'group';
+    const temp = { id: `tmp-${Date.now()}`, sender: me.id, body: '', checkin: null, kind: 'text', ...fields, created_at: new Date().toISOString(), pending: true };
     state.messages.push(temp);
     await signThumbs([temp]);
     renderList({ toBottom: true, fresh: temp.id });
-    const { data, error } = await supabase.from('messages').insert({ recipient: peer, ...fields }).select().single();
-    if (state.peer !== peer) return;
+    const { data, error } = group
+      ? await supabase.from('group_messages').insert({ group_id: conv.id, ...fields }).select().single()
+      : await supabase.from('messages').insert({ recipient: conv.id, ...fields }).select().single();
+    if (state.conv !== conv) return;
     let i = state.messages.indexOf(temp);
     if (i < 0) i = state.messages.push(temp) - 1; // 等待期间对话被重新读取过
     if (error) {
       temp.pending = false;
       temp.failed = true;
       renderList();
-      return helpers.toast(t('chat.failed', { msg: error.message }));
+      if (group && error.code === '42501') loadGroups(); // 已经不在群里了
+      return helpers.toast(limitText(error) || t('chat.failed', { msg: error.message }));
     }
     // 实时推送可能先到，避免重复
     if (state.messages.some(m => m.id === data.id)) state.messages.splice(i, 1);
@@ -313,7 +633,7 @@ export function initChat({ me, social, helpers }) {
 
   function sendText() {
     const body = input.value.trim();
-    if (!body || !state.peer) return;
+    if (!body || !state.conv) return;
     input.value = '';
     autosize();
     if (state.tray === 'emoji') setTray(null);
@@ -372,15 +692,21 @@ export function initChat({ me, social, helpers }) {
   }
 
   // ---------- 实时 ----------
+  // 打开的对话里来了一条消息：替换自己发送中的那条，或者追加
+  function arrive(m) {
+    if (state.messages.some(x => x.id === m.id)) return;
+    // 自己在别的设备上发的、或刚发出去还在等回执的
+    const temp = state.messages.find(x => x.pending && x.sender === m.sender && x.kind === m.kind && x.body === m.body);
+    if (temp) state.messages[state.messages.indexOf(temp)] = m;
+    else state.messages.push(m);
+    Promise.all([signThumbs([m]), people([m])]).then(() => renderList({ fresh: temp ? null : m.id }));
+  }
+
   function onInsert(m) {
-    const inOpenChat = !box.hidden && state.peer && (m.sender === state.peer || m.recipient === state.peer);
+    const peer = peerOf();
+    const inOpenChat = !box.hidden && peer && (m.sender === peer || m.recipient === peer);
     if (inOpenChat) {
-      if (state.messages.some(x => x.id === m.id)) return;
-      // 自己在别的设备上发的、或刚发出去还在等回执的
-      const temp = state.messages.find(x => x.pending && x.sender === m.sender && x.kind === m.kind && x.body === m.body);
-      if (temp) state.messages[state.messages.indexOf(temp)] = m;
-      else state.messages.push(m);
-      signThumbs([m]).then(() => renderList({ fresh: temp ? null : m.id }));
+      arrive(m);
       if (m.recipient === me.id && document.visibilityState === 'visible') markRead(m.sender);
       else if (m.recipient === me.id) { state.unread.set(m.sender, (state.unread.get(m.sender) || 0) + 1); social.refresh(); }
       return;
@@ -392,6 +718,33 @@ export function initChat({ me, social, helpers }) {
     helpers.toast(t('chat.newFrom', { name: p?.name || t('feed.friend'), text: m.kind === 'checkin' ? t('chat.sharedCheckin') : m.body.slice(0, 40) }));
   }
 
+  async function onGroupInsert(m) {
+    const g = state.groups.get(m.group_id);
+    if (g) g.last_message_at = m.created_at;
+    // 新群、成员或群名有变化：重新读取群列表
+    if (!g || m.kind === 'system') await loadGroups();
+    if (isOpenGroup(m.group_id)) {
+      arrive(m);
+      if (m.sender !== me.id && m.kind !== 'system') {
+        if (document.visibilityState === 'visible') markGroupRead(m.group_id);
+        else { state.groupUnread.set(m.group_id, (state.groupUnread.get(m.group_id) || 0) + 1); social.refresh(); }
+      }
+      return;
+    }
+    if (m.sender === me.id) return social.refresh();
+    const group = state.groups.get(m.group_id);
+    if (m.kind === 'system') {
+      if (['create', 'add'].includes(m.meta.event) && m.meta.users?.includes(me.id)) {
+        helpers.toast(t('grp.addedYou', { name: nameOf(m.sender), group: group?.name || '' }));
+      }
+      return social.refresh();
+    }
+    state.groupUnread.set(m.group_id, (state.groupUnread.get(m.group_id) || 0) + 1);
+    social.refresh();
+    await social.ensureProfiles([m.sender]);
+    helpers.toast(t('grp.newFrom', { group: group?.name || '', name: nameOf(m.sender), text: m.kind === 'checkin' ? t('chat.sharedCheckin') : m.body.slice(0, 40) }));
+  }
+
   function onUpdate(m) {
     const cur = state.messages.find(x => x.id === m.id);
     if (cur && cur.read_at !== m.read_at) {
@@ -401,28 +754,57 @@ export function initChat({ me, social, helpers }) {
     }
   }
 
+  // 群成员读到了新的位置：自己在这之间发的消息播一次已读动画
+  function onMemberUpdate(row) {
+    const member = state.groups.get(row.group_id)?.members.find(x => x.user_id === row.user_id);
+    if (!member || member.read_at === row.read_at) return;
+    const before = member.read_at;
+    member.read_at = row.read_at;
+    if (!isOpenGroup(row.group_id) || row.user_id === me.id) return;
+    for (const m of state.messages) {
+      if (m.sender === me.id && !after(before, m.created_at) && after(row.read_at, m.created_at)) justRead.add(m.id);
+    }
+    renderList();
+  }
+
   supabase.channel('chat')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, e => onInsert(e.new))
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, e => onUpdate(e.new))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages' }, e => onGroupInsert(e.new))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'group_members' }, e => onMemberUpdate(e.new))
     .subscribe();
   // 回到页面时补上断线期间的消息
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     loadUnread();
-    if (state.peer && !box.hidden) open(state.peer);
+    loadGroups();
+    if (state.conv && !box.hidden && !state.sheet) show(state.conv.type, state.conv.id);
   });
 
   // ---------- 事件 ----------
   document.addEventListener('click', e => {
     const el = e.target;
     const chatBtn = el.closest('#drop-friends [data-chat]');
-    if (chatBtn) {
-      open(chatBtn.closest('[data-person]').dataset.person);
+    const groupRow = el.closest('#drop-friends [data-group]');
+    const newGroup = el.closest('#drop-friends [data-new-group]');
+    if (chatBtn || groupRow || newGroup) {
+      if (chatBtn) open(chatBtn.closest('[data-person]').dataset.person);
+      else if (groupRow) openGroup(groupRow.dataset.group);
+      else startCreate();
       if (matchMedia('(max-width: 700px)').matches) helpers.closeDrop();
       return;
     }
     if (!el.closest('#chat, #chatView')) return;
     if (el.closest('[data-chat-close]')) return close();
+    if (el.closest('[data-sheet-close]')) return state.conv ? setSheet(null) : close();
+    if (el.closest('[data-sheet]')) return setSheet(state.sheet ? null : 'info');
+    if (el.closest('[data-create-group]')) return createGroup(el.closest('button'));
+    if (el.closest('[data-add-members]')) return addMembers(el.closest('button'));
+    if (el.closest('[data-leave-group]')) return leave();
+    const kickBtn = el.closest('[data-kick]');
+    if (kickBtn) return kick(kickBtn.dataset.kick);
+    const who = el.closest('[data-readers]');
+    if (who) { state.readersOf = state.readersOf === who.dataset.readers ? null : who.dataset.readers; return renderList(); }
     if (el.closest('[data-earlier]')) return loadEarlier();
     const tray = el.closest('[data-tray]');
     if (tray) return setTray(tray.dataset.tray);
@@ -446,6 +828,17 @@ export function initChat({ me, social, helpers }) {
     }
   });
 
+  $('#chatSheet').addEventListener('change', e => {
+    if (!e.target.matches('[data-pick-friend]')) return;
+    if (e.target.checked) state.picked.add(e.target.value);
+    else state.picked.delete(e.target.value);
+    updatePicks();
+  });
+  $('#chatSheet').addEventListener('submit', e => {
+    if (e.target.id !== 'groupRename') return;
+    e.preventDefault();
+    rename(e.target);
+  });
   $('#chatForm').addEventListener('submit', e => { e.preventDefault(); sendText(); });
   input.addEventListener('input', autosize);
   input.addEventListener('keydown', e => {
@@ -456,18 +849,25 @@ export function initChat({ me, social, helpers }) {
   addEventListener('keydown', e => {
     if (e.key !== 'Escape' || !$('#lightbox').hidden) return;
     if (!$('#chatView').hidden) closeView();
-    else if (!box.hidden && box.contains(document.activeElement)) state.tray ? setTray(null) : close();
+    else if (!box.hidden && box.contains(document.activeElement)) state.sheet ? (state.conv ? setSheet(null) : close()) : state.tray ? setTray(null) : close();
     else return;
     e.stopPropagation();
   }, true);
 
   loadUnread();
+  loadGroups();
 
   return {
     open,
-    // 不传 id 时为全部未读
-    unread: id => (id ? state.unread.get(id) || 0 : [...state.unread.values()].reduce((a, b) => a + b, 0)),
+    openGroup,
+    groupsHtml,
+    // 不传 id 时为全部未读（私聊 + 群聊）
+    unread: id => (id ? state.unread.get(id) || 0
+      : [...state.unread.values(), ...state.groupUnread.values()].reduce((a, b) => a + b, 0)),
     // 好友列表变化后（例如被删除好友）刷新输入框状态
-    friendsChanged: () => !box.hidden && renderCompose(),
+    friendsChanged: () => {
+      if (!box.hidden) renderCompose();
+      if (state.sheet) renderSheet();
+    },
   };
 }

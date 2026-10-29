@@ -1,0 +1,71 @@
+/* =====================================================================
+   主题：五套邮政配色。界面里的纸面、文字、条纹双色、强调色都从这里取。
+   在 <html data-theme="..."> 上切换（任意元素加 data-theme 也能拿到那套配色，用于色板预览）；地图瓦片、地图标记和照片白边不跟主题变。
+   *-rgb 是同一颜色的 RGB 分量，用于 rgb(var(--ink-rgb) / .14) 这样的半透明写法。
+   ===================================================================== */
+:root,
+[data-theme="airmail"] {
+  color-scheme: light;
+  --paper: #f8f2e4;      /* 信纸、登录信封、明信片 */
+  --paper-hi: #fbf8f1;   /* 顶栏、下拉面板、聊天 */
+  --paper-2: #f3ede1;    /* 面板里的次级底色 */
+  --paper-deep: #ebdfc6; /* 纸张的深色边、代码底色 */
+  --card: #fffdf8;       /* 按钮、输入框、气泡 */
+  --ink: #2a2723;
+  --ink-soft: #7a7064;
+  --air-red: #c4302b;    /* 条纹第一色，也用于错误提示与强调 */
+  --air-blue: #1f4b8f;   /* 条纹第二色 */
+  --accent: #e8590c;
+  --accent-soft: #fff1e6;
+  --on-accent: #fff;
+  --ink-rgb: 42 39 35;
+  --paper-rgb: 248 242 228;
+  --paper-hi-rgb: 251 248 241;
+  --red-rgb: 196 48 43;
+  --blue-rgb: 31 75 143;
+  --accent-rgb: 232 89 12;
+}
+
+/* 海岸明信片：浅沙纸 · 湖蓝 / 珊瑚 */
+[data-theme="coast"] {
+  --paper: #f5efe3; --paper-hi: #faf7f0; --paper-2: #efe8da; --paper-deep: #e2d5bc; --card: #fffdf8;
+  --ink: #1f3a44; --ink-soft: #66797d;
+  --air-red: #df6a4f; --air-blue: #1f7a8c;
+  --accent: #1f7a8c; --accent-soft: #e2f1f3; --on-accent: #fff;
+  --ink-rgb: 31 58 68; --paper-rgb: 245 239 227; --paper-hi-rgb: 250 247 240;
+  --red-rgb: 223 106 79; --blue-rgb: 31 122 140; --accent-rgb: 31 122 140;
+}
+
+/* 森林邮局：竹纸 · 墨绿 / 金 */
+[data-theme="forest"] {
+  --paper: #f1eee0; --paper-hi: #f7f5ea; --paper-2: #e9e5d2; --paper-deep: #dbd4b8; --card: #fcfbf3;
+  --ink: #232e28; --ink-soft: #6c7366;
+  --air-red: #2f5d46; --air-blue: #a8822a;
+  --accent: #2f5d46; --accent-soft: #e3ede5; --on-accent: #fff;
+  --ink-rgb: 35 46 40; --paper-rgb: 241 238 224; --paper-hi-rgb: 247 245 234;
+  --red-rgb: 47 93 70; --blue-rgb: 168 130 42; --accent-rgb: 47 93 70;
+}
+
+/* 暗房胶片：灰纸 · 黑 / 朱红 */
+[data-theme="darkroom"] {
+  --paper: #ebeae6; --paper-hi: #f4f3f0; --paper-2: #e3e1dc; --paper-deep: #d2cfc8; --card: #fbfaf8;
+  --ink: #1c1b1a; --ink-soft: #6b6863;
+  --air-red: #d0391f; --air-blue: #1c1b1a;
+  --accent: #d0391f; --accent-soft: #fbe6e1; --on-accent: #fff;
+  --ink-rgb: 28 27 26; --paper-rgb: 235 234 230; --paper-hi-rgb: 244 243 240;
+  --red-rgb: 208 57 31; --blue-rgb: 28 27 26; --accent-rgb: 208 57 31;
+}
+
+/* 夜航：深蓝纸 · 金 / 红（深色） */
+[data-theme="night"] {
+  color-scheme: dark;
+  --paper: #1b2638; --paper-hi: #1f2b3f; --paper-2: #26344b; --paper-deep: #2e3d55; --card: #243149;
+  --ink: #ede4cc; --ink-soft: #a8a18e;
+  --air-red: #e0625a; --air-blue: #d9b45a;
+  --accent: #d9b45a; --accent-soft: #3a3a33; --on-accent: #1b2638;
+  --ink-rgb: 237 228 204; --paper-rgb: 27 38 56; --paper-hi-rgb: 31 43 63;
+  --red-rgb: 224 98 90; --blue-rgb: 217 180 90; --accent-rgb: 217 180 90;
+}
+
+/* 线条和规则线跟着文字颜色走 */
+:root { --rule: rgb(var(--ink-rgb) / .13); --rule-strong: rgb(var(--ink-rgb) / .27); }

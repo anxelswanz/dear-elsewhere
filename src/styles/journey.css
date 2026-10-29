@@ -7,12 +7,12 @@
 .jr-vehicle {
   --c: var(--ink);
   display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
-  color: var(--c); background: #fbf8f1; box-shadow: 0 0 0 1.5px var(--c), 0 4px 10px -3px rgba(42, 39, 35, .45);
+  color: var(--c); background: var(--paper-hi); box-shadow: 0 0 0 1.5px var(--c), 0 4px 10px -3px rgba(42, 39, 35, .45);
   transition: scale .2s, box-shadow .2s;
 }
-.jr-plane { --c: #1f4b8f; }
+.jr-plane { --c: var(--air-blue); }
 .jr-ship { --c: #2b7a8c; }
-.jr-train { --c: #2a2723; }
+.jr-train { --c: var(--ink); }
 .jr-car { --c: #9a6b3f; }
 .jr-ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .jr-vehicle .jr-ic { rotate: var(--rot, 0deg); scale: var(--flip, 1) 1; transition: rotate .2s; }
@@ -28,7 +28,7 @@
 .jr-stamp {
   position: absolute; left: 0; bottom: 28px; display: grid; justify-items: center; gap: 1px; padding: 5px 10px 4px;
   translate: -50% 0; rotate: -6deg; white-space: nowrap; pointer-events: none;
-  color: var(--air-red); background: rgba(251, 248, 241, .94);
+  color: var(--air-red); background: rgb(var(--paper-hi-rgb) / .94);
   border: 2px solid currentColor; outline: 1px solid currentColor; outline-offset: 2px; border-radius: 4px;
   box-shadow: 0 6px 14px -6px rgba(42, 39, 35, .5);
   animation: jr-stamp .5s cubic-bezier(.3, 1.5, .5, 1) both;
@@ -41,31 +41,31 @@
 #journeyHud {
   position: fixed; top: 82px; left: 50%; z-index: 1050; display: flex; align-items: center; gap: 10px;
   padding: 6px 6px 6px 8px; translate: -50% 0;
-  color: #fbf8f1; background: rgba(32, 28, 24, .88); border-radius: 999px;
+  color: var(--paper-hi); background: rgba(32, 28, 24, .88); border-radius: 999px;
   box-shadow: 0 12px 26px -12px rgba(0, 0, 0, .6);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   animation: jr-hud-in .3s cubic-bezier(.2, .8, .2, 1) both;
 }
 #journeyHud[hidden] { display: none; }
 @keyframes jr-hud-in { from { opacity: 0; translate: -50% -8px; } }
-.jr-hud-ic { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--ink); background: #fbf8f1; }
+.jr-hud-ic { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: var(--ink); background: var(--paper-hi); }
 .jr-hud-ic .jr-ic { width: 16px; height: 16px; }
 .jr-hud-text { display: grid; min-width: 0; padding-right: 4px; }
 .jr-hud-text b { font: 600 12.5px var(--serif-en); letter-spacing: .04em; }
 .jr-hud-text small { max-width: 46vw; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
 #journeyHud button {
   display: grid; place-items: center; width: 30px; height: 30px; padding: 0; cursor: pointer;
-  color: #fbf8f1; background: rgba(251, 248, 241, .12); border: none; border-radius: 50%; transition: background .15s;
+  color: var(--paper-hi); background: rgb(var(--paper-hi-rgb) / .12); border: none; border-radius: 50%; transition: background .15s;
 }
-#journeyHud button:hover { background: rgba(251, 248, 241, .26); }
+#journeyHud button:hover { background: rgb(var(--paper-hi-rgb) / .26); }
 #journeyHud button .ic { width: 15px; height: 15px; }
 
 /* ---------- 右上角：旅程按钮与年份面板 ---------- */
 .jr-control { position: relative; }
-.jr-button[aria-expanded="true"] { color: #fbf8f1; background: var(--ink); }
+.jr-button[aria-expanded="true"] { color: var(--paper-hi); background: var(--ink); }
 .jr-button[aria-expanded="true"] .ic { color: #ffb68a; }
 .jr-panel {
-  --paper: #fbf8f1; --paper-2: #f3ede1; --rule: rgba(42, 39, 35, .12);
+  --paper: var(--paper-hi);
   position: absolute; top: 0; right: calc(100% + 10px); width: 290px; padding: 4px 0 14px;
   color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 14px;
   box-shadow: 0 24px 48px -20px rgba(42, 39, 35, .5), 0 2px 6px rgba(42, 39, 35, .08);

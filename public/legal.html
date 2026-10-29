@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>服务条款与隐私政策 · Dear Elsewhere</title>
+<link rel="icon" type="image/png" sizes="32x32" href="brand/icon-32.png" />
+<meta name="theme-color" content="#f8f2e4" />
+<style>
+  /* 条款页单独发布，不依赖主站样式；语言跟随主站设置（mymap:lang），也可用 ?lang=en 指定 */
+  :root { --paper: #f8f2e4; --card: #fffdf8; --ink: #2a2723; --soft: #7a7064; --rule: rgba(42, 39, 35, .14); --red: #c4302b; --blue: #1f4b8f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ebdfc6; color: var(--ink); font: 15px/1.8 'Songti SC', 'Noto Serif SC', 'STSong', Georgia, serif; }
+  .letter { max-width: 760px; margin: 28px auto; padding: 8px; border-radius: 7px;
+    background: repeating-linear-gradient(135deg, var(--red) 0 16px, var(--paper) 16px 26px, var(--blue) 26px 42px, var(--paper) 42px 52px); }
+  .paper { padding: 30px clamp(18px, 5vw, 46px) 34px; background: var(--paper); border-radius: 3px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+  header img { height: 50px; rotate: -3deg; }
+  header h1 { margin: 0; font: 700 22px/1.3 Georgia, 'Songti SC', serif; letter-spacing: .04em; }
+  header p { margin: 2px 0 0; font-size: 13px; color: var(--soft); }
+  .switch { margin-left: auto; display: flex; gap: 6px; }
+  .switch button { padding: 4px 10px; font: inherit; font-size: 13px; color: var(--soft); background: none; border: 1px solid var(--rule); border-radius: 999px; cursor: pointer; }
+  .switch button[aria-pressed="true"] { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+  nav.toc { margin: 18px 0 6px; padding: 12px 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; font-size: 14px; }
+  nav.toc a { color: var(--blue); }
+  h2 { margin: 30px 0 6px; padding-top: 10px; font-size: 19px; letter-spacing: .06em; color: var(--red); border-top: 1px dashed var(--rule); }
+  h3 { margin: 20px 0 4px; font-size: 16px; }
+  p, li { color: var(--ink); }
+  ul { padding-left: 1.3em; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+  th, td { padding: 7px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 700; background: var(--card); }
+  .table-wrap { overflow-x: auto; }
+  .meta { font-size: 13px; color: var(--soft); }
+  .back { display: inline-block; margin-top: 26px; color: var(--blue); }
+  /* 条款页按纸质信件排版，深色模式下也保持浅色纸面 */
+  :root { color-scheme: light; }
+  [data-lang] { display: none; }
+  html[data-show="zh"] [data-lang="zh"], html[data-show="en"] [data-lang="en"] { display: block; }
+</style>
+<script src="boot/legal-lang.js"></script>
+</head>
+<body>
+<div class="letter"><div class="paper">
+  <header>
+    <img src="brand/stamp@2x.png" alt="" />
+    <div>
+      <h1>Dear Elsewhere</h1>
+      <p data-lang="zh">服务条款与隐私政策</p>
+      <p data-lang="en">Terms of Service &amp; Privacy Policy</p>
+    </div>
+    <div class="switch">
+      <button type="button" data-set="zh">中文</button>
+      <button type="button" data-set="en">English</button>
+    </div>
+  </header>
+
+<!-- ======================= 中文 ======================= -->
+<div data-lang="zh">
+  <p class="meta">版本：2026-10-29 · 生效日期：2026 年 10 月 29 日</p>
+  <nav class="toc">
+    <a href="#zh-privacy">一、隐私政策</a> · <a href="#zh-terms">二、服务条款</a>
+  </nav>
+
+  <h2 id="zh-privacy">一、隐私政策</h2>
+  <p>本政策依据欧盟《通用数据保护条例》（GDPR）编写，说明 Dear Elsewhere（下称「本服务」）收集哪些个人数据、为什么收集、交给谁处理、保存多久，以及你享有的权利。</p>
+
+  <h3>1. 数据控制者与联系方式</h3>
+  <p>本服务由 【运营者姓名】 个人运营，是你个人数据的控制者。与隐私有关的任何请求，请发邮件至 <a href="mailto:privacy@dear-elsewhere.com">privacy@dear-elsewhere.com</a>，我们会在 30 天内答复。</p>
+
+  <h3>2. 我们处理哪些数据</h3>
+  <div class="table-wrap"><table>
+    <tr><th>数据</th><th>用途</th><th>法律依据（GDPR 第 6 条）</th></tr>
+    <tr><td>邮箱、密码（只保存加密哈希）、注册时填写的邀请码</td><td>创建和登录账号、发送验证与找回密码邮件</td><td>履行合同 6(1)(b)</td></tr>
+    <tr><td>旅行护照：用户 ID、名字、国家、头像</td><td>在应用内展示你，让好友按 ID 找到你</td><td>履行合同 6(1)(b)</td></tr>
+    <tr><td>生日（选填）</td><td>只显示在你自己的护照上，其他人看不到</td><td>同意 6(1)(a)，可随时删除</td></tr>
+    <tr><td>打卡：地点、坐标、日期、备注、照片</td><td>绘制你的足迹地图，在你的设备间同步</td><td>履行合同 6(1)(b)</td></tr>
+    <tr><td>好友关系、评论、私信、群聊</td><td>提供好友、动态和聊天功能</td><td>履行合同 6(1)(b)</td></tr>
+    <tr><td>同意条款的时间与条款版本</td><td>证明你已同意本条款</td><td>法律义务 6(1)(c)</td></tr>
+    <tr><td>服务器日志（IP 地址、时间、请求）</td><td>安全防护、排查故障</td><td>正当利益 6(1)(f)</td></tr>
+  </table></div>
+  <p>我们<strong>不</strong>使用广告、分析或追踪 Cookie，不出售数据，不做用户画像，也不进行自动化决策。上传照片时，应用会在你的设备上重新编码图片，<strong>原图中的 EXIF 信息（包括拍摄位置 GPS）会被去除</strong>。</p>
+
+  <h3>3. 谁能看到你的数据</h3>
+  <ul>
+    <li><strong>所有登录用户</strong>：你的用户 ID、名字、国家、头像（为了让朋友能按 ID 加你）。</li>
+    <li><strong>你的好友</strong>：你的全部打卡、照片及其评论。只有互相确认的好友才能看到，你可以随时删除好友。</li>
+    <li><strong>私信</strong>：只有收发双方能看到。</li>
+    <li><strong>群聊</strong>：群名、成员名单和消息只有群成员能看到，新成员看不到入群之前的消息；你转发到群里的章，群成员能看到那几张照片，退群后就看不到了。群成员能看到你读到了哪条消息（「几人已读」）。</li>
+    <li><strong>只有你自己</strong>：邮箱、生日，以及你在设置里选的语言和主题色。</li>
+  </ul>
+
+  <h3>4. 数据处理者（代我们处理数据的服务商）</h3>
+  <div class="table-wrap"><table>
+    <tr><th>服务商</th><th>用途</th><th>位置</th></tr>
+    <tr><td>Supabase Inc.</td><td>数据库、账号、照片存储</td><td>【Supabase 项目区域】</td></tr>
+    <tr><td>Resend (Plus Five Five, Inc.)</td><td>发送验证和找回密码邮件</td><td>欧盟（爱尔兰）</td></tr>
+    <tr><td>Cloudflare, Inc.</td><td>网站托管、DNS、HTTPS</td><td>全球网络</td></tr>
+  </table></div>
+  <p>以上服务商均与我们签有符合 GDPR 第 28 条的数据处理协议。数据传到欧盟以外（例如美国）时，依据欧盟委员会的标准合同条款（SCC）和/或欧美数据隐私框架（EU-US DPF）提供保护。</p>
+
+  <h3>5. 地图与地点搜索</h3>
+  <p>为了显示地图和搜索地点，你的浏览器会<strong>直接</strong>向以下服务请求数据，对方会收到你的 IP 地址，以及你正在查看的地图区域或搜索词：</p>
+  <ul>
+    <li>天地图（中国，国家基础地理信息中心）：中国境内的底图、卫星图，以及盖章时查询地名、搜索地点</li>
+    <li>Esri（美国）：国际底图，以及中国境外的地名查询和地点搜索</li>
+  </ul>
+  <p>这些服务商独立负责自己的数据处理，请参阅它们各自的隐私政策。你可以在地图右上角切换底图。请注意：中国目前没有欧盟的「充分性认定」。</p>
+
+  <h3>6. 保存期限</h3>
+  <ul>
+    <li>账号数据保存到你注销账号为止。注销后立即删除，数据库备份中的副本最迟在 30 天内被覆盖。</li>
+    <li>你删除的单条打卡会留下一个不含内容的删除标记，用来同步到你的其他设备；照片会立即删除。</li>
+    <li>服务器日志由服务商保存，一般不超过 90 天。</li>
+  </ul>
+
+  <h3>7. 安全措施（GDPR 第 32 条）</h3>
+  <ul>
+    <li>传输加密：所有连接只使用 HTTPS（TLS）。</li>
+    <li>存储加密：数据库和照片存储使用 AES-256 磁盘加密；备份同样加密。</li>
+    <li>密码只保存 bcrypt 哈希，任何人（包括我们）都看不到原始密码。</li>
+    <li>数据库对每张表启用行级权限（RLS），每个请求都按「只能访问自己和好友授权的数据」校验；照片存放在私有存储桶中，只有你本人登录后、或你的好友通过短时有效的签名链接才能访问。</li>
+    <li>注册需要邀请码；生产环境的密钥不会出现在网页代码中。</li>
+    <li>你的打卡还会缓存在你自己设备的浏览器（IndexedDB）中，方便离线使用。请勿在公共设备上保持登录。</li>
+  </ul>
+  <p>如果发生可能危害你权利的数据泄露，我们会在知悉后 72 小时内报告监管机构，并及时通知受影响的用户。</p>
+
+  <h3>8. 你的权利</h3>
+  <p>你随时可以行使以下权利：</p>
+  <ul>
+    <li><strong>访问与可携带</strong>（第 15、20 条）：在「设置 → 数据」中点「下载我的数据」，获得账号、好友、评论、私信、群聊的 JSON 文件；点「导出备份」获得全部打卡和照片；点「下载照片」按年份和地点打包照片。</li>
+    <li><strong>更正</strong>（第 16 条）：在「编辑资料」和各条打卡中直接修改。</li>
+    <li><strong>删除</strong>（第 17 条）：在「设置 → 数据」中点「注销账号」，你的账号、资料、打卡、照片、好友关系、评论、私信和你在群里发的消息会被立即永久删除。</li>
+    <li><strong>限制处理、反对处理</strong>（第 18、21 条）以及<strong>撤回同意</strong>（第 7 条）：发邮件给我们。撤回同意不影响撤回前处理的合法性。</li>
+    <li><strong>投诉</strong>（第 77 条）：你可以向你所在欧盟成员国的数据保护监管机构投诉。</li>
+  </ul>
+
+  <h3>9. 本地存储</h3>
+  <p>本服务只使用功能所必需的浏览器存储：登录凭证、界面语言和主题色、同步进度、离线打卡缓存。这些数据不会用于追踪，所以无需征得 Cookie 同意。</p>
+
+  <h3>10. 年龄要求</h3>
+  <p>你必须年满 16 周岁才能注册。如果我们得知未满 16 周岁的用户注册，将删除其账号。</p>
+
+  <h2 id="zh-terms">二、服务条款</h2>
+  <h3>1. 服务内容</h3>
+  <p>Dear Elsewhere 是一个记录旅行足迹的个人项目，目前<strong>仅限受邀用户使用、免费提供</strong>。注册即表示你同意本条款和上面的隐私政策。</p>
+  <h3>2. 账号</h3>
+  <ul>
+    <li>注册需要有效的邀请码和你能收信的邮箱。请妥善保管密码，你需要对自己账号下的操作负责。</li>
+    <li>每人只能注册一个账号，不得转让。</li>
+  </ul>
+  <h3>3. 你的内容</h3>
+  <ul>
+    <li>你上传的照片、文字和打卡的所有权归你。</li>
+    <li>你授予我们一项有限许可：仅为向你和你选择的好友提供服务，而存储、处理和展示这些内容。账号注销时，这项许可随之终止。</li>
+    <li>请只上传你有权分享的内容。不得上传违法内容、侵犯他人权利或隐私的内容（例如未经同意的他人私密照片）、骚扰或仇恨内容。</li>
+  </ul>
+  <h3>4. 使用规范</h3>
+  <p>不得攻击、扫描或干扰服务，不得绕过权限访问他人数据，不得批量注册或用自动化手段滥用服务，不得用本服务发送垃圾信息。</p>
+  <h3>5. 暂停与终止</h3>
+  <p>你可以随时注销账号。如果你严重违反本条款，我们可以暂停或删除你的账号，并尽可能事先通知你。本服务作为个人项目可能停止运营；停止前我们会至少提前 30 天通知，让你有时间导出数据。</p>
+  <h3>6. 免责声明</h3>
+  <p>本服务按「现状」免费提供，我们会尽力保证服务稳定、数据安全，但不保证不中断或没有错误。建议定期导出备份。在法律允许的最大范围内，我们不对间接损失承担责任；但这不排除或限制因故意、重大过失，或造成人身伤害而依法应承担的责任，也不影响你作为消费者依法享有的强制性权利。</p>
+  <h3>7. 条款变更</h3>
+  <p>条款发生重要变化时，我们会在应用内或通过邮件提前通知，并在需要时请你重新同意。</p>
+  <h3>8. 适用法律</h3>
+  <p>本条款适用运营者所在地法律；如果你是欧盟消费者，仍享有你居住国法律提供的强制性保护。</p>
+</div>
+
+<!-- ======================= English ======================= -->
+<div data-lang="en">
+  <p class="meta">Version 2026-10-29 · Effective 29 October 2026</p>
+  <nav class="toc">
+    <a href="#en-privacy">1. Privacy Policy</a> · <a href="#en-terms">2. Terms of Service</a>
+  </nav>
+
+  <h2 id="en-privacy">1. Privacy Policy</h2>
+  <p>This policy follows the EU General Data Protection Regulation (GDPR). It explains which personal data Dear Elsewhere (“the service”) collects, why, who processes it, how long it is kept, and what rights you have.</p>
+
+  <h3>1. Controller and contact</h3>
+  <p>The service is run by 【Operator name】 as an individual, who is the controller of your personal data. For any privacy request, email <a href="mailto:privacy@dear-elsewhere.com">privacy@dear-elsewhere.com</a>. We reply within 30 days.</p>
+
+  <h3>2. What we process</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Data</th><th>Purpose</th><th>Legal basis (Art. 6 GDPR)</th></tr>
+    <tr><td>Email, password (stored only as a hash), invite code used at sign-up</td><td>Creating and signing in to your account; verification and password-reset emails</td><td>Contract, 6(1)(b)</td></tr>
+    <tr><td>Passport: handle, name, country, avatar</td><td>Showing you in the app; letting friends find you by handle</td><td>Contract, 6(1)(b)</td></tr>
+    <tr><td>Birthday (optional)</td><td>Shown only on your own passport; nobody else can see it</td><td>Consent, 6(1)(a); delete it any time</td></tr>
+    <tr><td>Check-ins: places, coordinates, dates, notes, photos</td><td>Drawing your map; syncing between your devices</td><td>Contract, 6(1)(b)</td></tr>
+    <tr><td>Friendships, comments, messages, group chats</td><td>Friends, feed and chat features</td><td>Contract, 6(1)(b)</td></tr>
+    <tr><td>When you accepted these terms, and which version</td><td>Proof of your consent</td><td>Legal obligation, 6(1)(c)</td></tr>
+    <tr><td>Server logs (IP address, time, request)</td><td>Security and troubleshooting</td><td>Legitimate interest, 6(1)(f)</td></tr>
+  </table></div>
+  <p>We use <strong>no</strong> advertising, analytics or tracking cookies. We do not sell data, build profiles or make automated decisions about you. Photos are re-encoded on your device before upload, which <strong>strips EXIF metadata, including GPS location</strong>.</p>
+
+  <h3>3. Who can see your data</h3>
+  <ul>
+    <li><strong>All signed-in users</strong>: your handle, name, country and avatar (so friends can add you).</li>
+    <li><strong>Your friends</strong>: all your check-ins, photos and their comments. Only friends you have both confirmed can see them, and you can remove a friend at any time.</li>
+    <li><strong>Messages</strong>: only the sender and the recipient.</li>
+    <li><strong>Group chats</strong>: the group name, member list and messages are visible only to members, and new members can’t see messages from before they joined. Members can see the photos of a stamp you share in the group until they leave. Members can also see how far you have read (“Read by 3”).</li>
+    <li><strong>Only you</strong>: your email, birthday, and the language and theme you chose in Settings.</li>
+  </ul>
+
+  <h3>4. Processors</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Provider</th><th>Purpose</th><th>Location</th></tr>
+    <tr><td>Supabase Inc.</td><td>Database, accounts, photo storage</td><td>【Supabase project region】</td></tr>
+    <tr><td>Resend (Plus Five Five, Inc.)</td><td>Verification and password-reset emails</td><td>EU (Ireland)</td></tr>
+    <tr><td>Cloudflare, Inc.</td><td>Hosting, DNS, HTTPS</td><td>Global network</td></tr>
+  </table></div>
+  <p>Each processor is bound by a data processing agreement under Art. 28 GDPR. Transfers outside the EU (e.g. to the US) are protected by the European Commission’s Standard Contractual Clauses and/or the EU-US Data Privacy Framework.</p>
+
+  <h3>5. Maps and place search</h3>
+  <p>To show maps and search for places, your browser contacts these services <strong>directly</strong>. They receive your IP address and the map area or search term you are viewing:</p>
+  <ul>
+    <li>Tianditu (China, National Geomatics Center of China): base map and satellite imagery inside China, plus place-name lookup and place search there</li>
+    <li>Esri (USA): international base map, plus place-name lookup and place search outside China</li>
+  </ul>
+  <p>Each of these services is responsible for its own processing; see their privacy policies. You can switch base maps from the top-right corner of the map. Note that China has no EU adequacy decision.</p>
+
+  <h3>6. Retention</h3>
+  <ul>
+    <li>Account data is kept until you delete your account. It is then deleted immediately; copies in database backups are overwritten within 30 days.</li>
+    <li>When you delete a single check-in, an empty deletion marker is kept so the deletion syncs to your other devices. Its photos are deleted at once.</li>
+    <li>Server logs are kept by our providers, normally for no more than 90 days.</li>
+  </ul>
+
+  <h3>7. Security (Art. 32 GDPR)</h3>
+  <ul>
+    <li>Encryption in transit: HTTPS (TLS) only.</li>
+    <li>Encryption at rest: the database, photo storage and backups use AES-256 disk encryption.</li>
+    <li>Passwords are stored only as bcrypt hashes. Nobody, including us, can see your password.</li>
+    <li>Row-level security on every table checks each request, so you can access only your own data and what friends have shared with you. Photos are in a private bucket, reachable only by you when signed in or by your friends through short-lived signed links.</li>
+    <li>Sign-up requires an invite code. Production secrets are never shipped in the web page.</li>
+    <li>Your check-ins are also cached in your own browser (IndexedDB) for offline use. Do not stay signed in on shared devices.</li>
+  </ul>
+  <p>If a breach is likely to put your rights at risk, we will notify the supervisory authority within 72 hours of becoming aware of it, and tell affected users without undue delay.</p>
+
+  <h3>8. Your rights</h3>
+  <ul>
+    <li><strong>Access and portability</strong> (Art. 15, 20): in Settings → Data, use “Download my data” for a JSON file of your account, friends, comments, messages and group chats, “Export backup” for all check-ins and photos, and “Download photos” to save photos by year and place.</li>
+    <li><strong>Rectification</strong> (Art. 16): edit your profile and check-ins directly.</li>
+    <li><strong>Erasure</strong> (Art. 17): use “Delete account” in Settings → Data. Your account, profile, check-ins, photos, friendships, comments, messages and group messages you sent are permanently deleted at once.</li>
+    <li><strong>Restriction, objection</strong> (Art. 18, 21) and <strong>withdrawing consent</strong> (Art. 7): email us. Withdrawing consent does not affect processing that happened before.</li>
+    <li><strong>Complaint</strong> (Art. 77): you can complain to the data protection authority of your EU member state.</li>
+  </ul>
+
+  <h3>9. Local storage</h3>
+  <p>We use only strictly necessary browser storage: your sign-in session, interface language and theme, sync progress and offline check-in cache. None of it is used for tracking, so no cookie consent is needed.</p>
+
+  <h3>10. Age</h3>
+  <p>You must be at least 16 years old to sign up. If we learn that someone under 16 has signed up, we will delete the account.</p>
+
+  <h2 id="en-terms">2. Terms of Service</h2>
+  <h3>1. The service</h3>
+  <p>Dear Elsewhere is a personal project for recording your travels. It is currently <strong>invite-only and free</strong>. By signing up you agree to these terms and the privacy policy above.</p>
+  <h3>2. Your account</h3>
+  <ul>
+    <li>Sign-up requires a valid invite code and an email address you can receive mail at. Keep your password safe; you are responsible for activity on your account.</li>
+    <li>One account per person. Accounts may not be transferred.</li>
+  </ul>
+  <h3>3. Your content</h3>
+  <ul>
+    <li>You own the photos, text and check-ins you upload.</li>
+    <li>You give us a limited licence to store, process and display them, only to provide the service to you and the friends you choose. The licence ends when you delete your account.</li>
+    <li>Only upload content you have the right to share. Do not upload anything illegal, anything that infringes other people’s rights or privacy (such as private photos of others without consent), or harassing or hateful content.</li>
+  </ul>
+  <h3>4. Acceptable use</h3>
+  <p>Do not attack, scan or disrupt the service, bypass permissions to reach other people’s data, mass-register or abuse it with automation, or use it to send spam.</p>
+  <h3>5. Suspension and termination</h3>
+  <p>You can delete your account at any time. If you seriously breach these terms, we may suspend or delete your account, with notice where possible. As a personal project the service may shut down; if so, we will give at least 30 days’ notice so you can export your data.</p>
+  <h3>6. Disclaimer</h3>
+  <p>The service is provided free and “as is”. We do our best to keep it running and your data safe, but cannot promise it will be uninterrupted or error-free, so please export backups regularly. To the extent permitted by law we are not liable for indirect losses. This does not exclude or limit liability for intent, gross negligence or personal injury, or your mandatory rights as a consumer.</p>
+  <h3>7. Changes</h3>
+  <p>We will tell you in the app or by email before material changes take effect, and ask for your consent again where required.</p>
+  <h3>8. Governing law</h3>
+  <p>These terms are governed by the law of the operator’s place of residence. If you are an EU consumer, you keep the mandatory protections of the law of your country of residence.</p>
+</div>
+
+  <a class="back" href="./" data-lang="zh">← 返回 Dear Elsewhere</a>
+  <a class="back" href="./" data-lang="en">← Back to Dear Elsewhere</a>
+</div></div>
+<script src="boot/legal-toggle.js"></script>
+</body>
+</html>

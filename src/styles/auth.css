@@ -2,12 +2,7 @@
    账号：登录 / 注册是一封航空信，首次填写资料是一本旅行护照
    ===================================================================== */
 #auth {
-  --paper: #f8f2e4;
-  --paper-deep: #ebdfc6;
-  --card: #fffdf8;
-  --rule: rgba(42, 39, 35, .14);
-  --rule-strong: rgba(42, 39, 35, .3);
-  --navy: #1d3352;
+    --navy: #1d3352;
   --gold: #c9a24a;
   position: fixed; inset: 0; z-index: 1600; display: grid; place-items: center; padding: 24px; overflow-y: auto;
   color: var(--ink);
@@ -82,7 +77,7 @@
   background: transparent; border: none; border-bottom: 1px solid var(--rule-strong); border-radius: 0;
   transition: border-color .15s, box-shadow .15s;
 }
-.au-field input::placeholder { color: rgba(42, 39, 35, .35); }
+.au-field input::placeholder { color: rgb(var(--ink-rgb) / .35); }
 .au-field input:focus { outline: none; border-color: var(--ink); box-shadow: 0 1px 0 var(--ink); }
 
 .au-msg { min-height: 18px; margin: 0 0 8px; font-size: 13px; line-height: 1.5; color: var(--air-red); }
@@ -133,7 +128,7 @@
   position: relative; margin: 0 8px 8px; padding: 24px 26px 18px; border-radius: 6px;
   background:
     repeating-radial-gradient(circle at 92% -10%, transparent 0 13px, rgba(29, 51, 82, .05) 13px 14px),
-    repeating-radial-gradient(circle at -10% 110%, transparent 0 17px, rgba(196, 48, 43, .045) 17px 18px),
+    repeating-radial-gradient(circle at -10% 110%, transparent 0 17px, rgb(var(--red-rgb) / .045) 17px 18px),
     var(--paper);
 }
 .pp-main { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 26px; }
@@ -160,7 +155,7 @@
 }
 .pp-field select { cursor: pointer; }
 .pp-field input:focus, .pp-field select:focus { outline: none; border-color: var(--navy); box-shadow: 0 1px 0 var(--navy); }
-.pp-field input::placeholder { color: rgba(42, 39, 35, .35); }
+.pp-field input::placeholder { color: rgb(var(--ink-rgb) / .35); }
 .pp-field input:disabled { color: var(--ink-soft); cursor: not-allowed; }
 .pp-handle { display: flex; align-items: center; }
 .pp-handle b { padding-right: 3px; font: 600 20px var(--serif-en); color: var(--accent); }
@@ -212,7 +207,7 @@
 .pp-mrz {
   display: grid; gap: 2px; margin: 18px -26px 0; padding: 10px 26px; overflow: hidden;
   font: 500 13px/1.3 'SFMono-Regular', ui-monospace, Menlo, Consolas, monospace; letter-spacing: .14em;
-  color: rgba(42, 39, 35, .55); white-space: nowrap; background: rgba(29, 51, 82, .05);
+  color: rgb(var(--ink-rgb) / .55); white-space: nowrap; background: rgba(29, 51, 82, .05);
 }
 
 .pp-foot { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
@@ -221,25 +216,17 @@
 
 /* ---------- 个人资料面板（顶栏头像） ---------- */
 .me-handle { font: italic 14px var(--serif-en); }
-.me-switch {
-  display: flex; align-items: center; gap: 12px; margin: 0 16px; padding: 14px 2px;
-  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); cursor: pointer;
+.me-settings {
+  display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 0 16px; padding: 13px 2px;
+  text-align: left; color: var(--ink); background: none; cursor: pointer;
+  border: none; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
 }
-.me-switch > span { display: grid; flex: 1; gap: 3px; }
-.me-switch b { font-size: 13.5px; }
-.me-switch small { font-size: 12px; color: var(--ink-soft); }
-.me-switch input { position: absolute; opacity: 0; pointer-events: none; }
-.me-switch i {
-  position: relative; flex: none; width: 38px; height: 22px; border-radius: 11px;
-  background: rgba(42, 39, 35, .2); transition: background .2s;
-}
-.me-switch i::after {
-  content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: translate .2s;
-}
-.me-switch input:checked + i { background: var(--accent); }
-.me-switch input:checked + i::after { translate: 16px 0; }
-.me-switch input:focus-visible + i { outline: 2px solid var(--ink); outline-offset: 2px; }
+.me-settings .ic { font-size: 18px; color: var(--ink-soft); }
+.me-settings > span { display: grid; flex: 1; gap: 3px; }
+.me-settings b { font-size: 13.5px; }
+.me-settings small { font-size: 12px; color: var(--ink-soft); }
+.me-settings > i { font: 400 20px var(--serif-en); font-style: normal; color: var(--ink-soft); transition: translate .15s; }
+.me-settings:hover > i { translate: 3px 0; color: var(--ink); }
 .me-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 16px 6px; }
 .me-actions button {
   height: 36px; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer;
@@ -284,11 +271,11 @@
 /* 登录页：遮罩上的一枚小纸签 */
 .au-lang {
   position: fixed; top: 18px; right: 18px; z-index: 2;
-  color: #f8f2e4; background: rgba(248, 242, 228, .1); box-shadow: inset 0 0 0 1px rgba(248, 242, 228, .22);
+  color: var(--paper); background: rgb(var(--paper-rgb) / .1); box-shadow: inset 0 0 0 1px rgb(var(--paper-rgb) / .22);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   animation: fade-in .4s ease .3s both;
 }
-.au-lang button[aria-checked="true"] { color: var(--ink); background: #f8f2e4; }
+.au-lang button[aria-checked="true"] { color: var(--ink); background: var(--paper); }
 #auth[data-view="checking"] .au-lang, #auth[data-view="ask"] .au-lang { display: none; }
 
 /* 头像面板：一行「语言」 */
@@ -303,3 +290,15 @@
 @media (max-width: 700px) {
   .au-lang { top: auto; bottom: 16px; right: 50%; translate: 50% 0; }
 }
+
+/* ---------- 条款：注册时勾选同意，登录 / 注册页底部列出要点 ---------- */
+.au-consent { display: flex; align-items: flex-start; gap: 8px; margin: 2px 0 12px; font-size: 12.5px; line-height: 1.6; color: var(--ink); cursor: pointer; }
+.au-consent input { flex: none; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--air-red); }
+.au-consent a, .au-agree a, .au-terms a { color: var(--air-blue); text-underline-offset: 2px; }
+.au-agree { margin: 12px 0 0; font-size: 12px; line-height: 1.6; color: var(--ink-soft); text-align: center; }
+.au-terms { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--rule-strong); font-size: 12px; line-height: 1.65; color: var(--ink-soft); }
+.au-terms summary { font: 700 12.5px var(--serif-zh); letter-spacing: .06em; color: var(--ink); cursor: pointer; }
+.au-terms ul { max-height: 210px; overflow-y: auto; margin: 8px 0 6px; padding-left: 1.2em; }
+.au-terms li { margin-bottom: 6px; }
+.au-terms b { color: var(--ink); }
+.au-terms p { margin: 0; font-size: 11.5px; }

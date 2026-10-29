@@ -8,6 +8,7 @@
 //   photos[].up  照片已上传到 Storage
 // 合并规则与 supabase/migrations/0002_checkins_sync.sql 中的 push_checkin 一致。
 import { supabase } from './supabase.js';
+import { limitCode, photoQuota } from './limits.js';
 
 const BUCKET = 'photos';
 const PULL_OVERLAP = 60_000;  // 拉取时往回多看 1 分钟，弥补并发事务的提交时间差
@@ -25,7 +26,7 @@ const toRow = r => ({
   country: r.country || '', region: r.region || '', city: r.city || '',
   lat: r.lat ?? null, lng: r.lng ?? null, date: r.date || null, note: r.note || '',
   marker: r.marker || 'sign', icon: r.icon || 'pin', label: r.label || '',
-  photos: r.photos.map(p => ({ id: p.id })),
+  photos: r.photos.filter(p => p.up).map(p => ({ id: p.id })), // 还没传上去的照片等传完再告诉服务端
   deleted_photos: r.deletedPhotos || [],
   deleted: !!r.deleted,
   published_at: r.publishedAt ? new Date(r.publishedAt).toISOString() : null,
@@ -79,17 +80,37 @@ async function thumbnail(blob) {
 }
 
 // uid: 当前用户；records(): 内存中的全部记录（含墓碑）；save(r): 写入 IndexedDB；
-// apply(r, isNew): 合并后的记录交回界面；onStatus({ pending, state, at })
-export function createSync({ uid, records, save, apply, onStatus }) {
+// apply(r, isNew): 合并后的记录交回界面；onStatus({ pending, state, at, until })；
+// onPhotoLimit(until): 照片额度用完时提醒一次，until 是额度恢复的时间
+export function createSync({ uid, records, save, apply, onStatus, onPhotoLimit }) {
   const cursorKey = `mymap:${uid}:cursor`;
   let running = false, again = false, timer = null;
+  let limited = false; // 这一轮有记录因超出用量限制没能上传
+  let photosBlockedUntil = 0; // 照片额度用完，到这个时间之前不再尝试上传照片
+  const pushed = new Map(); // id -> 上次推送时的版本，额度用完期间避免每分钟重复推送同一条
   let state = 'idle', lastAt = Number(localStorage.getItem(`mymap:${uid}:syncedAt`)) || 0;
 
-  const status = () => onStatus({ pending: records().filter(r => r.dirty).length, state: navigator.onLine ? state : 'offline', at: lastAt });
+  const status = () => onStatus({
+    pending: records().filter(r => r.dirty).length, state: navigator.onLine ? state : 'offline', at: lastAt,
+    until: photosBlockedUntil > Date.now() ? photosBlockedUntil : 0,
+  });
+
+  // 额度用完：问清楚什么时候恢复，到点自动续传
+  async function blockPhotos() {
+    const { nextAt } = await photoQuota().catch(() => ({}));
+    photosBlockedUntil = Math.max(nextAt || 0, Date.now() + 60_000);
+    onPhotoLimit?.(photosBlockedUntil);
+    setTimeout(() => request(0), photosBlockedUntil - Date.now() + 1000);
+  }
 
   async function upload(r) {
     for (const p of r.photos) {
       if (p.up || !p.blob) continue;
+      if (Date.now() < photosBlockedUntil) return; // 已传的照片照常推送，剩下的等额度恢复
+      // 先领上传凭证：服务端在这里统计照片额度，没有凭证 Storage 不接受上传
+      const ticket = await supabase.rpc('claim_photo', { photo: p.id });
+      if (limitCode(ticket.error) === 'photos_per_day') return blockPhotos();
+      if (ticket.error) throw ticket.error;
       const base = `${uid}/${p.id}`;
       const opts = { contentType: 'image/jpeg', upsert: true };
       const full = await supabase.storage.from(BUCKET).upload(`${base}.jpg`, p.blob, opts);
@@ -103,11 +124,25 @@ export function createSync({ uid, records, save, apply, onStatus }) {
 
   async function push() {
     for (const r of records().filter(x => x.dirty)) {
-      await upload(r);
       const version = r.updatedAt;
-      const { data: row, error } = await supabase.rpc('push_checkin', { r: toRow(r) });
-      if (error) throw error;
+      let row;
+      try {
+        await upload(r);
+        const sig = `${version}|${r.photos.filter(p => p.up).map(p => p.id)}`;
+        if (pushed.get(r.id) === sig) continue; // 和上次推送的一样，只是还有照片在等额度
+        const res = await supabase.rpc('push_checkin', { r: toRow(r) });
+        if (res.error) throw res.error;
+        row = res.data;
+        pushed.set(r.id, sig);
+      } catch (err) {
+        // 超限的记录留在本地、保持待上传，不挡住其他记录；额度恢复后自动续传
+        if (!limitCode(err)) throw err;
+        console.warn('超出用量限制，稍后再传', r.id, err.message);
+        limited = true;
+        continue;
+      }
       if (r.updatedAt !== version) continue; // 上传期间又被修改，下一轮再推
+      await purge(row);
       r.dirty = false;
       mergeRow(r, row);
       await fetchMissing(r);
@@ -115,6 +150,14 @@ export function createSync({ uid, records, save, apply, onStatus }) {
       apply(r, false);
       status();
     }
+  }
+
+  // 删掉的照片（以及整条删除的打卡的全部照片）从 Storage 里一并删除，不留在云端
+  async function purge(row) {
+    const ids = [...row.deleted_photos, ...(row.deleted ? row.photos.map(p => p.id) : [])];
+    if (!ids.length) return;
+    const { error } = await supabase.storage.from(BUCKET).remove(ids.flatMap(id => [`${uid}/${id}.jpg`, `${uid}/${id}_t.jpg`]));
+    if (error) throw error;
   }
 
   async function fetchMissing(r) {
@@ -158,12 +201,14 @@ export function createSync({ uid, records, save, apply, onStatus }) {
     if (!navigator.onLine) return status();
     running = true;
     state = 'syncing';
+    limited = false;
     status();
     try {
       await push();
       await pull();
       await push(); // 拉取时合并出来的本地独有内容
-      state = 'idle';
+      const waiting = photosBlockedUntil > Date.now() && records().some(r => r.photos.some(p => !p.up && p.blob));
+      state = limited || waiting ? 'limited' : 'idle';
       lastAt = Date.now();
       localStorage.setItem(`mymap:${uid}:syncedAt`, lastAt);
     } catch (err) {

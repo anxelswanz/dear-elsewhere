@@ -2,16 +2,15 @@
    一键截图 · 暗房：安全灯的红光下，照片慢慢显影
    ===================================================================== */
 #shot {
-  --paper: #f8f2e4;
-  position: fixed; inset: 0; z-index: 1650; display: grid; place-items: center; padding: 20px;
+    position: fixed; inset: 0; z-index: 1650; display: grid; place-items: center; padding: 20px;
   color: var(--paper);
 }
 #shot[hidden] { display: none; }
 .shot-backdrop {
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse at 50% -10%, rgba(196, 48, 43, .38), transparent 60%),
-    radial-gradient(ellipse at 50% 120%, rgba(232, 89, 12, .12), transparent 55%),
+    radial-gradient(ellipse at 50% -10%, rgb(var(--red-rgb) / .38), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgb(var(--accent-rgb) / .12), transparent 55%),
     rgba(18, 13, 11, .94);
   animation: fade-in .3s ease both;
 }
@@ -21,15 +20,15 @@
   max-height: calc(100vh - 40px);
 }
 .shot-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.shot-head p { margin: 0; font: 600 10.5px var(--serif-en); letter-spacing: .28em; color: rgba(248, 242, 228, .55); }
+.shot-head p { margin: 0; font: 600 10.5px var(--serif-en); letter-spacing: .28em; color: rgb(var(--paper-rgb) / .55); }
 .shot-head h2 { margin: 6px 0 0; font: 700 26px var(--serif-zh); letter-spacing: .1em; }
-.shot-head .pc-close { position: static; flex: none; background: rgba(248, 242, 228, .12); color: var(--paper); box-shadow: none; }
-.shot-head .pc-close:hover { background: rgba(248, 242, 228, .22); }
+.shot-head .pc-close { position: static; flex: none; background: rgb(var(--paper-rgb) / .12); color: var(--paper); box-shadow: none; }
+.shot-head .pc-close:hover { background: rgb(var(--paper-rgb) / .22); }
 
 .shot-stage { display: grid; flex: 1; min-height: 0; place-items: center; }
 /* 冲印出来的照片：白边、底边留宽，挂在晾绳上似的微微倾斜 */
 .shot-print {
-  position: relative; margin: 0; padding: 10px 10px 34px; background: #fbf8f1; rotate: -.8deg;
+  position: relative; margin: 0; padding: 10px 10px 34px; background: var(--paper-hi); rotate: -.8deg;
   box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 255, 255, .05);
 }
 .shot-print::before {
@@ -63,10 +62,10 @@
 .shot-ratios { display: flex; gap: 8px; }
 .shot-ratios button {
   display: flex; align-items: center; gap: 9px; height: 46px; padding: 0 14px 0 12px; cursor: pointer;
-  color: rgba(248, 242, 228, .7); background: rgba(248, 242, 228, .06);
-  border: 1px solid rgba(248, 242, 228, .16); border-radius: 10px; transition: color .15s, border-color .15s, background .15s;
+  color: rgb(var(--paper-rgb) / .7); background: rgb(var(--paper-rgb) / .06);
+  border: 1px solid rgb(var(--paper-rgb) / .16); border-radius: 10px; transition: color .15s, border-color .15s, background .15s;
 }
-.shot-ratios button:hover { color: var(--paper); border-color: rgba(248, 242, 228, .4); }
+.shot-ratios button:hover { color: var(--paper); border-color: rgb(var(--paper-rgb) / .4); }
 .shot-ratios button[aria-checked="true"] { color: #1a1310; background: var(--paper); border-color: var(--paper); }
 .shot-ratios i { flex: none; width: var(--w); height: var(--h); border: 1.5px solid currentColor; border-radius: 2px; }
 .shot-ratios span { display: grid; text-align: left; font: 600 13px/1.1 var(--serif-en); }

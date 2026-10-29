@@ -1,20 +1,27 @@
 // Dear Elsewhere（致远方）—— 旅行足迹地图，打卡数据（含照片）保存在浏览器 IndexedDB 中
 import * as L from 'leaflet';
+// 字体随站点一起发布，不从 Google Fonts 加载（避免把访客 IP 交给第三方）
+import '@fontsource-variable/fraunces/opsz.css';
+import '@fontsource-variable/fraunces/opsz-italic.css';
+import '@fontsource/noto-serif-sc/500.css';
+import '@fontsource/noto-serif-sc/700.css';
 import { t, lang, applyStatic, localName } from './i18n.js';
-import { initAuth, askLetter, avatarUrl } from './auth.js';
+import { initAuth, avatarUrl } from './auth.js';
 import { initSocial } from './social.js';
 import { initChat } from './chat.js';
 import { initSnapshot } from './snapshot.js';
 import { initJourney } from './journey.js';
+import { initSettings } from './settings.js';
 
 applyStatic();
 import { createSync, touch } from './sync.js';
+import { LIMITS, accountDay, photoQuota, hhmm, limitText } from './limits.js';
 //
 // 层级：世界 -> 国家 -> 省/州 -> 城市 -> 具体地点
 // 每条打卡记录（record）的 level 为 country / region / city / place，
 // 并记录所属的 country / region / city id，用于点亮上级区域。
 
-// ---------- 坐标转换：WGS84 <-> GCJ-02（高德瓦片使用 GCJ-02） ----------
+// ---------- 坐标转换：WGS84 <-> GCJ-02（底图带 gcj: true 时使用；目前的天地图和 Esri 都是 WGS84） ----------
 const PI = Math.PI, AXIS = 6378245.0, EE = 0.00669342162296594323;
 
 function outOfChina(lat, lng) {
@@ -202,7 +209,7 @@ const regionFeature = id => geo.regions.get(geo.regionById.get(id)?.country)?.fe
 const cityFeature = id => geo.regionCities.get(geo.cityById.get(id)?.region)?.features.find(f => f.properties.id === id);
 
 // ---------- IndexedDB ----------
-// 每个账号一个库（mymap-{用户 id}）；登录前的旧库 mymap 只在第一次登录时迁移
+// 每个账号一个库（mymap-{用户 id}）。新记录必须联网打卡，以云端为准，这里只做缓存
 const makeDb = () => ({
   _db: null,
   open(name) {
@@ -210,14 +217,13 @@ const makeDb = () => ({
       const req = indexedDB.open(name, 2);
       req.onupgradeneeded = () => {
         const d = req.result;
-        if (d.objectStoreNames.contains('checkins')) return;
-        const store = d.createObjectStore('checkins', { keyPath: 'id' });
-        // 迁移第一版的 places
-        if (d.objectStoreNames.contains('places')) {
-          req.transaction.objectStore('places').getAll().onsuccess = e => e.target.result.forEach(p => store.put(fromV1(p)));
-        }
+        if (!d.objectStoreNames.contains('checkins')) d.createObjectStore('checkins', { keyPath: 'id' });
       };
-      req.onsuccess = () => { this._db = req.result; resolve(); };
+      req.onsuccess = () => {
+        this._db = req.result;
+        this._db.onversionchange = () => this._db.close(); // 注销账号时要删除这个库
+        resolve();
+      };
       req.onerror = () => reject(req.error);
     });
   },
@@ -295,9 +301,6 @@ function newRecord(level, fields) {
     updatedAt: Date.now(), dirty: true, deletedPhotos: [], ...fields,
   };
 }
-
-// 第一版只有地点，所属国家/城市是文字，载入后重新计算
-const fromV1 = p => newRecord('place', { ...p, level: 'place', country: '', region: '', city: '' });
 
 function newMark(level, id) {
   if (level === 'country') return newRecord(level, { ref: id, country: id, name: countryName(id) });
@@ -381,22 +384,39 @@ function refresh() {
 }
 
 // ---------- 地图 ----------
-const baseLayers = {
-  [t('base.gaode')]: L.tileLayer(`https://webrd0{s}.is.autonavi.com/appmaptile?lang=${lang === 'en' ? 'en' : 'zh_cn'}&size=1&scale=1&style=8&x={x}&y={y}&z={z}`, {
-    subdomains: '1234', maxZoom: 18, attribution: '© AMap 高德地图', gcj: true,
-  }),
-  [t('base.gaodeSat')]: L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {
-    subdomains: '1234', maxZoom: 18, attribution: '© AMap 高德地图', gcj: true,
-  }),
-  [t('base.intl')]: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, attribution: 'Tiles © Esri',
-  }),
-  'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap',
-  }),
-};
-// 高德在国外没有详细数据，浏览国外时自动换成国际底图；手动选择底图后不再自动切换
-const GAODE_COVERED = new Set(['CHN', 'HKG', 'MAC', 'TWN']);
+// 天地图管中国（坐标就是 WGS84，不用再做偏移），key 写在 .env.local；
+// Esri 管国外，用的是免 key 的公开接口（非商业用途；商用需改成带 API key 的 ArcGIS Location Platform）
+const TDT_KEY = import.meta.env.VITE_TIANDITU_KEY;
+const ESRI_GEOCODE = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer';
+const tdt = (layer, opts) => L.tileLayer(`https://t{s}.tianditu.gov.cn/${layer}_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TDT_KEY}`, {
+  subdomains: '01234567', maxZoom: 18, ...opts,
+});
+// 天地图的底图和注记是两层：vec/img + cva/eva、cia/eia（c 中文，e 英文）
+const tdtBase = (layer, notes) => L.layerGroup([
+  tdt(layer, { attribution: '© <a href="https://www.tianditu.gov.cn" target="_blank">天地图</a>' }),
+  tdt(`${lang === 'en' ? 'e' : 'c'}${notes}`),
+]);
+const baseLayers = {};
+if (TDT_KEY) {
+  baseLayers[t('base.tdt')] = tdtBase('vec', 'va');
+  baseLayers[t('base.tdtSat')] = tdtBase('img', 'ia');
+}
+baseLayers[t('base.intl')] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  // Esri 要求的署名：Powered by Esri + 底图的数据来源（取自 World Street Map 图层的 Credits）
+  attribution: 'Powered by <a href="https://www.esri.com" target="_blank">Esri</a> | Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors, and the GIS User Community',
+});
+// 卫星图 + 地名注记两层，免 key（没配天地图 key 时，全球默认用上面的街道图）
+const esri = (path, opts) => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${path}/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, ...opts });
+baseLayers[t('base.sat')] = L.layerGroup([
+  esri('World_Imagery', { attribution: 'Powered by <a href="https://www.esri.com" target="_blank">Esri</a> | Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community' }),
+  esri('Reference/World_Boundaries_and_Places'),
+]);
+// 天地图在国外没有详细数据，浏览国外时自动换成国际底图；手动选择底图后不再自动切换
+const CN_COVERED = new Set(['CHN', 'HKG', 'MAC', 'TWN']);
+const inChina = country => CN_COVERED.has(country);
+const chinaBase = () => baseLayers[t('base.tdt')] || Object.values(baseLayers)[0];
+const intlBase = () => baseLayers[t('base.intl')];
 let autoBase = true;
 let switchingBase = false;
 
@@ -410,7 +430,7 @@ const map = L.map('map', {
 const fitMinZoom = () => map.setMinZoom(Math.max(1, Math.ceil(Math.log2(map.getSize().y / 256))));
 fitMinZoom();
 map.on('resize', fitMinZoom);
-let activeLayer = baseLayers[t('base.gaode')].addTo(map);
+let activeLayer = chinaBase().addTo(map);
 L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
 L.control.scale({ imperial: false }).addTo(map);
 
@@ -444,7 +464,7 @@ map.on('baselayerchange', e => {
 
 function autoPickBase() {
   if (!autoBase) return;
-  const want = baseLayers[t(!view.country || GAODE_COVERED.has(view.country) ? 'base.gaode' : 'base.intl')];
+  const want = !view.country || inChina(view.country) ? chinaBase() : intlBase();
   if (want === activeLayer) return;
   switchingBase = true;
   map.removeLayer(activeLayer);
@@ -486,7 +506,7 @@ function geoLayer(fc, styleFn, level) {
       layer.bindTooltip(f.properties.name, { sticky: true, direction: 'top', className: 'geo-tip' });
       layer.on('click', e => {
         // 进入城市或放得足够大时，点击用于添加具体地点
-        if (view.level === 'city' || map.getZoom() >= 13) showAddPopup(e.latlng);
+        if (view.level === 'city' || map.getZoom() >= 13) showStampHint(e.latlng);
         else goTo(level, f.properties.id);
       });
       layer.on('mouseover', () => {
@@ -652,24 +672,160 @@ function updateChats(advance = true) {
 setInterval(() => document.visibilityState === 'visible' && updateChats(), 3000);
 map.on('moveend', () => updateChats(false));
 
-function showAddPopup(latlng, name = '') {
-  const box = document.createElement('div');
-  box.className = 'checkin-popup';
-  box.innerHTML = name
-    ? `<b>${escapeHtml(name)}</b><small>${t('checkInHere')}</small>`
-    : `<small>${t('addPlaceHere')}</small>`;
-  const btn = document.createElement('button');
-  btn.innerHTML = `${icon('pin')}${t('checkIn')}`;
-  box.append(btn);
-  const popup = L.popup().setLatLng(latlng).setContent(box).openOn(map);
-  btn.onclick = () => {
-    map.closePopup(popup);
-    addPlace(...fromMap(latlng.lat, wrapLng(latlng.lng)), name);
-  };
+// ---------- 盖邮戳打卡：按住地图约 0.6 秒落章，章印停 1 秒后收成普通标记并打开编辑器 ----------
+const PRESS_MS = 600, LAND_MS = 1000, MOVE_TOLERANCE = 8, HINT_TEXT_TIMES = 3;
+const canStamp = () => view.level === 'city' || map.getZoom() >= 13;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const vibrate = pattern => { try { navigator.vibrate?.(pattern); } catch { /* 不支持振动 */ } };
+const mapEl = map.getContainer();
+
+// 章面：城市名（不在城市里就退到省、国家）+ 当天日期
+function stampFace(loc) {
+  const [level, id] = loc?.city ? ['city', loc.city] : loc?.region ? ['region', loc.region] : loc?.country ? ['country', loc.country] : [];
+  if (!level) return { zh: '远方', en: 'ELSEWHERE' };
+  const name = { city: cityName, region: regionName, country: countryName }[level](id);
+  const zh = { city: cityZh, region: regionZh, country: countryZh }[level](id) || name;
+  const en = { city: cityEn, region: regionEn, country: countryEn }[level](id) || name;
+  return { zh, en: en.toUpperCase() };
+}
+
+function setFace(st, loc) {
+  const { zh, en } = stampFace(loc);
+  const face = st.getElement()?.querySelector('.stp-face');
+  if (!face) return;
+  face.querySelector('small').textContent = en;
+  face.querySelector('b').textContent = zh.toUpperCase() === en ? '' : zh;
+}
+
+// 落章时飞溅的墨点，每次方向随机
+const splatter = () => Array.from({ length: 7 }, (_, i) => {
+  const a = (i / 7) * 2 * PI + Math.random() * 0.6, d = 50 + Math.random() * 18;
+  return `<i style="--dx:${(Math.cos(a) * d).toFixed(1)}px;--dy:${(Math.sin(a) * d).toFixed(1)}px;--s:${(0.5 + Math.random() * 0.8).toFixed(2)}"></i>`;
+}).join('');
+
+function stampMarker(latlng, state, tip = '') {
+  const tilt = (Math.random() * 16 - 8).toFixed(1);
+  const html = `<div class="stp ${state}" style="--tilt:${tilt}deg">
+    <i class="stp-blot"></i>
+    <svg class="stp-ring" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" /></svg>
+    <div class="stp-face"><small></small><i class="stp-rule">✦</i><time>${fmtDate(today())}</time><b></b></div>
+    <span class="stp-ink">${splatter()}</span>
+    ${tip ? `<span class="stp-tip">${escapeHtml(tip)}</span>` : ''}
+  </div>`;
+  return L.marker(latlng, {
+    icon: L.divIcon({ className: 'stp-anchor', iconSize: [0, 0], iconAnchor: [0, 0], html }),
+    interactive: false, keyboard: false, zIndexOffset: 3000,
+  }).addTo(map);
+}
+
+const stampEl = st => st.getElement()?.querySelector('.stp');
+function dropStamp(st, cls, after) {
+  stampEl(st)?.classList.add(cls);
+  setTimeout(() => st.remove(), after);
+}
+
+let press = null;     // 正在按住的那一次
+let stampedAt = 0;    // 落章后松手时浏览器还会补发 click，用它忽略掉
+let landedId = null;  // 已经落章、还没松开的那根手指
+
+function cancelPress() {
+  if (!press) return;
+  clearTimeout(press.timer);
+  dropStamp(press.st, 'lift', 220);
+  press = null;
+}
+
+// 章落下：没网或今天打满就是没墨的空章，弹开；否则留下章印，1 秒后变成标记
+// p.onLand / p.onDone：侧栏「标记去过」用，落章时保存、仪式结束后打开编辑器，不受打卡上限限制
+async function land(p) {
+  if (press === p) press = null;
+  stampedAt = Date.now();
+  landedId = p.id;
+  const el = stampEl(p.st);
+  el?.classList.remove('pressing');
+  const blocked = p.onDone ? ''
+    : !navigator.onLine ? t('needOnline')
+    : placesToday() >= LIMITS.placesPerDay ? t('limit.places_per_day', LIMITS) : '';
+  if (blocked) {
+    vibrate([12, 60, 12]);
+    dropStamp(p.st, 'dry', 750);
+    return toast(blocked);
+  }
+  el?.classList.add('landed');
+  vibrate(35);
+  if (!reducedMotion.matches) {
+    mapEl.classList.remove('thud');
+    void mapEl.offsetWidth; // 重新触发动画
+    mapEl.classList.add('thud');
+  }
+  p.onLand?.();
+  const [loc] = await Promise.all([p.loc, new Promise(r => setTimeout(r, LAND_MS))]);
+  dropStamp(p.st, 'fold', 260);
+  if (p.onDone) p.onDone();
+  else addPlace(p.lat, p.lng, p.name, loc);
+}
+
+function startStamp(latlng, { name = '', state = 'pressing', loc } = {}) {
+  const [lat, lng] = fromMap(latlng.lat, wrapLng(latlng.lng));
+  const st = stampMarker(latlng, state);
+  loc ||= locate(lat, lng).catch(() => ({ country: '', region: '', city: '' }));
+  loc.then(l => setFace(st, l));
+  return { st, lat, lng, name, loc };
+}
+
+mapEl.addEventListener('pointerdown', e => {
+  if (press && !e.isPrimary) return cancelPress(); // 第二根手指：在缩放
+  if (press || !e.isPrimary || e.button !== 0 || !canStamp()) return;
+  if (e.target.closest('.leaflet-marker-icon, .leaflet-control, .leaflet-popup')) return;
+  const p = { ...startStamp(map.mouseEventToLatLng(e)), id: e.pointerId, x: e.clientX, y: e.clientY };
+  p.timer = setTimeout(() => land(p), PRESS_MS);
+  press = p;
+  vibrate(8);
+});
+window.addEventListener('pointermove', e => {
+  if (press?.id === e.pointerId && Math.hypot(e.clientX - press.x, e.clientY - press.y) > MOVE_TOLERANCE) cancelPress();
+});
+for (const type of ['pointerup', 'pointercancel']) {
+  window.addEventListener(type, e => {
+    if (press?.id === e.pointerId) cancelPress();
+    if (landedId === e.pointerId) { stampedAt = Date.now(); landedId = null; }
+  });
+}
+map.on('movestart zoomstart', cancelPress);
+// 长按别弹出系统菜单
+mapEl.addEventListener('contextmenu', e => { if (canStamp()) e.preventDefault(); });
+
+// 单击：在点击处浮出一个邮戳虚影，教用户按住；前几次带文字
+let hint = null;
+function showStampHint(latlng) {
+  if (Date.now() - stampedAt < 500) return;
+  let shown = 0;
+  try { shown = Number(localStorage.getItem('de.stampHints')) || 0; localStorage.setItem('de.stampHints', shown + 1); } catch { /* 无痕模式 */ }
+  hint?.remove();
+  const st = stampMarker(latlng, 'ghost', shown < HINT_TEXT_TIMES ? t('holdToStamp') : '');
+  hint = st;
+  setTimeout(() => { st.remove(); if (hint === st) hint = null; }, 1500);
+}
+
+// 从搜索选中的地点：飞到后直接落章
+function stampAt(latlng, name) {
+  land(startStamp(latlng, { name, state: 'auto' }));
+}
+
+// 侧栏「标记去过」：城市落在中心点，省和国家落在视野中心；落章时区域点亮，仪式后打开明信片
+let markStamping = false;
+function stampMark(m) {
+  if (markStamping) return;
+  markStamping = true;
+  const latlng = m.lat != null ? L.latLng(toMap(m.lat, m.lng)) : map.getCenter();
+  const p = startStamp(latlng, { state: 'auto', loc: Promise.resolve(m) });
+  p.onLand = () => { markStamping = false; saveRecord(m); };
+  p.onDone = () => openEditor(m.id);
+  land(p);
 }
 
 map.on('click', e => {
-  if (view.level === 'city' || map.getZoom() >= 13) showAddPopup(e.latlng);
+  if (canStamp()) showStampHint(e.latlng);
 });
 
 // 判断一个坐标属于哪个国家 / 省 / 城市
@@ -705,14 +861,27 @@ async function locate(lat, lng) {
   return loc;
 }
 
-async function reverseName(lat, lng) {
+async function getJson(url, signal) {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// 点在地图上时查一个地名：国内用天地图，国外用 Esri；先找附近的景点，找不到再用街道地址
+async function reverseName(lat, lng, country) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 6000);
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=zh-CN`;
-    const data = await (await fetch(url, { signal: ctrl.signal })).json();
-    const a = data.address || {};
-    return data.name || a.attraction || a.tourism || a.road || a.suburb || '';
+    if (inChina(country) && TDT_KEY) {
+      const post = encodeURIComponent(JSON.stringify({ lon: lng, lat, ver: 1 }));
+      const { result = {} } = await getJson(`https://api.tianditu.gov.cn/geocoder?postStr=${post}&type=geocode&tk=${TDT_KEY}`, ctrl.signal);
+      const a = result.addressComponent || {};
+      return a.poi || a.road || result.formatted_address || '';
+    }
+    const base = `${ESRI_GEOCODE}/reverseGeocode?f=json&location=${lng},${lat}&langCode=${lang === 'en' ? 'ENG' : 'CHI'}`; // 反查要用三字母语言代码，ZH 不生效
+    const poi = await getJson(`${base}&featureTypes=POI`, ctrl.signal);
+    const a = (poi.address ? poi : await getJson(base, ctrl.signal)).address || {};
+    return a.PlaceName || a.ShortLabel || a.Address || '';
   } catch {
     return '';
   } finally {
@@ -720,12 +889,18 @@ async function reverseName(lat, lng) {
   }
 }
 
-async function addPlace(lat, lng, knownName = '') {
-  const r = newRecord('place', { lat, lng, name: knownName, ...(await locate(lat, lng)) });
+// 今天新建的景点，删掉的也算，避免删了重打卡绕过限制
+const placesToday = () => [...records, ...tombstones]
+  .filter(r => r.level === 'place' && accountDay(r.createdAt) === accountDay()).length;
+
+async function addPlace(lat, lng, knownName = '', loc = null) {
+  if (!navigator.onLine) return toast(t('needOnline'));
+  if (placesToday() >= LIMITS.placesPerDay) return toast(t('limit.places_per_day', LIMITS));
+  const r = newRecord('place', { lat, lng, name: knownName, ...(loc || await locate(lat, lng)) });
   await saveRecord(r);
   openEditor(r.id);
   if (knownName) return;
-  const name = await reverseName(lat, lng);
+  const name = await reverseName(lat, lng, r.country);
   if (name && !r.name) {
     r.name = name;
     await saveRecord(r);
@@ -983,7 +1158,7 @@ $('#panel').addEventListener('click', async e => {
   const level = view.level, id = view[level];
   if (act === 'mark') {
     const m = findMark(level, id);
-    if (!m) return saveRecord(newMark(level, id));
+    if (!m) return stampMark(newMark(level, id));
     if ((m.photos.length || m.note) && !confirm(t('confirmUnmark'))) return;
     return removeRecord(m);
   }
@@ -1011,6 +1186,7 @@ let openDrop = null;
 
 function setDrop(name) {
   openDrop = name === openDrop ? null : name;
+  hoverOpened = false;
   for (const d of document.querySelectorAll('.drop')) {
     d.hidden = d.id !== `drop-${openDrop}`;
     if (d.hidden) continue;
@@ -1026,8 +1202,28 @@ function setDrop(name) {
 }
 const closeDrop = () => openDrop && setDrop(openDrop);
 
+// 头像面板：有鼠标的设备上悬停即展开，移开后稍等再收起；悬停展开时点一下头像会把它固定住
+let hoverOpened = false, enterTimer = 0, leaveTimer = 0;
+const canHover = matchMedia('(hover: hover) and (pointer: fine)');
+for (const el of [$('#topbar [data-drop="me"]'), $('#drop-me')]) {
+  el.addEventListener('mouseenter', () => {
+    if (!canHover.matches || isPhone()) return;
+    clearTimeout(leaveTimer);
+    if (openDrop !== 'me') enterTimer = setTimeout(() => { setDrop('me'); hoverOpened = true; }, 150);
+  });
+  el.addEventListener('mouseleave', () => {
+    clearTimeout(enterTimer);
+    if (hoverOpened) leaveTimer = setTimeout(() => hoverOpened && openDrop === 'me' && setDrop('me'), 320);
+  });
+}
+
 document.addEventListener('click', e => {
   const trigger = e.target.closest('[data-drop]');
+  if (trigger?.dataset.drop === 'me' && hoverOpened && openDrop === 'me') {
+    hoverOpened = false; // 固定住，不再随鼠标移开收起
+    clearTimeout(leaveTimer);
+    return;
+  }
   if (trigger) return setDrop(trigger.dataset.drop);
   if (e.target.closest('[data-close-drop]')) return closeDrop();
   // 用事件路径判断：点击后面板内容可能已被重新渲染，target 会脱离文档
@@ -1069,32 +1265,64 @@ function search(q) {
   return out.sort((a, b) => a.s - b.s).slice(0, 12);
 }
 
-// ---------- 搜索具体地点（Photon，基于 OpenStreetMap） ----------
+// ---------- 搜索具体地点（国内天地图，国外 Esri；在世界视图两家都搜） ----------
 // 进入某个国家/城市后，额外在当前视野内搜一次，让附近的同名地点排在前面
 let poiCtrl;
+const clampLng = x => Math.max(-180, Math.min(180, x));
+function viewBounds() {
+  const b = map.getBounds();
+  const [s, w] = fromMap(b.getSouth(), b.getWest());
+  const [n, e] = fromMap(b.getNorth(), b.getEast());
+  return [clampLng(w), s, clampLng(e), n];
+}
+
+function searchTianditu(q, signal, local) {
+  const query = (mapBound, level) => {
+    const post = encodeURIComponent(JSON.stringify({ keyWord: q, mapBound, level, queryType: 1, start: 0, count: 6 }));
+    return getJson(`https://api.tianditu.gov.cn/v2/search?postStr=${post}&type=query&tk=${TDT_KEY}`, signal)
+      .then(j => (j.pois || []).map(p => {
+        const [lng, lat] = String(p.lonlat).split(',').map(Number);
+        return { name: p.name, sub: [p.city || p.county || p.province, countryName('CHN')].filter(Boolean).join(' · '), lat, lng };
+      }));
+  };
+  const jobs = [query('73,3,136,54', 5)];
+  if (local) jobs.unshift(query(viewBounds().join(','), Math.min(18, Math.max(1, Math.round(map.getZoom())))));
+  return Promise.all(jobs.map(j => j.catch(() => []))).then(lists => lists.flat());
+}
+
+async function searchEsri(q, signal) {
+  let url = `${ESRI_GEOCODE}/findAddressCandidates?f=json&maxLocations=6&outFields=PlaceName,City,Region,CntryName`
+    + `&langCode=${lang === 'en' ? 'EN' : 'ZH'}&SingleLine=${encodeURIComponent(q)}`;
+  if (view.level !== 'world') {
+    const c = map.getCenter();
+    const [lat, lng] = fromMap(c.lat, wrapLng(c.lng));
+    url += `&location=${lng},${lat}`;
+  }
+  const j = await getJson(url, signal);
+  return (j.candidates || []).map(c => {
+    const a = c.attributes || {};
+    return { name: a.PlaceName || c.address, sub: [a.City || a.Region, a.CntryName].filter(Boolean).join(' · '), lat: c.location.y, lng: c.location.x };
+  });
+}
+
 async function searchPlaces(q) {
   poiCtrl?.abort();
   poiCtrl = new AbortController();
-  const base = `https://photon.komoot.io/api/?limit=6&q=${encodeURIComponent(q)}`;
-  const urls = [base];
-  if (view.level !== 'world') {
-    const b = map.getBounds();
-    const clampLng = x => Math.max(-180, Math.min(180, x));
-    const [s, w] = fromMap(b.getSouth(), b.getWest());
-    const [n, e] = fromMap(b.getNorth(), b.getEast());
-    urls.unshift(`${base}&bbox=${clampLng(w)},${s},${clampLng(e)},${n}`);
-  }
-  const lists = await Promise.all(urls.map(u => fetch(u, { signal: poiCtrl.signal })
-    .then(res => res.json()).then(j => j.features).catch(() => [])));
+  const { signal } = poiCtrl;
+  const china = view.level === 'world' ? null : inChina(view.country);
+  const jobs = [];
+  if (TDT_KEY && china !== false) jobs.push(searchTianditu(q, signal, china === true));
+  if (china !== true || !TDT_KEY) jobs.push(searchEsri(q, signal));
+  // 世界视图下输入中文时天地图的结果排前面，否则 Esri 排前面
+  if (china === null && !/[一-鿿]/.test(q)) jobs.reverse();
+  const lists = await Promise.all(jobs.map(j => j.catch(() => [])));
   const seen = new Set();
   const out = [];
-  for (const f of lists.flat()) {
-    const p = f.properties;
-    const key = `${p.osm_type}${p.osm_id}`;
-    if (!p.name || seen.has(key)) continue;
+  for (const p of lists.flat()) {
+    const key = `${p.name}|${p.lat?.toFixed(3)}|${p.lng?.toFixed(3)}`;
+    if (!p.name || !Number.isFinite(p.lat) || !Number.isFinite(p.lng) || seen.has(key)) continue;
     seen.add(key);
-    const [lng, lat] = f.geometry.coordinates;
-    out.push({ name: p.name, sub: [p.city || p.county || p.state, p.country].filter(Boolean).join(' · '), lat, lng });
+    out.push(p);
   }
   return out.slice(0, 8);
 }
@@ -1107,7 +1335,7 @@ async function focusPlace(p) {
     : { level: 'world' };
   await go(target, { fly: false });
   const ll = L.latLng(toMap(p.lat, p.lng));
-  map.once('moveend', () => showAddPopup(ll, p.name));
+  map.once('moveend', () => stampAt(ll, p.name));
   map.flyTo(ll, 17, { duration: 1.2 });
 }
 
@@ -1271,6 +1499,11 @@ function renderPhotos(r) {
   grid.dataset.sig = sig;
   grid.innerHTML = '';
   $('#photoDrop').classList.toggle('empty', !r.photos.length);
+  const room = LIMITS.photosPerPlace - r.photos.length;
+  $('#photoDrop').classList.toggle('full', room <= 0);
+  $('#photoInput').disabled = room <= 0;
+  $('#photoRoom').textContent = room <= 0 ? t('photosFull', { n: LIMITS.photosPerPlace })
+    : r.photos.length ? t('photosLeft', { n: room }) : t('dropPhotos');
   r.photos.forEach((photo, i) => {
     const fig = document.createElement('figure');
     fig.className = 'polaroid' + (shownPhotos.has(photo.id) ? '' : ' fresh');
@@ -1375,6 +1608,23 @@ async function addPhotos(files) {
   const r = current();
   files = files.filter(f => f.type.startsWith('image/'));
   if (!r || !files.length) return;
+  const room = LIMITS.photosPerPlace - r.photos.length;
+  if (room <= 0) return toast(t('photosPickFull', { n: LIMITS.photosPerPlace }));
+  if (!navigator.onLine) return toast(t('needOnline'));
+  let quota;
+  try {
+    quota = await photoQuota();
+  } catch (err) {
+    return toast(limitText(err) || t('opFailed', { msg: err.message }));
+  }
+  // 本地还没传上去的照片也会占额度
+  const queued = records.reduce((n, x) => n + x.photos.filter(p => !p.up && p.blob).length, 0);
+  const left = Math.max(0, quota.left - queued);
+  if (!left) return toast(quota.nextAt ? t('photosQuotaUntil', { t: hhmm(quota.nextAt) }) : t('limit.photos_per_day', LIMITS));
+  if (files.length > Math.min(room, left)) {
+    toast(room <= left ? t('photosPick', { n: LIMITS.photosPerPlace }) : t('photosTodayLeft', { n: left }));
+    files = files.slice(0, Math.min(room, left));
+  }
 
   $('#photoDrop').classList.remove('empty');
   const grid = $('#photoGrid');
@@ -1399,6 +1649,10 @@ async function addPhotos(files) {
   flashSaved();
 }
 
+// 装满时文件选择框不再弹出，点一下给个提示
+$('.pc-add').addEventListener('click', () => {
+  if ($('#photoInput').disabled) toast(t('photosPickFull', { n: LIMITS.photosPerPlace }));
+});
 $('#photoInput').addEventListener('change', e => {
   const files = [...e.target.files];
   e.target.value = '';
@@ -1511,11 +1765,11 @@ const friendsControl = new (L.Control.extend({
 }))();
 
 // ---------- 同步状态（「我的足迹」面板底部） ----------
-const hhmm = t => new Date(t).toTimeString().slice(0, 5);
-function renderSyncStatus({ pending, state, at }) {
+function renderSyncStatus({ pending, state, at, until }) {
   const el = $('#syncStatus');
   const text = state === 'offline' ? (pending ? t('syncOffline', { n: pending }) : t('syncOfflineIdle'))
     : state === 'syncing' ? t('syncing')
+    : state === 'limited' ? (until ? t('syncLimitedUntil', { t: hhmm(until) }) : t('syncLimited'))
     : state === 'error' ? `${t('syncError')}${pending ? ` · ${t('syncPending', { n: pending })}` : ''}`
     : pending ? t('syncPending', { n: pending })
     : at ? t('syncedAt', { t: hhmm(at) }) : t('synced');
@@ -1524,7 +1778,7 @@ function renderSyncStatus({ pending, state, at }) {
   el.innerHTML = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.6 9.6 4.5 4.5 0 0 0 7 18.5z" /></svg><span>${text}</span>`;
 }
 
-// ---------- 导出 / 导入备份（照片转为 base64 一并保存） ----------
+// ---------- 导出备份（照片转为 base64 一并保存） ----------
 const blobToDataUrl = blob => new Promise(resolve => {
   const r = new FileReader();
   r.onload = () => resolve(r.result);
@@ -1547,41 +1801,6 @@ $('#exportBtn').onclick = async () => {
   URL.revokeObjectURL(a.href);
 };
 
-$('#importInput').addEventListener('change', async e => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  try {
-    const json = JSON.parse(await file.text());
-    const raw = json.version === 2 ? json.records : json.places.map(fromV1);
-    const imported = await Promise.all(raw.map(async r => ({
-      ...r,
-      deleted: false,
-      deletedPhotos: r.deletedPhotos || [],
-      photos: await Promise.all(r.photos.map(async ph => ({ id: ph.id, blob: await (await fetch(ph.data)).blob() }))),
-    })));
-    if (records.length && confirm(t('confirmImport', { n: imported.length }))) {
-      const keep = new Set(imported.map(r => r.id));
-      for (const r of [...records]) if (!keep.has(r.id)) await removeRecord(r);
-    }
-    for (const r of imported) {
-      const old = records.find(x => x.id === r.id) || tombstones.find(x => x.id === r.id);
-      old?.photos.forEach(revokePhoto);
-      records = records.filter(x => x.id !== r.id);
-      tombstones = tombstones.filter(x => x.id !== r.id);
-      touch(r);
-      records.push(r);
-      await db.put(r);
-    }
-    await assignMissing();
-    refresh();
-    sync?.request();
-  } catch (err) {
-    alert(t('importFailed'));
-    console.error(err);
-  }
-});
-
 // 旧数据没有行政区归属，或行政区划分已更新（如英国改为英格兰/苏格兰…），重新归档
 async function assignMissing() {
   for (const r of records) {
@@ -1594,36 +1813,6 @@ async function assignMissing() {
       continue;
     }
     touch(r);
-    await db.put(r);
-  }
-}
-
-// 第一次登录：把登录前存在这台设备上的足迹（旧库 mymap）存进账号
-async function claimLegacy(profile) {
-  const flag = 'mymap:legacy-claimed';
-  if (localStorage.getItem(flag)) return;
-  const names = (await indexedDB.databases?.())?.map(d => d.name);
-  if (names && !names.includes('mymap')) return localStorage.setItem(flag, 'none');
-  const legacy = makeDb();
-  await legacy.open('mymap');
-  const old = await legacy.all();
-  legacy._db.close();
-  if (!old.length) return localStorage.setItem(flag, 'none');
-  const photos = old.reduce((n, r) => n + r.photos.length, 0);
-  const yes = await askLetter({
-    title: t('legacyTitle'),
-    body: t('legacyBody', { n: old.length, p: photos, handle: escapeHtml(profile.handle) }),
-    ok: t('legacyOk'),
-    cancel: t('legacyCancel'),
-  });
-  localStorage.setItem(flag, yes ? profile.handle : 'declined');
-  if (!yes) return;
-  for (const r of old) {
-    if (records.some(x => x.id === r.id)) continue;
-    Object.assign(r, { deleted: false, deletedPhotos: r.deletedPhotos || [] });
-    r.photos.forEach(p => { p.up = false; });
-    touch(r);
-    records.push(r);
     await db.put(r);
   }
 }
@@ -1642,9 +1831,9 @@ async function claimLegacy(profile) {
   const all = await db.all();
   records = all.filter(r => !r.deleted);
   tombstones = all.filter(r => r.deleted);
-  await claimLegacy(profile);
   await assignMissing();
   refresh();
+  initSettings({ records: () => records, pathOf });
 
   me = user.id;
   journey = initJourney({
@@ -1671,6 +1860,7 @@ async function claimLegacy(profile) {
       fitPins: list => list.length && map.flyToBounds(L.latLngBounds(list.map(p => toMap(p.lat, p.lng))).pad(0.4), { maxZoom: 15, duration: 1 }),
       onChange: () => { renderPlaces(); friendsControl.sync(); chat?.friendsChanged(); },
       chatUnread: id => chat?.unread(id) || 0,
+      groupsHtml: () => chat?.groupsHtml() || '',
     },
   });
   friendsControl.addTo(map);
@@ -1696,6 +1886,7 @@ async function claimLegacy(profile) {
     save: r => db.put(r),
     apply: applySynced,
     onStatus: renderSyncStatus,
+    onPhotoLimit: until => toast(t('photosQuotaUntil', { t: hhmm(until) })),
   });
 })();
 

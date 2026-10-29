@@ -6,13 +6,9 @@
 
 /* 与悬浮面板同一套纸面色（panels.css 只给 #topbar / .drop / #tabbar 定义了） */
 #chat, #chatView {
-  --paper: #fbf8f1;
-  --paper-2: #f3ede1;
-  --card: #fffdf8;
-  --rule: rgba(42, 39, 35, .12);
-  --rule-strong: rgba(42, 39, 35, .24);
-  --ink-red: rgba(196, 48, 43, .78);       /* 邮戳的印泥 */
-  --line: rgba(31, 75, 143, .085);         /* 信纸横线 */
+  --paper: var(--paper-hi);
+  --ink-red: rgb(var(--red-rgb) / .78);       /* 邮戳的印泥 */
+  --line: rgb(var(--blue-rgb) / .085);         /* 信纸横线 */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .13 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   color: var(--ink);
 }
@@ -33,7 +29,7 @@
   width: 384px; height: min(620px, calc(100vh - 110px));
   background: var(--grain), var(--paper); border-radius: 6px 6px 14px 14px; overflow: hidden;
   box-shadow:
-    0 0 0 1px rgba(42, 39, 35, .1),
+    0 0 0 1px rgb(var(--ink-rgb) / .1),
     0 2px 0 -1px #fff inset,
     0 34px 60px -26px rgba(42, 39, 35, .6),
     0 10px 18px -12px rgba(42, 39, 35, .25);
@@ -85,7 +81,7 @@
 .ch-list {
   position: relative; flex: 1; min-height: 0; padding: 12px 16px 8px; overflow-y: auto; overscroll-behavior: contain;
   background:
-    linear-gradient(90deg, transparent 22px, rgba(196, 48, 43, .16) 22px 23px, transparent 23px) local,
+    linear-gradient(90deg, transparent 22px, rgb(var(--red-rgb) / .16) 22px 23px, transparent 23px) local,
     repeating-linear-gradient(180deg, transparent 0 27px, var(--line) 27px 28px) local;
   scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent;
 }
@@ -138,7 +134,7 @@
 }
 .ch-receipt .ic { width: 13px; height: 13px; stroke-width: 2.2; }
 .ch-receipt.unread { color: var(--ink-soft); box-shadow: inset 0 0 0 1px var(--rule-strong, rgba(42, 39, 35, .24)); }
-.ch-receipt.read { color: var(--air-blue); background: rgba(31, 75, 143, .09); }
+.ch-receipt.read { color: var(--air-blue); background: rgb(var(--blue-rgb) / .09); }
 .ch-receipt.pop { animation: receipt-stamp .5s cubic-bezier(.3, 1.6, .5, 1) both; }
 @keyframes receipt-stamp {
   0% { scale: 1.9; rotate: -12deg; opacity: 0; }
@@ -152,7 +148,7 @@
 /* 对方：撕下的便笺；自己：墨水写的回信 */
 .ch-bubble {
   margin: 0; padding: 8px 13px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
-  color: var(--ink); background: #fff; border-radius: 3px 14px 14px 14px;
+  color: var(--ink); background: var(--card); border-radius: 3px 14px 14px 14px;
   box-shadow: 0 0 0 1px rgba(42, 39, 35, .08), 0 6px 12px -10px rgba(42, 39, 35, .5);
 }
 .ch-msg.theirs:not(.tail) .ch-bubble, .ch-msg.theirs .ch-bubble:not(:last-of-type) { border-radius: 3px 14px 14px 3px; }
@@ -178,14 +174,14 @@
 .ch-checkin {
   position: relative; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 12px; width: 262px; max-width: 100%;
   padding: 11px 12px 11px 14px; text-align: left; cursor: pointer; color: var(--ink);
-  background: #fffaf0; border: none; border-radius: 2px;
+  background: var(--paper-hi); border: none; border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(42, 39, 35, .1), 0 14px 22px -16px rgba(42, 39, 35, .65);
   rotate: -1deg; transition: rotate .3s cubic-bezier(.3, 1.5, .5, 1), translate .3s, box-shadow .3s;
 }
 .ch-msg.mine .ch-checkin { rotate: 1deg; }
 .ch-checkin::before {
   content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 5px;
-  background: repeating-linear-gradient(180deg, var(--air-red) 0 8px, #fffaf0 8px 12px, var(--air-blue) 12px 20px, #fffaf0 20px 24px);
+  background: repeating-linear-gradient(180deg, var(--air-red) 0 8px, var(--paper-hi) 8px 12px, var(--air-blue) 12px 20px, var(--paper-hi) 20px 24px);
 }
 /* 右上角的注销波纹 */
 .ch-checkin::after {
@@ -208,7 +204,7 @@
 
 /* ---------- 托盘 ---------- */
 .ch-tray {
-  flex: none; max-height: 232px; overflow-y: auto; background: var(--grain), #fffaf0;
+  flex: none; max-height: 232px; overflow-y: auto; background: var(--grain), var(--paper-hi);
   border-top: 1px dashed var(--rule-strong); animation: tray-up .25s cubic-bezier(.2, .9, .3, 1) both;
 }
 .ch-tray[hidden] { display: none; }
@@ -218,10 +214,10 @@
 .ch-emojis { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 0; padding: 10px; }
 .ch-emojis button {
   position: relative; height: 42px; padding: 0; font-size: 22px; cursor: pointer; background: none;
-  border: none; border-right: 1px dashed rgba(42, 39, 35, .13); border-bottom: 1px dashed rgba(42, 39, 35, .13);
+  border: none; border-right: 1px dashed rgb(var(--ink-rgb) / .13); border-bottom: 1px dashed rgb(var(--ink-rgb) / .13);
   transition: transform .18s cubic-bezier(.3, 1.6, .5, 1), background .12s;
 }
-.ch-emojis button:hover { z-index: 1; background: #fff; transform: scale(1.28) rotate(-6deg); box-shadow: 0 6px 12px -6px rgba(42, 39, 35, .45); }
+.ch-emojis button:hover { z-index: 1; background: var(--card); transform: scale(1.28) rotate(-6deg); box-shadow: 0 6px 12px -6px rgba(42, 39, 35, .45); }
 .ch-emojis button:active { transform: scale(1.05); }
 
 .ch-tray-title { margin: 0; padding: 12px 16px 6px; font: italic 600 12px var(--serif-en); letter-spacing: .04em; color: var(--ink-soft); }
@@ -231,7 +227,7 @@
   padding: 7px 8px; text-align: left; cursor: pointer; color: var(--ink); background: none; border: none; border-radius: 8px;
   transition: background .12s;
 }
-.ch-picks li button:hover:not(:disabled) { background: #fff; }
+.ch-picks li button:hover:not(:disabled) { background: var(--card); }
 .ch-picks li button:hover:not(:disabled) img { rotate: 0deg; scale: 1.06; }
 .ch-picks li button:disabled { cursor: progress; opacity: .5; }
 .ch-picks img {
@@ -254,16 +250,16 @@
   color: var(--ink-soft); background: none; border: none; border-radius: 50%; transition: color .15s, background .15s, rotate .25s;
 }
 .ch-tool:hover { color: var(--ink); background: var(--paper-2); }
-.ch-tool[aria-expanded="true"] { color: var(--air-blue); background: rgba(31, 75, 143, .09); }
+.ch-tool[aria-expanded="true"] { color: var(--air-blue); background: rgb(var(--blue-rgb) / .09); }
 .ch-tool[data-tray="emoji"]:hover { rotate: -12deg; }
 .ch-tool .ic { width: 21px; height: 21px; }
 .ch-compose textarea {
   flex: 1; min-width: 0; min-height: 38px; max-height: 120px; padding: 9px 13px; resize: none;
   font: 14px/1.45 -apple-system, "PingFang SC", sans-serif; color: var(--ink);
-  background: #fff; border: 1px solid var(--rule); border-radius: 19px; outline: none;
+  background: var(--card); border: 1px solid var(--rule); border-radius: 19px; outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
-.ch-compose textarea::placeholder { font: italic 14px var(--serif-en); color: rgba(42, 39, 35, .4); }
+.ch-compose textarea::placeholder { font: italic 14px var(--serif-en); color: rgb(var(--ink-rgb) / .4); }
 .ch-compose textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(42, 39, 35, .07); }
 
 /* 发送：一枚火漆封印 */
@@ -278,6 +274,90 @@
 .ch-send:active { scale: .9; }
 .ch-send .ic { width: 16px; height: 16px; translate: -1px 1px; }
 
+/* ---------- 群聊 ---------- */
+/* 好友面板里的群列表：几位成员的头像拼在一枚圆章里 */
+.fr-title .fr-new-group { display: flex; align-items: center; gap: 4px; height: 26px; margin-left: auto; padding: 0 10px; font-size: 12px; }
+.fr-title .fr-new-group .ic { width: 13px; height: 13px; }
+.grp-none { margin: 8px 2px 4px; font: italic 12.5px var(--serif-en); color: var(--ink-soft); }
+.grp-row { cursor: pointer; }
+/* 1 人整张；2 人左右各半；3 人左边一整列、右边上下两格；4 人田字格 */
+.grp-avatar, .ch-collage { display: grid; grid-template: minmax(0, 1fr) minmax(0, 1fr) / minmax(0, 1fr) minmax(0, 1fr); place-items: stretch; }
+.grp-avatar.n1, .ch-collage.n1 { grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+.grp-avatar.n2, .ch-collage.n2 { grid-template-rows: minmax(0, 1fr); }
+.grp-avatar.n3 img:first-child, .ch-collage.n3 img:first-child { grid-row: span 2; }
+.grp-avatar { gap: 1px; background: var(--rule-strong); }
+.grp-avatar img, .ch-collage img { width: 100%; height: 100%; object-fit: cover; background: #fff1e6; }
+/* 抬头邮票里的拼贴 */
+.ch-collage { width: 100%; height: 100%; gap: 2px; background: #fff; }
+.ch-x[hidden] { display: none; }
+
+/* 系统消息：像信纸边上用铅笔写的旁注 */
+.ch-sys {
+  width: fit-content; max-width: 86%; margin: 10px auto; padding: 3px 12px;
+  font: italic 12px/1.5 var(--serif-en), var(--serif-zh); color: var(--ink-soft); text-align: center;
+  background: var(--paper); border: 1px dashed var(--rule-strong); border-radius: 999px;
+}
+.ch-sys.arrive { animation: note-drop .42s cubic-bezier(.2, .9, .3, 1) both; }
+/* 群里别人的一组消息：开头一枚小头像 + 名字 */
+.ch-from { display: flex; align-items: center; gap: 6px; margin: 6px 0 3px 2px; font: 600 11.5px var(--serif-zh); color: var(--ink-soft); }
+.ch-from img { width: 18px; height: 18px; object-fit: cover; background: #fff1e6; border-radius: 50%; box-shadow: 0 0 0 1px var(--rule-strong); }
+button.ch-receipt { cursor: pointer; border: none; background: none; }
+button.ch-receipt.read { background: rgb(var(--blue-rgb) / .09); }
+button.ch-receipt:hover, button.ch-receipt[aria-expanded="true"] { box-shadow: inset 0 0 0 1px currentColor; }
+.ch-readers {
+  display: grid; gap: 4px; max-width: 260px; margin: 6px 2px 0; padding: 8px 11px;
+  font-size: 12px; line-height: 1.5; color: var(--ink); text-align: left;
+  background: var(--card); border: 1px solid var(--rule); border-radius: 10px; animation: tray-up .2s both;
+}
+.ch-readers p { margin: 0; }
+.ch-readers b { margin-right: 6px; font: italic 600 11px var(--serif-en); letter-spacing: .06em; color: var(--air-blue); }
+.ch-readers p + p b { color: var(--ink-soft); }
+
+/* 建群 / 群聊信息：从信笺底部抽出的一张卡片，盖住对话 */
+.ch-sheet {
+  position: absolute; inset: 7px 0 0; z-index: 3; display: flex; flex-direction: column;
+  background: var(--grain), var(--paper); animation: tray-up .25s cubic-bezier(.2, .9, .3, 1) both;
+}
+.ch-sheet[hidden] { display: none; }
+.sh-head { display: flex; flex: none; align-items: center; gap: 6px; padding: 10px 12px 10px 8px; border-bottom: 1px dashed var(--rule-strong); }
+.sh-head .ch-x { align-self: center; }
+.sh-head b { font: 700 16px var(--serif-zh); letter-spacing: .02em; }
+.sh-body { flex: 1; min-height: 0; padding: 4px 16px 12px; overflow-y: auto; overscroll-behavior: contain; }
+.sh-body .fr-title { margin-top: 18px; }
+.sh-name { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; }
+.sh-name > span { flex: none; font: italic 600 11px var(--serif-en); letter-spacing: .12em; color: var(--air-blue); text-transform: uppercase; }
+.sh-name b { font: 700 15px var(--serif-zh); }
+.sh-name input {
+  flex: 1; min-width: 0; height: 36px; padding: 0 12px; font: 14px var(--serif-zh); color: var(--ink);
+  background: var(--card); border: 1px solid var(--rule); border-radius: 18px; outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.sh-name input:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(42, 39, 35, .07); }
+.sh-name .fr-btn { height: 34px; }
+.sh-people { margin: 0 -6px; padding: 0; list-style: none; }
+.sh-person { display: flex; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 10px; }
+label.sh-person { cursor: pointer; transition: background .12s; }
+label.sh-person:hover { background: var(--paper-2); }
+.sh-person .person-text { flex: 1; min-width: 0; }
+.sh-person .person-text em { font-style: normal; font-weight: 400; color: var(--ink-soft); }
+.sh-person input { position: absolute; opacity: 0; pointer-events: none; }
+/* 勾选框做成一枚小邮戳：选中时「啪」地盖上 */
+.sh-check {
+  display: grid; flex: none; place-items: center; width: 24px; height: 24px; color: transparent;
+  border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--rule-strong); transition: color .15s, background .15s, box-shadow .15s;
+}
+.sh-check .ic { width: 14px; height: 14px; stroke-width: 2.4; }
+.sh-person input:checked ~ .sh-check { color: #fff; background: var(--air-red); box-shadow: none; animation: receipt-stamp .4s cubic-bezier(.3, 1.6, .5, 1) both; }
+.sh-person input:focus-visible ~ .sh-check { outline: 2px solid var(--air-blue); outline-offset: 2px; }
+.sh-person input:disabled ~ * { opacity: .45; }
+label.sh-person:has(input:disabled) { cursor: not-allowed; }
+.sh-owner { flex: none; padding: 1px 8px; font: italic 600 10.5px var(--serif-en); letter-spacing: .08em; color: var(--air-red); border: 1px solid currentColor; border-radius: 999px; rotate: -4deg; }
+.sh-foot { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px 14px; border-top: 1px dashed var(--rule-strong); }
+.sh-foot .fr-primary { margin-left: auto; height: 38px; padding: 0 18px; }
+.sh-foot .fr-primary:disabled { cursor: not-allowed; opacity: .4; }
+.sh-foot .fr-primary[hidden] { display: none; }
+.sh-leave { height: 34px; color: var(--air-red); }
+.sh-leave:hover { color: #fff; background: var(--air-red); border-color: var(--air-red); }
+
 /* ---------- 查看转发的打卡：翻过来的明信片 ---------- */
 #chatView { position: fixed; inset: 0; z-index: 1450; display: grid; place-items: center; padding: 20px; perspective: 1400px; }
 #chatView[hidden] { display: none; }
@@ -285,14 +365,14 @@
 .cv-card {
   position: relative; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px;
   width: min(740px, 100%); max-height: calc(100vh - 40px); padding: 24px 26px 22px; overflow-y: auto;
-  background: var(--grain), #fffaf0; border-radius: 3px;
+  background: var(--grain), var(--paper-hi); border-radius: 3px;
   box-shadow: 0 0 0 1px rgba(42, 39, 35, .08), 0 40px 70px -24px rgba(0, 0, 0, .6);
   animation: card-flip .7s cubic-bezier(.2, .9, .25, 1) both;
 }
 /* 底边一道航空信条纹 */
 .cv-card::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 5px;
-  background: repeating-linear-gradient(-45deg, var(--air-red) 0 10px, #fffaf0 10px 15px, var(--air-blue) 15px 25px, #fffaf0 25px 30px);
+  background: repeating-linear-gradient(-45deg, var(--air-red) 0 10px, var(--paper-hi) 10px 15px, var(--air-blue) 15px 25px, var(--paper-hi) 25px 30px);
 }
 @keyframes card-flip {
   0% { opacity: 0; transform: rotateY(-70deg) rotateZ(-4deg) translateY(30px); }

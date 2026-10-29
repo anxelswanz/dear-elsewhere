@@ -2,16 +2,18 @@
 // 用手账风格的矢量底图重新画一张图，保留全部打卡标记；可选 4:5 / 1:1 / 9:16，2 倍清晰度导出 PNG。
 // 底图不用地图瓦片：瓦片跨域会污染画布，也和手账风格不搭。
 
-import { t } from './i18n.js';
+import { t, lang } from './i18n.js';
+import { loadStreets, STREETS_CREDIT } from './streets.js';
 
 const RATIOS = { '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16 };
 const SCALE = 2;
 const C = {
   sea: '#dde5e3', rule: 'rgba(31, 75, 143, .07)', land: '#f6efdf', ink: '#2a2723', inkSoft: '#7a7064',
+  lake: '#d3e0e1', water: 'rgba(43, 122, 140, .5)',
   accent: '#e8590c', red: '#c4302b', white: '#fff',
 };
 const SANS = '-apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
-const SERIF_EN = '"Fraunces", "Iowan Old Style", Georgia, serif';
+const SERIF_EN = '"Fraunces Variable", "Fraunces", "Iowan Old Style", Georgia, serif';
 const SERIF_ZH = '"Noto Serif SC", "Songti SC", serif';
 
 const $ = sel => document.querySelector(sel);
@@ -73,7 +75,86 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     return c;
   }
 
-  function drawBase(ctx, crop, s) {
+  // 把一批多边形（closed）或线画进一条路径；只画在画面里的部分（含左右的世界副本）。
+  // 返回是否画了东西。fresh = false 时接着上一条路径继续画
+  function pathParts(ctx, items, crop, closed, fresh = true) {
+    if (fresh) ctx.beginPath();
+    const W = worldPx();
+    let any = false;
+    for (const item of items) {
+      const rings = (closed ? item : [item]).map(r => r.map(([lng, lat]) => project(lat, lng)));
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const [x, y] of rings[0]) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+      if (maxY < crop.y || minY > crop.y + crop.h) continue;
+      for (const k of [-1, 0, 1]) {
+        const sh = k * W;
+        if (maxX + sh < crop.x || minX + sh > crop.x + crop.w) continue;
+        any = true;
+        for (const ring of rings) {
+          ring.forEach(([x, y], i) => (i ? ctx.lineTo(x + sh, y) : ctx.moveTo(x + sh, y)));
+          if (closed) ctx.closePath();
+        }
+      }
+    }
+    return any;
+  }
+  const ranked = (items, max) => items.filter(([r]) => r <= max).map(x => x[1]);
+
+  // 建成区的斜线纹理
+  let hatchPattern = null;
+  function hatch() {
+    if (hatchPattern) return hatchPattern;
+    const c = document.createElement('canvas');
+    c.width = c.height = 6;
+    const g = c.getContext('2d');
+    g.strokeStyle = 'rgba(140, 96, 58, .28)';
+    g.lineWidth = .8;
+    g.beginPath(); g.moveTo(-1, 7); g.lineTo(7, -1); g.moveTo(-1, 1); g.lineTo(1, -1); g.moveTo(5, 7); g.lineTo(7, 5); g.stroke();
+    return (hatchPattern = g.createPattern(c, 'repeat'));
+  }
+
+  // ---------- 细节图层：河流、湖泊、海岸线、建成区（Natural Earth 10m，公有领域） ----------
+  // 按 10°×10° 分块，只加载画面覆盖到的块；缩得太远（国家以上）就不用
+  const DETAIL_ZOOM = 5;
+  let detailIndex = null;
+  const detailCells = new Map();
+  async function loadDetail(crop) {
+    if (map.getZoom() < DETAIL_ZOOM) return null;
+    try {
+      detailIndex ||= fetch('data/detail/index.json').then(r => r.json()).then(j => ({ size: j.cell, has: new Set(j.cells) }));
+      const { size, has } = await detailIndex;
+      const nw = map.containerPointToLatLng([crop.x, crop.y]);
+      const se = map.containerPointToLatLng([crop.x + crop.w, crop.y + crop.h]);
+      const cols = 360 / size, rows = 180 / size;
+      const keys = new Set();
+      for (let x = Math.floor((nw.lng + 180) / size); x <= Math.floor((se.lng + 180) / size); x++) {
+        for (let y = Math.max(0, Math.floor((se.lat + 90) / size)); y <= Math.min(rows - 1, Math.floor((nw.lat + 90) / size)); y++) {
+          const key = `${((x % cols) + cols) % cols}_${y}`;
+          if (has.has(key)) keys.add(key);
+        }
+      }
+      if (keys.size > 40) return null;
+      const cells = await Promise.all([...keys].map(key => {
+        if (!detailCells.has(key)) {
+          detailCells.set(key, fetch(`data/detail/${key}.json`).then(r => r.json()).catch(() => { detailCells.delete(key); return {}; }));
+        }
+        return detailCells.get(key);
+      }));
+      const d = { land: [], coast: [], borders: [], lakes: [], urban: [], rivers: [] };
+      for (const cell of cells) for (const k in d) if (cell[k]) d[k].push(...cell[k]);
+      return d;
+    } catch {
+      detailIndex = null;
+      return null;
+    }
+  }
+
+  function drawBase(ctx, crop, s, d, st) {
+    const z = map.getZoom();
+    // 越放大，越小的河流湖泊也画出来
+    const riverRank = z <= 5 ? 6 : z === 6 ? 8 : z === 7 ? 10 : 99;
     // 海：淡灰蓝的纸，带一行行横格线
     ctx.fillStyle = C.sea;
     ctx.fillRect(crop.x, crop.y, crop.w, crop.h);
@@ -94,26 +175,89 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
       c.setLineDash([]);
     };
 
-    // 陆地
-    for (const f of s.countries) {
-      const visited = s.visited.country.has(f.properties.id);
-      drawFeature(ctx, f, crop, c => {
-        c.fillStyle = C.land; c.fill('evenodd');
-        if (visited) { c.fillStyle = 'rgba(232, 89, 12, .07)'; c.fill('evenodd'); }
-        pencil(1, 'rgba(42, 39, 35, .5)')(c);
-      });
+    // 街道级：整张先铺成陆地，海和水面由 OSM 的水面盖上去
+    if (st) {
+      ctx.fillStyle = C.land;
+      ctx.fillRect(crop.x, crop.y, crop.w, crop.h);
+      for (const f of s.countries) {
+        if (!s.visited.country.has(f.properties.id)) continue;
+        drawFeature(ctx, f, crop, c => { c.fillStyle = 'rgba(232, 89, 12, .07)'; c.fill('evenodd'); });
+      }
+      dotGrid(ctx, crop, () => { ctx.beginPath(); ctx.rect(crop.x, crop.y, crop.w, crop.h); return 'nonzero'; });
+      drawStreets(ctx, crop, st, pencil);
     }
-    // 省 / 州
+
+    // 陆地的裁剪路径：有细节时用 10m 的精细陆地，否则用国家轮廓
+    const landPath = d
+      ? () => { pathParts(ctx, d.land, crop, true); return 'nonzero'; }
+      : () => { ctx.beginPath(); for (const f of s.countries) pathParts(ctx, polygonsOf(f.geometry), crop, true, false); return 'evenodd'; };
+
+    // 陆地
+    if (st) {
+      // 上面已经画好
+    } else if (d) {
+      // 精细陆地只填色；海岸线和国界下面单独描
+      if (pathParts(ctx, d.land, crop, true)) { ctx.fillStyle = C.land; ctx.fill('nonzero'); }
+      ctx.save();
+      ctx.clip(landPath());
+      for (const f of s.countries) {
+        if (!s.visited.country.has(f.properties.id)) continue;
+        drawFeature(ctx, f, crop, c => { c.fillStyle = 'rgba(232, 89, 12, .07)'; c.fill('evenodd'); });
+      }
+      ctx.restore();
+      // 城市建成区：淡赭色斜线
+      const urban = ranked(d.urban, z <= 5 ? 5 : z === 6 ? 7 : 99);
+      if (pathParts(ctx, urban, crop, true)) {
+        ctx.fillStyle = 'rgba(176, 128, 82, .13)'; ctx.fill('nonzero');
+        ctx.fillStyle = hatch(); ctx.fill('nonzero');
+      }
+    } else {
+      for (const f of s.countries) {
+        const visited = s.visited.country.has(f.properties.id);
+        drawFeature(ctx, f, crop, c => {
+          c.fillStyle = C.land; c.fill('evenodd');
+          if (visited) { c.fillStyle = 'rgba(232, 89, 12, .07)'; c.fill('evenodd'); }
+          pencil(1, 'rgba(42, 39, 35, .5)')(c);
+        });
+      }
+    }
+    // 陆地上的手账点阵
+    if (!st) dotGrid(ctx, crop, landPath);
+
+    // 湖泊与河流
+    if (d) {
+      if (pathParts(ctx, ranked(d.lakes, riverRank), crop, true)) {
+        ctx.fillStyle = C.lake; ctx.fill('nonzero');
+        pencil(.7, C.water)(ctx);
+      }
+      // 大河粗、小河细
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (const [lo, hi, width] of [[-1, 4, 1.6], [4, 8, 1.1], [8, 99, .7]]) {
+        const lines = d.rivers.filter(([r]) => r > lo && r <= Math.min(hi, riverRank)).map(x => x[1]);
+        if (pathParts(ctx, lines, crop, false)) pencil(width, C.water)(ctx);
+      }
+      ctx.restore();
+    }
+
+    // 省 / 州（有细节时只留陆地上的部分）
+    ctx.save();
+    if (d) ctx.clip(landPath());
     for (const f of s.regions) {
       const id = f.properties.id;
       const current = s.current?.level === 'region' && s.current.id === id;
       drawFeature(ctx, f, crop, c => {
-        if (s.visited.region.has(id) && map.getZoom() < 9) { c.fillStyle = 'rgba(232, 89, 12, .06)'; c.fill('evenodd'); }
+        if (s.visited.region.has(id) && z < 9) { c.fillStyle = 'rgba(232, 89, 12, .06)'; c.fill('evenodd'); }
         pencil(current ? 1.8 : .8, current ? C.red : 'rgba(42, 39, 35, .35)', current ? [7, 4] : [4, 3])(c);
       });
     }
-    // 陆地上的手账点阵
-    dotGrid(ctx, crop, s);
+    ctx.restore();
+
+    // 海岸线与国界
+    if (d) {
+      if (pathParts(ctx, d.coast, crop, false)) pencil(1, 'rgba(42, 39, 35, .5)')(ctx);
+      if (pathParts(ctx, d.borders, crop, false)) pencil(1, 'rgba(42, 39, 35, .5)')(ctx);
+    }
 
     // 城市轮廓（目前只有中国的城市有边界）
     for (const f of s.cities) {
@@ -126,25 +270,10 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     }
   }
 
-  function dotGrid(ctx, crop, s) {
+  function dotGrid(ctx, crop, landPath) {
     ctx.save();
     // 用所有陆地拼成一条裁剪路径
-    const W = worldPx();
-    ctx.beginPath();
-    for (const f of s.countries) {
-      for (const poly of polygonsOf(f.geometry)) {
-        const pts = poly[0].map(([lng, lat]) => project(lat, lng));
-        const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
-        if (Math.max(...ys) < crop.y || Math.min(...ys) > crop.y + crop.h) continue;
-        for (const k of [-1, 0, 1]) {
-          const sh = k * W;
-          if (Math.max(...xs) + sh < crop.x || Math.min(...xs) + sh > crop.x + crop.w) continue;
-          pts.forEach(([x, y], i) => (i ? ctx.lineTo(x + sh, y) : ctx.moveTo(x + sh, y)));
-          ctx.closePath();
-        }
-      }
-    }
-    ctx.clip('evenodd');
+    ctx.clip(landPath());
     ctx.fillStyle = 'rgba(42, 39, 35, .13)';
     for (let y = crop.y + 11; y < crop.y + crop.h; y += 18) {
       for (let x = crop.x + 11; x < crop.x + crop.w; x += 18) ctx.fillRect(x - .6, y - .6, 1.2, 1.2);
@@ -172,6 +301,159 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     ctx.stroke();
     ctx.fillStyle = 'rgba(232, 89, 12, .05)'; ctx.fill();
     ctx.restore();
+  }
+
+  // ---------- 街道层（OSM，见 streets.js） ----------
+  // 颜色都不透明：相邻瓦片在边上有重叠，半透明会叠出深色接缝
+  const ST = {
+    green: '#e5e6cc', grass: '#eceacf', water: C.sea, waterway: '#9dbcc2', building: '#e9dfca',
+    casing: '#8f8578', tunnel: '#c9bfae', road: '#fffcf5', major: '#f6dfbd', rail: '#7a7064', path: '#a39886',
+  };
+  // 道路在 zoom 15 时的宽度（像素）
+  const ROAD = { motorway: 7, trunk: 6.2, primary: 5.6, secondary: 4.8, tertiary: 4.2, minor: 3, service: 1.8, busway: 3 };
+  const STREET_ZOOM = 11;
+
+  function drawStreets(ctx, crop, st, pencil) {
+    const z = map.getZoom();
+    const of = (layer, test = () => true) => st.features.filter(f => f.layer === layer && test(f));
+    const polys = list => list.flatMap(f => f.polys || []);
+    const lines = list => list.flatMap(f => f.lines || []);
+
+    // 绿地、公园
+    if (pathParts(ctx, polys(of('landcover', f => ['wood', 'forest'].includes(f.cls)).concat(of('park'))), crop, true)) {
+      ctx.fillStyle = ST.green; ctx.fill('nonzero');
+    }
+    if (pathParts(ctx, polys(of('landcover', f => ['grass', 'farmland'].includes(f.cls))), crop, true)) {
+      ctx.fillStyle = ST.grass; ctx.fill('nonzero');
+    }
+    // 水面（含海）：填色后在里面画横格线，和低缩放时的海一致
+    if (pathParts(ctx, polys(of('water')), crop, true)) {
+      ctx.fillStyle = ST.water; ctx.fill('nonzero');
+      ctx.save();
+      ctx.clip('nonzero');
+      ctx.strokeStyle = C.rule; ctx.lineWidth = 1;
+      for (let y = crop.y + 18; y < crop.y + crop.h; y += 22) {
+        ctx.beginPath(); ctx.moveTo(crop.x, y); ctx.lineTo(crop.x + crop.w, y); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const [test, width] of [[f => f.cls === 'river', 1.8], [f => f.cls !== 'river', .8]]) {
+      if (pathParts(ctx, lines(of('waterway', f => test(f) && f.brunnel !== 'tunnel')), crop, false)) pencil(width, ST.waterway)(ctx);
+    }
+    // 建筑：放大到街区才画
+    if (z >= 15 && pathParts(ctx, polys(of('building')), crop, true)) { ctx.fillStyle = ST.building; ctx.fill('nonzero'); }
+
+    // 道路：先描所有路的边，再填路面，交叉口才能连成一片
+    const scale = Math.max(.35, Math.min(1.8, 2 ** ((z - 15) * .6)));
+    const shown = cls => ROAD[cls] && (cls !== 'minor' || z >= 13) && (cls !== 'service' || z >= 14);
+    const roads = Object.keys(ROAD).filter(shown).reverse(); // 小路先画，大路压在上面
+    const roadsOf = (cls, tunnel) => lines(of('transportation', f => f.cls === cls && (f.brunnel === 'tunnel') === tunnel));
+    for (const tunnel of [true, false]) {
+      for (const cls of roads) {
+        const w = ROAD[cls] * scale;
+        if (w < 1.2 || !pathParts(ctx, roadsOf(cls, tunnel), crop, false)) continue;
+        ctx.setLineDash(tunnel ? [4, 3] : []);
+        ctx.strokeStyle = tunnel ? ST.tunnel : ST.casing; ctx.lineWidth = w + 1.4; ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      for (const cls of roads) {
+        const w = ROAD[cls] * scale;
+        if (!pathParts(ctx, roadsOf(cls, tunnel), crop, false)) continue;
+        // 太细的路只画一条铅笔线
+        ctx.strokeStyle = w < 1.2 ? ST.casing : ['motorway', 'trunk', 'primary'].includes(cls) ? ST.major : ST.road;
+        ctx.lineWidth = Math.max(w, .7);
+        ctx.stroke();
+      }
+    }
+    // 步道
+    if (z >= 15 && pathParts(ctx, lines(of('transportation', f => ['path', 'track'].includes(f.cls))), crop, false)) {
+      ctx.setLineDash([2, 3]); ctx.strokeStyle = ST.path; ctx.lineWidth = .8; ctx.stroke(); ctx.setLineDash([]);
+    }
+    // 铁路：细线加枕木
+    if (pathParts(ctx, lines(of('transportation', f => ['rail', 'transit'].includes(f.cls) && f.brunnel !== 'tunnel')), crop, false)) {
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = ST.rail; ctx.lineWidth = .9; ctx.stroke();
+      ctx.setLineDash([1, 5]); ctx.lineWidth = 3.4; ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+
+  // 街道名：沿着路的方向写，避开城市名和彼此
+  function drawStreetNames(ctx, crop, st, taken) {
+    const z = map.getZoom();
+    if (z < 14) return;
+    const rank = { motorway: 0, trunk: 1, primary: 2, secondary: 3, tertiary: 4, minor: 5 };
+    const nameOf = p => (lang === 'zh' ? p['name:zh'] || p.name : p['name:en'] || p['name:latin'] || p.name);
+    const W = worldPx();
+    const cx = crop.x + crop.w / 2;
+    const seen = new Set();
+    const list = st.features.filter(f => f.layer === 'transportation_name' && f.cls in rank && nameOf(f.props))
+      .sort((a, b) => rank[a.cls] - rank[b.cls]);
+    ctx.save();
+    ctx.font = `500 10.5px ${SANS}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    let n = 0;
+    for (const f of list) {
+      if (n >= 30) break;
+      const name = nameOf(f.props);
+      if (seen.has(name)) continue;
+      const tw = ctx.measureText(name).width;
+      // 找画面里最长的一段直线
+      let best = null;
+      for (const line of f.lines || []) {
+        const pts = line.map(([lng, lat]) => project(lat, lng));
+        for (let i = 1; i < pts.length; i++) {
+          let [x1, y1] = pts[i - 1], [x2, y2] = pts[i];
+          const sh = Math.round((cx - (x1 + x2) / 2) / W) * W;
+          x1 += sh; x2 += sh;
+          const len = Math.hypot(x2 - x1, y2 - y1);
+          const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+          if (mx < crop.x + 20 || mx > crop.x + crop.w - 20 || my < crop.y + 20 || my > crop.y + crop.h - 20) continue;
+          if (len > tw + 16 && (!best || len > best.len)) best = { len, mx, my, a: Math.atan2(y2 - y1, x2 - x1) };
+        }
+      }
+      if (!best) continue;
+      let a = best.a;
+      if (a > Math.PI / 2) a -= Math.PI; else if (a < -Math.PI / 2) a += Math.PI;
+      const hw = (Math.abs(Math.cos(a)) * tw + Math.abs(Math.sin(a)) * 12) / 2;
+      const hh = (Math.abs(Math.sin(a)) * tw + Math.abs(Math.cos(a)) * 12) / 2;
+      const box = { x: best.mx - hw, y: best.my - hh, w: hw * 2, h: hh * 2 };
+      if (taken.some(t => box.x < t.x + t.w && box.x + box.w > t.x && box.y < t.y + t.h && box.y + box.h > t.y)) continue;
+      taken.push(box);
+      seen.add(name);
+      n++;
+      ctx.save();
+      ctx.translate(best.mx, best.my); ctx.rotate(a);
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(251, 248, 241, .92)'; ctx.lineJoin = 'round';
+      ctx.strokeText(name, 0, 0);
+      ctx.fillStyle = C.inkSoft; ctx.fillText(name, 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // 署名：画了 OSM 数据的截图，右下角写明来源（ODbL / CC-BY / OpenFreeMap 条款要求）
+  function drawCredit(ctx, crop) {
+    ctx.save();
+    ctx.font = `500 9px ${SANS}`;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
+    const w = ctx.measureText(STREETS_CREDIT).width + 12, h = 15;
+    const x = crop.x + crop.w - 6, y = crop.y + crop.h - 6;
+    ctx.fillStyle = 'rgba(251, 248, 241, .86)';
+    ctx.beginPath(); ctx.roundRect(x - w, y - h, w, h, 3); ctx.fill();
+    ctx.fillStyle = '#5f574d';
+    ctx.fillText(STREETS_CREDIT, x - 6, y - h / 2 + .5);
+    ctx.restore();
+  }
+
+  // 截图画面的经纬度范围（四周多留一点）
+  function cropBounds(crop) {
+    const nw = map.containerPointToLatLng([crop.x, crop.y]);
+    const se = map.containerPointToLatLng([crop.x + crop.w, crop.y + crop.h]);
+    const px = (se.lng - nw.lng) * .03, py = (nw.lat - se.lat) * .03;
+    return { west: nw.lng - px, east: se.lng + px, north: nw.lat + py, south: se.lat - py };
   }
 
   // 地名：按重要程度从高到低放，互相不重叠
@@ -203,6 +485,7 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
       ctx.fillStyle = big ? C.ink : C.inkSoft;
       ctx.fillText(c.name, x + 6, y);
     }
+    return taken;
   }
 
   // ---------- 标记（与地图上的样式一致） ----------
@@ -464,9 +747,12 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     await Promise.all([`700 13px ${SANS}`, `600 10.5px ${SERIF_EN}`, `800 13px ${SERIF_EN}`, `700 13px ${SERIF_ZH}`, `500 11.5px ${SERIF_ZH}`]
       .map(f => document.fonts.load(f).catch(() => null)));
 
-    drawBase(ctx, crop, s);
+    // 放大到城市：用 OSM 街道；取不到（离线、超时）就退回 Natural Earth 的细节
+    const st = map.getZoom() >= STREET_ZOOM ? await loadStreets(cropBounds(crop), map.getZoom()) : null;
+    drawBase(ctx, crop, s, st ? null : await loadDetail(crop), st);
     cityRing(ctx, s);
-    drawLabels(ctx, crop, s);
+    const taken = drawLabels(ctx, crop, s);
+    if (st) drawStreetNames(ctx, crop, st, taken);
     // 纸张颗粒
     ctx.save();
     ctx.globalCompositeOperation = 'multiply';
@@ -478,6 +764,7 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     const v = ctx.createRadialGradient(crop.x + crop.w / 2, crop.y + crop.h / 2, Math.min(crop.w, crop.h) * .45, crop.x + crop.w / 2, crop.y + crop.h / 2, Math.hypot(crop.w, crop.h) * .6);
     v.addColorStop(0, 'rgba(60, 40, 20, 0)'); v.addColorStop(1, 'rgba(60, 40, 20, .14)');
     ctx.fillStyle = v; ctx.fillRect(crop.x, crop.y, crop.w, crop.h);
+    if (st) drawCredit(ctx, crop);
     return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
   }
 

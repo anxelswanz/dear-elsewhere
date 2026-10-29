@@ -1,5 +1,6 @@
 /* 顺序与迁移前 index.html 中的 <link> 一致：leaflet → 全局 → 顶栏与面板 */
 @import 'leaflet/dist/leaflet.css';
+@import './themes.css';
 @import './style.css';
 @import './panels.css';
 @import './auth.css';
@@ -8,3 +9,4 @@
 @import './shot.css';
 @import './welcome.css';
 @import './journey.css';
+@import './settings.css';
