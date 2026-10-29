@@ -127,6 +127,9 @@ const geo = {
   regionCities: new Map(),  // regionId -> 城市边界 FeatureCollection（仅中国）
 };
 
+// 应用在 /app/ 下，数据文件在站点根目录的 data/，不能用相对路径
+const DATA = `${import.meta.env.BASE_URL}data/`;
+
 async function fetchJson(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${url}`);
@@ -145,7 +148,7 @@ function localize(props, en) {
 }
 
 async function loadBase() {
-  const [world, index] = await Promise.all([fetchJson('data/world.json'), fetchJson('data/index.json')]);
+  const [world, index] = await Promise.all([fetchJson(`${DATA}world.json`), fetchJson(`${DATA}index.json`)]);
   geo.world = world;
   world.features.forEach(f => {
     localize(f.properties, f.properties.en);
@@ -162,7 +165,7 @@ async function loadBase() {
 async function loadRegions(country) {
   if (!geo.regions.has(country)) {
     let fc = { type: 'FeatureCollection', features: [] };
-    try { fc = await withLoading(fetchJson(`data/country/${country}.json`)); } catch { /* 无下级行政区 */ }
+    try { fc = await withLoading(fetchJson(`${DATA}country/${country}.json`)); } catch { /* 无下级行政区 */ }
     fc.features.forEach(f => localize(f.properties, f.properties.en));
     geo.regions.set(country, fc);
   }
@@ -175,7 +178,7 @@ const hasCityShapes = regionId => regionId.startsWith('CN');
 async function loadRegionCities(regionId) {
   if (!hasCityShapes(regionId)) return null;
   if (!geo.regionCities.has(regionId)) {
-    const fc = await withLoading(fetchJson(`data/region/${regionId}.json`));
+    const fc = await withLoading(fetchJson(`${DATA}region/${regionId}.json`));
     fc.features.forEach(f => localize(f.properties, geo.cityById.get(f.properties.id)?.en));
     geo.regionCities.set(regionId, fc);
   }

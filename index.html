@@ -143,8 +143,8 @@
           <span class="step-no">02</span>
           <div>
             <h3><span data-lang="zh">签发你的旅行护照</span><span data-lang="en">Issue your passport</span></h3>
-            <p data-lang="zh">第一次登录要填护照资料：一个 <b>ID</b>（3–20 位小写字母、数字或下划线，好友靠它找到你）、名字、国家，出生地和生日选填（生日只有自己可见）。系统会随机分配一位普通旅伴当头像，可以一直换到满意为止。</p>
-            <p data-lang="en">On first sign-in, fill in your passport: an <b>ID</b> (3–20 lowercase letters, digits or _ — friends find you by it), a name and a nationality. Place of birth and birthday are optional (birthday stays private). You get a random Common companion as your avatar — shuffle until you like it.</p>
+            <p data-lang="zh">第一次登录要填护照资料：一个 <b>ID</b>（3–20 位小写字母、数字或下划线，好友靠它找到你）、名字、国家，出生地和生日选填（生日只有自己可见）。系统会随机分配一位旅伴当头像，可以一直换到满意为止。</p>
+            <p data-lang="en">On first sign-in, fill in your passport: an <b>ID</b> (3–20 lowercase letters, digits or _ — friends find you by it), a name and a nationality. Place of birth and birthday are optional (birthday stays private). You get a random travel companion as your avatar — shuffle until you like it.</p>
           </div>
         </li>
         <li class="step">
@@ -235,9 +235,9 @@
           <li>
             <time>2026 · 10 · 29</time>
             <span class="tag tag-new">NEW</span>
-            <h3><span data-lang="zh">稀有旅伴登场</span><span data-lang="en">Rare companions arrive</span></h3>
-            <p data-lang="zh">旅伴从 60 位扩充到 236 位，分为普通、高级、稀有、传说四档。每天可以抽 3 次，抽到喜欢的就换上。</p>
-            <p data-lang="en">Companions grow from 60 to 236 across four tiers: Common, Premium, Rare and Legendary. Draw 3 times a day and wear the ones you love.</p>
+            <h3><span data-lang="zh">更多旅伴加入</span><span data-lang="en">More companions join</span></h3>
+            <p data-lang="zh">旅伴从 60 位增加到 236 位，还来了一群小动物。每天可以抽 3 次，遇到喜欢的就换上。</p>
+            <p data-lang="en">Companions grow from 60 to 236, with a few animal friends among them. Draw 3 times a day and wear the ones you love.</p>
           </li>
           <li>
             <time>2026 · 10 · 29</time>
@@ -272,28 +272,21 @@
           </li>
         </ol>
 
-        <!-- 旅伴图鉴：按稀有度切换，头像由 site.js 填充 -->
+        <!-- 旅伴们：一个安静的小窗，随机摆出一些旅伴（不分档、不提概率），头像由 site.js 填充 -->
         <aside class="dex" aria-labelledby="dexTitle">
           <div class="dex-bar">
             <i></i><i></i><i></i>
-            <b id="dexTitle"><span data-lang="zh">旅伴图鉴</span><span data-lang="en">Companion catalogue</span></b>
+            <b id="dexTitle"><span data-lang="zh">旅伴们</span><span data-lang="en">Companions</span></b>
           </div>
-          <div class="dex-tabs" role="tablist">
-            <button type="button" role="tab" data-tier="3"><span data-lang="zh">传说</span><span data-lang="en">Legendary</span></button>
-            <button type="button" role="tab" data-tier="2"><span data-lang="zh">稀有</span><span data-lang="en">Rare</span></button>
-            <button type="button" role="tab" data-tier="1"><span data-lang="zh">高级</span><span data-lang="en">Premium</span></button>
-            <button type="button" role="tab" data-tier="0"><span data-lang="zh">普通</span><span data-lang="en">Common</span></button>
-          </div>
-          <div class="dex-stage" role="tabpanel">
+          <div class="dex-stage">
             <div class="dex-hero"><img id="dexHero" alt="" /></div>
-            <p class="dex-meta"><b id="dexOdds"></b><span id="dexCount"></span></p>
             <div class="dex-grid" id="dexGrid"></div>
+            <button type="button" class="dex-shuffle" id="dexShuffle"><span data-lang="zh">换一批</span><span data-lang="en">Shuffle</span> ↻</button>
           </div>
           <p class="dex-foot">
-            <span data-lang="zh">每天抽 3 次 · 普通 70% · 高级 20% · 稀有 8% · 传说 2%</span>
-            <span data-lang="en">3 draws a day · Common 70% · Premium 20% · Rare 8% · Legendary 2%</span>
+            <span data-lang="zh">注册时随机分配一位，之后每天可以抽 3 次，看看会遇到谁。</span>
+            <span data-lang="en">You start with a random companion, then draw 3 times a day to see who you meet.</span>
           </p>
-          <small class="dex-credit">Avatars by DiceBear: Notionists (Zoish) · Thumbs · Bottts (Pablo Stanley)</small>
         </aside>
       </div>
     </section>

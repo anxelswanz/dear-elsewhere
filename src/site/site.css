@@ -209,45 +209,28 @@ html[data-show="en"] .step h3 { font: 600 19px/1.3 var(--serif-en); }
 html[data-show="en"] .timeline h3 { font: 600 18px/1.3 var(--serif-en); }
 .timeline p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
 
-/* 图鉴：一个小窗口，跟稀有度换底色 */
+/* 旅伴们：一个安静的小窗，纸面底，不按档换颜色 */
 .dex {
-  --dex-bg: #2b4a6f; --dex-fg: #f4e3b5; --dex-hi: #d9b45a;
   position: sticky; top: 90px; overflow: hidden; border-radius: 10px; background: var(--card);
-  border: 1px solid var(--rule); box-shadow: 0 24px 50px -24px rgb(var(--ink-rgb) / .45);
+  border: 1px solid var(--rule); box-shadow: 0 24px 50px -24px rgb(var(--ink-rgb) / .35);
 }
-.dex[data-tier="3"] { --dex-bg: #b8862f; --dex-fg: #fff8e3; --dex-hi: #fff1c4; }
-.dex[data-tier="1"] { --dex-bg: #e7a6a0; --dex-fg: #2a2723; --dex-hi: #c4302b; }
-.dex[data-tier="0"] { --dex-bg: #ebe3cf; --dex-fg: #2a2723; --dex-hi: #1f4b8f; }
 .dex-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: var(--paper-2); border-bottom: 1px solid var(--rule); }
 .dex-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--rule-strong); }
 .dex-bar i:first-child { background: var(--air-red); }
 .dex-bar b { margin-left: 8px; font: 600 13px var(--serif-en); letter-spacing: .06em; }
-.dex-tabs { display: flex; gap: 4px; padding: 10px 12px 0; }
-.dex-tabs button {
-  flex: 1; padding: 6px 4px; font: 600 12.5px var(--sans); color: var(--ink-soft); background: none; cursor: pointer;
-  border: 1px solid var(--rule); border-bottom: 0; border-radius: 6px 6px 0 0;
-}
-.dex-tabs button[aria-selected="true"] { color: var(--dex-fg); background: var(--dex-bg); border-color: var(--dex-bg); }
-.dex-stage {
-  margin: 0 12px; padding: 18px 16px 16px; border-radius: 0 0 6px 6px; color: var(--dex-fg); background:
-    repeating-radial-gradient(circle at 50% 30%, transparent 0 18px, rgb(255 255 255 / .06) 18px 19px), var(--dex-bg);
-  transition: background-color .3s;
-}
-.dex-hero {
-  width: 132px; height: 132px; margin: 0 auto; padding: 6px; border-radius: 50%; rotate: -4deg;
-  border: 2.5px solid var(--dex-hi); box-shadow: inset 0 0 0 4px var(--dex-bg), 0 10px 24px rgb(0 0 0 / .25);
-}
-.dex-hero img { width: 100%; height: 100%; border-radius: 50%; animation: dex-pop .4s cubic-bezier(.3, 1.5, .5, 1); }
-.dex[data-tier="3"] .dex-hero { box-shadow: inset 0 0 0 4px var(--dex-bg), 0 0 0 6px rgb(255 241 196 / .25), 0 0 34px rgb(255 220 130 / .6); }
-.dex-meta { display: flex; justify-content: center; gap: 10px; margin: 12px 0 12px; font-size: 13px; }
-.dex-meta b { font: 700 13px var(--serif-en); letter-spacing: .08em; color: var(--dex-hi); }
-.dex-meta span { opacity: .75; }
-.dex-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.dex-grid button { padding: 0; border: 0; border-radius: 8px; overflow: hidden; cursor: pointer; background: rgb(255 255 255 / .12); transition: translate .15s; }
+.dex-stage { display: grid; justify-items: center; gap: 16px; padding: 22px 18px 16px; background: var(--noise), var(--paper); }
+.dex-hero { width: 128px; height: 128px; padding: 5px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 1px var(--rule), 0 10px 22px -12px rgb(var(--ink-rgb) / .4); }
+.dex-hero img { width: 100%; height: 100%; border-radius: 50%; animation: dex-pop .35s cubic-bezier(.3, 1.4, .5, 1); }
+.dex-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; width: 100%; }
+.dex-grid button { padding: 0; border: 0; border-radius: 50%; overflow: hidden; cursor: pointer; background: none; box-shadow: 0 0 0 1px var(--rule); transition: translate .15s; }
 .dex-grid button:hover { translate: 0 -2px; }
-.dex-grid img { width: 100%; aspect-ratio: 1; }
-.dex-foot { margin: 12px 14px 2px; font-size: 12.5px; text-align: center; color: var(--ink-soft); }
-.dex-credit { display: block; margin: 0 14px 12px; font-size: 10.5px; text-align: center; color: var(--ink-soft); opacity: .7; }
+.dex-grid img { display: block; width: 100%; aspect-ratio: 1; }
+.dex-shuffle {
+  padding: 5px 14px; font: 600 12.5px var(--sans); color: var(--ink-soft); cursor: pointer;
+  background: none; border: 1px solid var(--rule-strong); border-radius: 999px;
+}
+.dex-shuffle:hover { color: var(--ink); border-color: var(--ink); }
+.dex-foot { margin: 0; padding: 12px 16px 14px; font-size: 12.5px; text-align: center; color: var(--ink-soft); border-top: 1px solid var(--rule); }
 @keyframes dex-pop { from { scale: .7; opacity: 0; } }
 
 /* ---------- 规则：票根 + 账本 ---------- */

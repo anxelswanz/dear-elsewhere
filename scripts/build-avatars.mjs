@@ -1,14 +1,16 @@
 // 生成头像到 public/avatars/，分四个稀有度（抽到的概率见 supabase/migrations/0013_avatars_birthplace.sql）：
 //   普通 a01–a130  人物      DiceBear notionists（Zoish，CC0 1.0）；a01–a60 是最早的 60 个，保持原样
 //   高级 p01–p50   人物      notionists，带手势和胸前徽章，配色更鲜明
-//   稀有 r01–r40   小怪物    DiceBear thumbs（CC0 1.0）
-//   传说 l01–l16   机器人    DiceBear bottts（Pablo Stanley，可免费商用）
+//   稀有 r01–r40   小动物    原创绘制，10 种动物 × 4 种旅行配饰（scripts/rare-avatars.mjs）
+//   传说 l01–l16   烫金肖像  notionists 人物 + 勋章边框（scripts/legend-avatars.mjs）
 // 用法：npm run build:avatars
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAvatar } from '@dicebear/core';
-import { notionists, thumbs, bottts } from '@dicebear/collection';
+import { notionists } from '@dicebear/collection';
+import { legendAvatar } from './legend-avatars.mjs';
+import { rareAvatar } from './rare-avatars.mjs';
 
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'avatars');
 
@@ -16,11 +18,6 @@ const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'publi
 const BACKGROUNDS = ['f6d9c4', 'd6e2f0', 'ebe3cf', 'f2cdc7', 'd8e6d2', 'f3e3b3'];
 // 高级：更饱和的邮票色
 const PREMIUM_BG = ['f4b183', '9fc0e8', 'e7a6a0', 'a9cf9c', 'f2cf6b', 'c5b3e6'];
-// 稀有：深色底配亮色小怪物
-const RARE_BG = ['2b4a6f', '3d5a40', '6b2e2b', '4a3b63', '2f5d62'];
-const RARE_SHAPE = ['f4b183', 'f2cf6b', 'a9cf9c', '9fc0e8', 'f6d9c4', 'e7a6a0'];
-// 传说：烫金
-const LEGEND_BG = ['e9c46a', 'd4a373', 'f1d58a'];
 
 // 种子取自世界各地的地名，保证每次生成结果一致
 const SEEDS = [
@@ -79,16 +76,8 @@ for (let i = 0; i < 50; i++) {
     bodyIconProbability: 100, gestureProbability: 100,
   }).toString());
 }
-// 稀有：小怪物
-for (let i = 0; i < 40; i++) {
-  write(id('r', i + 1), createAvatar(thumbs, {
-    seed: nextSeed(), backgroundColor: [pick(RARE_BG, i)], shapeColor: [pick(RARE_SHAPE, i * 7 + 3)], scale: 90,
-  }).toString());
-}
-// 传说：机器人
-for (let i = 0; i < 16; i++) {
-  write(id('l', i + 1), createAvatar(bottts, {
-    seed: nextSeed(), backgroundColor: [pick(LEGEND_BG, i)], scale: 88,
-  }).toString());
-}
+// 稀有：小动物
+for (let i = 0; i < 40; i++) write(id('r', i + 1), rareAvatar(i));
+// 传说：烫金版画肖像
+for (let i = 0; i < 16; i++) write(id('l', i + 1), legendAvatar(i));
 console.log(`已生成 130 + 50 + 40 + 16 = 236 个头像 → public/avatars/（新种子用了 ${used} 个）`);

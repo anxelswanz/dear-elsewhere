@@ -29,43 +29,30 @@ document.querySelectorAll('[data-today]').forEach(el => {
   el.textContent = `${String(now.getDate()).padStart(2, '0')} · ${MONTHS[now.getMonth()]} · ${now.getFullYear()}`;
 });
 
-// ---------- 旅伴图鉴：编号范围与 scripts/build-avatars.mjs、0013 迁移里的头像目录一致 ----------
-const TIERS = {
-  0: { prefix: 'a', count: 130, odds: '70%', zh: '普通', en: 'Common' },
-  1: { prefix: 'p', count: 50, odds: '20%', zh: '高级', en: 'Premium' },
-  2: { prefix: 'r', count: 40, odds: '8%', zh: '稀有', en: 'Rare' },
-  3: { prefix: 'l', count: 16, odds: '2%', zh: '传说', en: 'Legendary' },
-};
-const SHOWN = 12; // 每档展示的数量
-const dex = document.querySelector('.dex');
-const avatarUrl = (prefix, n) => `/avatars/${prefix}${String(n).padStart(2, '0')}.svg`;
+// ---------- 旅伴们：从全部旅伴里随机摆出一批，点一下放大；不分档、不提概率 ----------
+// 编号范围与 scripts/build-avatars.mjs、0013 迁移里的头像目录一致
+const ids = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
+const COMPANIONS = [...ids('a', 130), ...ids('p', 50), ...ids('r', 40), ...ids('l', 16)];
+const SHOWN = 12;
+const avatarUrl = id => `/avatars/${id}.svg`;
 
-function showTier(tier) {
-  const t = TIERS[tier];
-  dex.dataset.tier = tier;
-  dex.querySelectorAll('[data-tier]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tier === String(tier))));
-  // 在这一档里均匀取 SHOWN 个，第一个放大展示
-  const step = t.count / SHOWN;
-  const ids = Array.from({ length: Math.min(SHOWN, t.count) }, (_, i) => Math.floor(i * step) + 1);
-  const hero = document.getElementById('dexHero');
-  hero.src = avatarUrl(t.prefix, ids[0]);
-  document.getElementById('dexOdds').textContent = `${root.dataset.show === 'en' ? t.en : t.zh} · ${t.odds}`;
-  document.getElementById('dexCount').textContent = root.dataset.show === 'en' ? `${t.count} companions` : `共 ${t.count} 位`;
+function shuffleCompanions() {
   const grid = document.getElementById('dexGrid');
-  grid.replaceChildren(...ids.map(n => {
+  const hero = document.getElementById('dexHero');
+  if (!grid || !hero) return;
+  const picked = [...COMPANIONS].sort(() => Math.random() - .5).slice(0, SHOWN);
+  const show = id => { hero.src = avatarUrl(id); hero.style.animation = 'none'; void hero.offsetWidth; hero.style.animation = ''; };
+  show(picked[0]);
+  grid.replaceChildren(...picked.map(id => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.innerHTML = `<img src="${avatarUrl(t.prefix, n)}" alt="" loading="lazy" />`;
-    b.addEventListener('click', () => { hero.src = avatarUrl(t.prefix, n); });
+    b.innerHTML = `<img src="${avatarUrl(id)}" alt="" loading="lazy" />`;
+    b.addEventListener('click', () => show(id));
     return b;
   }));
 }
-
-if (dex) {
-  dex.querySelectorAll('[data-tier]').forEach(b => b.addEventListener('click', () => showTier(b.dataset.tier)));
-  buttons.forEach(b => b.addEventListener('click', () => showTier(dex.dataset.tier)));
-  showTier(2);
-}
+shuffleCompanions();
+document.getElementById('dexShuffle')?.addEventListener('click', shuffleCompanions);
 
 // ---------- 进入软件：寄出一封航空信 ----------
 // 信纸从点击处铺满屏幕，邮票盖在中央，然后跳转；软件页开头是同样的画面，接着把信纸收走（public/boot/arrive.js）

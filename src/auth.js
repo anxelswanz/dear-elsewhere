@@ -11,7 +11,6 @@ import { limitText } from './limits.js';
 const avatarIds = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
 const COMMON = avatarIds('a', 130);
 const ALL_AVATARS = [...COMMON, ...avatarIds('p', 50), ...avatarIds('r', 40), ...avatarIds('l', 16)];
-export const avatarTier = id => ({ a: 0, p: 1, r: 2, l: 3 })[id?.[0]] ?? 0;
 const randomOf = list => list[Math.floor(Math.random() * list.length)];
 const BRAND = `${import.meta.env.BASE_URL}brand/`; // Logo：航空邮票（无文字）
 // 出生地（城市 ID），仅自己可见；修改时派发 birthplace:change
@@ -457,8 +456,7 @@ function pickCity(id) {
   hideCityOptions();
 }
 
-// ---------- 头像：注册时随机普通头像；之后每天抽 3 次 ----------
-const tierBadge = tier => `<span class="tier-badge tier-${tier}">${t(`tier.${tier}`)}</span>`;
+// ---------- 头像：注册时随机普通头像；之后每天抽 3 次（界面上不显示稀有度，低调一点） ----------
 
 async function loadDrawState() {
   pp.draw = { loading: true };
@@ -476,10 +474,10 @@ function renderDraw() {
   if (d.loading) { box.innerHTML = `<p class="pp-draw-note">${t('loading')}</p>`; return; }
   const p = d.pending;
   const card = p
-    ? `<figure class="pp-draw-card tier-${p.tier}${d.reveal ? ' reveal' : ''}" id="ppDrawCard"><img src="${avatarUrl(p.avatar)}" alt="" />${tierBadge(p.tier)}</figure>`
+    ? `<figure class="pp-draw-card${d.reveal ? ' reveal' : ''}" id="ppDrawCard"><img src="${avatarUrl(p.avatar)}" alt="" /></figure>`
     : `<figure class="pp-draw-card ${d.busy ? 'spinning' : 'back'}" id="ppDrawCard">${d.busy ? `<img src="${avatarUrl(randomOf(ALL_AVATARS))}" alt="" />` : `<img src="${BRAND}stamp.png" alt="" />`}</figure>`;
   const body = p
-    ? `<p class="pp-draw-title">${t('pp.drawGot', { tier: t(`tier.${p.tier}`) })}</p>
+    ? `<p class="pp-draw-title">${t('pp.drawGot')}</p>
        <div class="pp-draw-actions">
          <button type="button" class="pp-draw-btn ghost" data-draw-keep>${t('pp.drawKeep')}</button>
          <button type="button" class="pp-draw-btn" data-draw-use>${t('pp.drawUse')}</button>
@@ -508,7 +506,7 @@ async function drawAvatar() {
     if (limitText(res.error)) d.left = 0;
   } else {
     d.left = res.data.left;
-    d.pending = { id: res.data.id, avatar: res.data.avatar, tier: res.data.tier };
+    d.pending = { id: res.data.id, avatar: res.data.avatar };
     d.reveal = true;
   }
   renderDraw();
@@ -571,8 +569,7 @@ function renderPassport() {
       <form class="pp-page" novalidate>
         <div class="pp-main">
           <div class="pp-photo">
-            <span class="pp-photo-frame tier-${avatarTier(pp.avatar)}" id="ppPhotoFrame"><img id="ppPhoto" src="${avatarUrl(pp.avatar)}" alt="${t('pp.photoAlt')}" />
-              <span id="ppTier">${tierBadge(avatarTier(pp.avatar))}</span></span>
+            <span class="pp-photo-frame"><img id="ppPhoto" src="${avatarUrl(pp.avatar)}" alt="${t('pp.photoAlt')}" /></span>
             ${create ? `<button type="button" class="au-link" data-pp-random>${t('pp.random')}</button>` : ''}
           </div>
 
@@ -611,8 +608,6 @@ function renderPassport() {
         <section class="pp-avatars">
           <p class="pp-section"><span>${t('pp.avatars')}</span><i>${ALL_AVATARS.length} companions</i></p>
           ${create ? `<p class="pp-draw-note">${t('pp.avatarsNew')}</p>` : '<div class="pp-draw" id="ppDraw"></div>'}
-          <p class="pp-odds">${[0, 1, 2, 3].map(tierBadge).join('')}<span>${t('pp.odds')}</span></p>
-          <p class="pp-credit">${t('pp.avatarCredit')}</p>
         </section>
 
         <div class="pp-mrz" aria-hidden="true">${mrz().map(l => `<span>${escapeHtml(l)}</span>`).join('')}</div>
@@ -636,8 +631,6 @@ function refreshPassportBits() {
   count.value = handleCount();
   count.className = `pp-count${pp.handle && pp.handle.length < HANDLE_MIN ? ' short' : ''}${pp.handle.length >= HANDLE_MAX ? ' full' : ''}`;
   $('#ppPhoto').src = avatarUrl(pp.avatar);
-  $('#ppPhotoFrame').className = `pp-photo-frame tier-${avatarTier(pp.avatar)}`;
-  $('#ppTier').innerHTML = tierBadge(avatarTier(pp.avatar));
   const [hintClass, hintText] = handleLockedUntil() ? ['', $('#ppHandleHint').textContent] : HANDLE_HINT[pp.handleState];
   $('#ppHandleHint').className = `pp-hint ${hintClass}`;
   $('#ppHandleHint').textContent = hintText;
@@ -731,7 +724,6 @@ const langRow = () => `<div class="me-lang"><span>${t('language')}${lang === 'zh
 
 function renderMe() {
   $('#meAvatar').innerHTML = profile ? `<img src="${avatarUrl(profile.avatar)}" alt="" />` : GUEST_SVG;
-  $('#meAvatar').dataset.tier = profile ? avatarTier(profile.avatar) : '';
   const panel = $('#drop-me');
   if (!profile) {
     panel.innerHTML = `<div class="me-card"><span class="avatar avatar-lg">${GUEST_SVG}</span><b>${t('me.guest')}</b><span>${t('me.signedOut')}</span></div>${langRow()}`;
@@ -740,7 +732,7 @@ function renderMe() {
   const country = countries.find(c => c.id === profile.country);
   panel.innerHTML = `
     <div class="me-card">
-      <span class="avatar-tiered"><span class="avatar avatar-lg tier-${avatarTier(profile.avatar)}"><img src="${avatarUrl(profile.avatar)}" alt="" /></span>${tierBadge(avatarTier(profile.avatar))}</span>
+      <span class="avatar avatar-lg"><img src="${avatarUrl(profile.avatar)}" alt="" /></span>
       <b>${escapeHtml(profile.name)}</b>
       <span class="me-handle">@${escapeHtml(profile.handle)}${country ? ` · ${escapeHtml(country.name)}` : ''}</span>
     </div>

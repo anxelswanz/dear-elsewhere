@@ -1,1 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" shape-rendering="auto"><metadata xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/"><rdf:RDF><rdf:Description><dc:title>Thumbs</dc:title><dc:creator>DiceBear</dc:creator><dc:source xsi:type="dcterms:URI">https://www.dicebear.com</dc:source><dcterms:license xsi:type="dcterms:URI">https://creativecommons.org/publicdomain/zero/1.0/</dcterms:license><dc:rights>„Thumbs” (https://www.dicebear.com) by „DiceBear”, licensed under „CC0 1.0” (https://creativecommons.org/publicdomain/zero/1.0/)</dc:rights></rdf:Description></rdf:RDF></metadata><mask id="viewboxMask"><rect width="100" height="100" rx="0" ry="0" x="0" y="0" fill="#fff" /></mask><g mask="url(#viewboxMask)"><rect fill="#6b2e2b" width="100" height="100" x="0" y="0" /><g transform="translate(5 5) scale(0.9)"><g transform="translate(2, -3) rotate(1 50 70)"><path d="M95 53.33C95 29.4 74.85 10 50 10S5 29.4 5 53.33V140h90V53.33Z" fill="#e7a6a0"/><g transform="translate(29 33)"><g transform="translate(5, -14) rotate(9 21 21)"><g transform="translate(0 4)"><path d="M8 8.36S8 4 12 4s4 4.36 4 4.36v2.91s0 .73-.67.73c-.66 0-.66-2.9-3.33-2.9S9.33 12 8.67 12C8 12 8 11.27 8 11.27v-2.9ZM26 8.36S26 4 30 4s4 4.36 4 4.36v2.91s0 .73-.67.73c-.66 0-.66-2.9-3.33-2.9S27.33 12 26.67 12c-.67 0-.67-.73-.67-.73v-2.9Z" fill="#ffffff"/></g><g transform="translate(6 24)"><path d="M15.5 10c-5.07 0-9.3-5.23-8.37-5.88.93-.65 3.45 2.15 8.37 2.15 4.92 0 7.44-2.88 8.37-2.15.93.73-3.3 5.88-8.37 5.88Z" fill="#ffffff"/></g></g></g></g></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+<rect width="200" height="200" fill="#ece0bd"/>
+    <path d="M100 100 L250.0 100.0 L247.1 129.3 Z M100 100 L238.6 157.4 L224.7 183.3 Z M100 100 L206.1 206.1 L183.3 224.7 Z M100 100 L157.4 238.6 L129.3 247.1 Z M100 100 L100.0 250.0 L70.7 247.1 Z M100 100 L42.6 238.6 L16.7 224.7 Z M100 100 L-6.1 206.1 L-24.7 183.3 Z M100 100 L-38.6 157.4 L-47.1 129.3 Z M100 100 L-50.0 100.0 L-47.1 70.7 Z M100 100 L-38.6 42.6 L-24.7 16.7 Z M100 100 L-6.1 -6.1 L16.7 -24.7 Z M100 100 L42.6 -38.6 L70.7 -47.1 Z M100 100 L100.0 -50.0 L129.3 -47.1 Z M100 100 L157.4 -38.6 L183.3 -24.7 Z M100 100 L206.1 -6.1 L224.7 16.7 Z M100 100 L238.6 42.6 L247.1 70.7 Z" fill="#fff" opacity=".22"/>
+    <circle cx="100" cy="100" r="90" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round" opacity=".8"/>
+<path d="M26 206 C30 168 60 146 100 146 C140 146 170 168 174 206 Z" fill="#6b4f8a" stroke="#2a2723" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M84 147 Q100 162 116 147" fill="none" stroke="#2a2723" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+
+      <ellipse cx="81" cy="52" rx="13" ry="31" transform="rotate(-10 81 52)" fill="#fbf4e4" stroke="#2a2723" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+      <ellipse cx="119" cy="52" rx="13" ry="31" transform="rotate(10 119 52)" fill="#fbf4e4" stroke="#2a2723" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+      <ellipse cx="81" cy="54" rx="6" ry="21" transform="rotate(-10 81 54)" fill="#f2a7a0"/>
+      <ellipse cx="119" cy="54" rx="6" ry="21" transform="rotate(10 119 54)" fill="#f2a7a0"/>
+      <ellipse cx="100" cy="104" rx="48" ry="42" fill="#fbf4e4" stroke="#2a2723" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+      <ellipse cx="83" cy="100" rx="5" ry="6.5" fill="#2a2723"/><ellipse cx="117" cy="100" rx="5" ry="6.5" fill="#2a2723"/>
+    <circle cx="84.6" cy="97.8" r="1.7" fill="#fff"/><circle cx="118.6" cy="97.8" r="1.7" fill="#fff"/>
+      <circle cx="72" cy="116" r="7" fill="#f2a7a0" opacity=".7"/><circle cx="128" cy="116" r="7" fill="#f2a7a0" opacity=".7"/>
+      <path d="M95 111 L105 111 L100 116 Z" fill="#f2a7a0" stroke="#2a2723" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="M100 117 L100 122 M100 122 Q94 128 89 124 M100 122 Q106 128 111 124" fill="none" stroke="#2a2723" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+      <rect x="96" y="124" width="8" height="7" rx="1.5" fill="#fff" stroke="#2a2723" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+
+    <path d="M60 140 C80 152 120 152 140 140 L143 157 C120 170 80 170 57 157 Z" fill="#1f4b8f" stroke="#2a2723" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M118 158 L130 196 L113 198 L106 162 Z" fill="#1f4b8f" stroke="#2a2723" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="M72 148 L70 162 M88 152 L87 166 M104 153 L104 167 M120 150 L122 163 M112 172 L124 170 M115 184 L127 182" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+</svg>
