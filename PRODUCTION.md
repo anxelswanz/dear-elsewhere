@@ -2,6 +2,13 @@
 
 代码里能做的加固已经做完（见文末「已完成」）。下面这些必须在各个控制台里手动完成，按顺序来。
 
+> **生产项目已经用 `scripts/setup-prod.mjs` 建好**：`dear-elsewhere-prod`（ref 存在 `secrets/prod_project_ref`，区域 eu-central-1，免费版）。
+> 第 1 节和第 2 节里的 migrations、邀请码、邮箱验证、密码长度、Resend SMTP、邮件模板都已经完成。
+> 正式域名 `dear-elsewhere.com` 已配好（Site URL 和回调地址）。剩下：在 Resend 验证发件域名、备份、部署。
+>
+> **环境开关**：`.env` 里的 `APP_ENV=test`（测试库 map）或 `prod`（生产库），两套地址和 key 在 `.env.local`。也可以临时覆盖：`APP_ENV=prod npm run dev`。测试环境的标签页标题前会显示 `[TEST]`。
+> 以后新增 migration：`node scripts/setup-prod.mjs migrate` 只会执行还没执行过的文件。
+
 ## 1. 数据库（Supabase → SQL Editor）
 
 - [ ] 按编号顺序执行 `supabase/migrations/0001` … `0011`，已经执行过的跳过。**0010（群聊）和 0011（安全加固）是新的。**
@@ -15,7 +22,7 @@
 
 ## 2. 登录与邮件（Supabase → Authentication）
 
-- [ ] **URL Configuration**：Site URL 填正式域名；Redirect URLs 只留正式域名，删掉 `localhost`。
+- [x] **URL Configuration**：Site URL 为 `https://dear-elsewhere.com`，回调地址只允许 `dear-elsewhere.com` 和 `www.dear-elsewhere.com`。
 - [ ] **Sign In / Providers → Email**：打开 Confirm email 和 Secure email change。
 - [ ] **Password**：最短长度改为 **8**，和前端一致（`src/auth.js` 的 `PASSWORD_MIN`）。Pro 套餐可以再打开 Leaked password protection。
 - [ ] **SMTP**：配成 Resend（smtp.resend.com）。在 Resend 里验证发件域名，在域名 DNS 里加上 SPF、DKIM、DMARC 记录。不配的话，Supabase 自带邮件每小时只能发几封。
@@ -30,7 +37,7 @@
 ## 4. 网站托管（Cloudflare Pages）
 
 - [ ] 构建命令 `npm run build`，输出目录 `dist`，Node 20 及以上。
-- [ ] 环境变量：`VITE_SUPABASE_URL`、`VITE_SUPABASE_KEY`（publishable / anon key），`VITE_TIANDITU_KEY`（可选）。**不要**放 service_role 或 secret key。
+- [ ] 环境变量：`APP_ENV=prod`、`SUPABASE_URL_PROD`、`SUPABASE_KEY_PROD`（publishable key，值见本地 `.env.local`），`VITE_TIANDITU_KEY`（可选）。**不要**放 service_role 或 secret key。构建日志里应该出现「▶ 生产环境 PROD」。
 - [ ] `public/_headers` 会自动生效：包括 CSP、HSTS、禁止被嵌入 iframe、缓存策略。部署后打开浏览器控制台，确认没有 `Content-Security-Policy` 报错：登录、地图、搜索、照片、聊天、截图都要点一遍。
 - [ ] 以后新增任何外部服务（例如 Sentry），记得把它的域名加进 `_headers` 里的 CSP。
 - [ ] 绑定自定义域名，打开 Always Use HTTPS。

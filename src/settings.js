@@ -33,6 +33,16 @@ async function saveToAccount(fields) {
 }
 beforeLangChange.push(next => saveToAccount({ lang: next }));
 
+// 系统邮件（重置密码、换邮箱）按用户资料里的 lang 发中文或英文，见 scripts/build-emails.mjs
+async function saveMailLang(next) {
+  const { data } = await supabase.auth.getSession();
+  const user = data.session?.user;
+  if (!user || user.user_metadata?.lang === next) return;
+  const { error } = await supabase.auth.updateUser({ data: { lang: next } });
+  if (error) console.warn('保存邮件语言失败', error);
+}
+beforeLangChange.push(saveMailLang);
+
 // 登录后用账号里的设置覆盖本机；语言不同时要整页刷新，返回 true 表示即将刷新
 export function applyAccountSettings(userId, priv) {
   uid = userId;
@@ -43,6 +53,7 @@ export function applyAccountSettings(userId, priv) {
     location.reload();
     return true;
   }
+  saveMailLang(lang);
   return false;
 }
 

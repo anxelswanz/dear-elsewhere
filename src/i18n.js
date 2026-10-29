@@ -242,6 +242,7 @@ const DICT = {
   'err.same': ['新密码不能和原来的一样', 'The new password must be different'],
   'err.rate': ['操作太频繁了，请稍后再试', 'Too many attempts — please try again later'],
   'err.network': ['连不上服务器，请检查网络', 'Cannot reach the server — check your connection'],
+  'err.mail': ['验证邮件没能发出去，请稍后再试；一直不行请联系邀请你的朋友', 'We couldn’t send the confirmation email — please try again later, or tell the friend who invited you'],
   'err.unknown': ['出错了，请稍后再试', 'Something went wrong — please try again'],
   'err.emailFormat': ['邮箱格式不对', 'That doesn\'t look like an email'],
   'err.pw6': ['密码至少 {n} 位', 'Password needs at least {n} characters'],

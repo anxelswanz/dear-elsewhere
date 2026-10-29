@@ -1,0 +1,6 @@
+{
+  "confirmation": "{{ if eq (printf \"%v\" .Data.lang) \"en\" }}Welcome to Dear Elsewhere · Please confirm your email{{ else }}欢迎来到 Dear Elsewhere · 请确认你的邮箱{{ end }}",
+  "recovery": "{{ if eq (printf \"%v\" .Data.lang) \"en\" }}Dear Elsewhere · Reset your password{{ else }}Dear Elsewhere · 重置你的密码{{ end }}",
+  "email_change": "{{ if eq (printf \"%v\" .Data.lang) \"en\" }}Dear Elsewhere · Confirm your new email address{{ else }}Dear Elsewhere · 确认新的邮箱地址{{ end }}",
+  "invite": "{{ if eq (printf \"%v\" .Data.lang) \"en\" }}You’re invited to Dear Elsewhere{{ else }}你收到了一封 Dear Elsewhere 的邀请{{ end }}"
+}

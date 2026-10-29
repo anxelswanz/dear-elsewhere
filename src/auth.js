@@ -207,6 +207,7 @@ function authError(err) {
   // 邀请码在数据库里校验，未通过时 Supabase 只会返回笼统的「Database error saving new user」
   if (/database error saving new user/i.test(m)) return t('err.invite');
   if (err?.status === 429 || /rate limit|LIMIT:too_fast/i.test(m)) return t('err.rate'); // LIMIT：邀请码查询太频繁（0011）
+  if (/error sending .*email/i.test(m)) return t('err.mail'); // Supabase 的 SMTP（Resend）发信失败
   if (/fetch|network/i.test(m)) return t('err.network');
   return m || t('err.unknown');
 }
@@ -244,7 +245,7 @@ async function submitLetter(form) {
       if (!ok) return say(t('err.invite'));
       const { data: res, error } = await supabase.auth.signUp({
         email, password: data.password,
-        options: { emailRedirectTo: redirectTo(), data: { invite_code: invite, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() } },
+        options: { emailRedirectTo: redirectTo(), data: { invite_code: invite, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString(), lang } }, // lang：验证邮件用中文还是英文
       });
       if (error) return say(authError(error));
       // 开启邮箱验证时，已注册的邮箱会返回一个没有 identities 的假用户
