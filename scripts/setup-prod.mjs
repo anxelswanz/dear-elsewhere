@@ -5,6 +5,7 @@
 //   auth     登录设置、Resend SMTP、邮件模板
 //   env      把项目地址和 publishable key 写进 .env.local 的 SUPABASE_URL_PROD / SUPABASE_KEY_PROD
 //   invite   生成一个随机邀请码：node scripts/setup-prod.mjs invite "给谁的"（记录在 secrets/prod_invite_codes.txt）
+//   admin    建 / 更新控制台账号（用户名 admin），并设为唯一的管理员：DASHBOARD_PASSWORD=… node scripts/setup-prod.mjs admin（需先执行 0019）
 // 需要的密钥都在 secrets/（已被 git 忽略）：supabase_pat、resend_api_key.md；本脚本不会打印任何密钥。
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
@@ -126,7 +127,29 @@ async function invite() {
   console.log(`新邀请码：${code}${note ? `（${note}）` : ''}`);
 }
 
-const steps = { create, migrate, auth, env, invite };
+// 控制台账号：用户名 admin 在前端换成这个邮箱登录（src/dashboard/dashboard.js 的 DASHBOARD_EMAIL）
+// 密码从环境变量读，不写进任何文件；app_metadata.dashboard 让它不需要邀请码（见 0019）
+const DASHBOARD_EMAIL = 'admin@dear-elsewhere.com';
+async function admin() {
+  const password = process.env.DASHBOARD_PASSWORD || '';
+  if (password.length < 8) throw new Error('用法：DASHBOARD_PASSWORD=至少 8 位 node scripts/setup-prod.mjs admin');
+  const keys = await api('GET', `/v1/projects/${ref()}/api-keys?reveal=true`);
+  const service = keys.find(k => k.name === 'service_role')?.api_key || keys.find(k => k.type === 'secret')?.api_key;
+  if (!service) throw new Error('没有拿到 service role key');
+  const authApi = (method, path, body) => fetch(`https://${ref()}.supabase.co/auth/v1/admin${path}`, {
+    method, headers: { apikey: service, Authorization: `Bearer ${service}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }).then(async res => { const j = await res.json(); if (!res.ok) throw new Error(`${method} ${path} → ${res.status} ${j.msg || j.message || ''}`); return j; });
+
+  const [found] = await query(`select id from auth.users where email = '${DASHBOARD_EMAIL}'`);
+  const fields = { password, email_confirm: true, app_metadata: { dashboard: true } };
+  let id = found?.id;
+  if (id) await authApi('PUT', `/users/${id}`, fields);
+  else id = (await authApi('POST', '/users', { email: DASHBOARD_EMAIL, ...fields })).id;
+  await query(`delete from public.admins where user_id <> '${id}'; insert into public.admins (user_id) values ('${id}') on conflict do nothing;`);
+  console.log(`控制台账号已${found ? '更新密码' : '创建'}：用户名 admin（${DASHBOARD_EMAIL}），已设为唯一的管理员`);
+}
+
+const steps = { create, migrate, auth, env, invite, admin };
 const step = steps[process.argv[2]];
 if (!step) { console.log(`用法：node scripts/setup-prod.mjs ${Object.keys(steps).join('|')}`); process.exit(1); }
 step().catch(err => { console.error(err.message); process.exit(1); });

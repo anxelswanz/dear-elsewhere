@@ -31,6 +31,30 @@ button { font: inherit; color: inherit; }
 .db-refresh { width: 32px; height: 32px; font-size: 16px; background: none; border: 1px solid var(--rule); border-radius: 50%; cursor: pointer; }
 .db-refresh:hover { border-color: var(--ink); }
 
+.db-range[hidden], .db-refresh[hidden], .db-signout[hidden] { display: none; }
+.db-signout { padding: 5px 12px; font-size: 13px; color: var(--ink-soft); background: none; border: 1px solid var(--rule); border-radius: 999px; cursor: pointer; }
+.db-signout:hover { color: var(--ink); border-color: var(--ink); }
+
+/* ---------- 登录：一张小航空信 ---------- */
+.db-login {
+  display: grid; gap: 14px; width: min(360px, 100%); margin: 9vh auto 0; padding: 30px 28px 26px; text-align: left;
+  background: var(--card); border-radius: 6px; box-shadow: 0 0 0 8px var(--card), 0 0 0 9px var(--rule), 0 30px 60px -30px rgb(var(--ink-rgb) / .4);
+  border: 6px solid transparent; border-image: var(--airmail) 6;
+}
+.db-login img { width: 64px; justify-self: center; rotate: -6deg; }
+.db-login h1 { margin: 0 0 4px; text-align: center; font: 700 20px var(--serif-zh); }
+.db-login label { display: grid; gap: 4px; }
+.db-login label span { font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--air-red); }
+.db-login input {
+  padding: 8px 2px; font: 15px var(--sans); color: var(--ink); background: none; border: 0; border-bottom: 1.5px solid var(--rule-strong); outline: none;
+}
+.db-login input:focus { border-bottom-color: var(--ink); }
+.db-login-msg { min-height: 1.4em; margin: 0; font-size: 13px; color: var(--air-red); }
+.db-login button {
+  padding: 11px; font: 600 15px var(--sans); color: var(--paper-hi); background: var(--ink); border: 0; border-radius: 999px; cursor: pointer;
+}
+.db-login button:disabled { opacity: .6; cursor: progress; }
+
 /* ---------- 版面 ---------- */
 main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
 main.loading { opacity: .55; transition: opacity .2s; }

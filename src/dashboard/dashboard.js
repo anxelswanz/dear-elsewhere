@@ -4,7 +4,16 @@ import '@fontsource-variable/fraunces/opsz.css';
 import '@fontsource/noto-serif-sc/700.css';
 import '../styles/themes.css';
 import './dashboard.css';
-import { supabase } from '../supabase.js';
+import { createClient } from '@supabase/supabase-js';
+
+// 控制台自己登录：唯一账号，用户名 admin 换成下面的邮箱（账号由 scripts/setup-prod.mjs admin 创建）
+// 会话单独存一份，不会把同一浏览器里 App 的登录顶掉
+const DASHBOARD_USER = 'admin';
+const DASHBOARD_EMAIL = 'admin@dear-elsewhere.com';
+const url = import.meta.env.VITE_SUPABASE_URL;
+const key = import.meta.env.VITE_SUPABASE_KEY;
+const supabase = url && key ? createClient(url, key, { auth: { storageKey: 'de-dashboard-auth' } }) : null;
+if (import.meta.env.VITE_APP_ENV === 'test') document.title = `[TEST] ${document.title}`;
 
 const $ = sel => document.querySelector(sel);
 const root = $('#db');
@@ -237,18 +246,44 @@ async function load() {
   renderUsers();
 }
 
+// ---------- 登录 ----------
+function showLogin(message = '') {
+  $('.db-range').hidden = true;
+  $('[data-refresh]').hidden = true;
+  $('[data-signout]').hidden = true;
+  root.innerHTML = `<form class="db-login" id="dbLogin" autocomplete="on">
+      <img src="/brand/stamp@2x.png" alt="" />
+      <h1>控制台登录</h1>
+      <label><span>用户名</span><input name="user" autocomplete="username" required autofocus /></label>
+      <label><span>密码</span><input name="password" type="password" autocomplete="current-password" required /></label>
+      <p class="db-login-msg" role="alert">${esc(message)}</p>
+      <button type="submit">登录</button>
+    </form>`;
+}
+
+async function login(form) {
+  const user = form.user.value.trim().toLowerCase();
+  const password = form.password.value;
+  const say = msg => { form.querySelector('.db-login-msg').textContent = msg; };
+  if (user !== DASHBOARD_USER) return say('用户名或密码不对');
+  const button = form.querySelector('button');
+  button.disabled = true;
+  const { error } = await supabase.auth.signInWithPassword({ email: DASHBOARD_EMAIL, password });
+  button.disabled = false;
+  if (error) return say(error.status === 429 ? '尝试太多次了，请稍后再试' : '用户名或密码不对');
+  start();
+}
+
 async function start() {
   if (!supabase) { root.innerHTML = '<p class="db-note">没有配置 Supabase。</p>'; return; }
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    root.innerHTML = '<p class="db-note">请先在同一个浏览器里<a href="/app/">登录 Dear Elsewhere</a>，再回到这个页面。</p>';
-    return;
-  }
+  if (!session) return showLogin();
   const { data: admin, error } = await supabase.rpc('is_admin');
-  if (error) { root.innerHTML = `<p class="db-note">读取失败：${esc(error.message)}（是否已执行 0018 迁移？）</p>`; return; }
-  if (!admin) { root.innerHTML = '<p class="db-note">这个账号没有控制台权限。</p>'; return; }
+  if (error) { root.innerHTML = `<p class="db-note">读取失败：${esc(error.message)}（是否已执行 0018、0019 迁移？）</p>`; return; }
+  if (!admin) { await supabase.auth.signOut(); return showLogin('这个账号没有控制台权限'); }
   $('.db-range').hidden = false;
   $('[data-refresh]').hidden = false;
+  $('[data-signout]').hidden = false;
   load();
 }
 
@@ -256,10 +291,17 @@ document.addEventListener('click', e => {
   const d = e.target.closest('[data-days]');
   if (d) { days = Number(d.dataset.days); return load(); }
   if (e.target.closest('[data-refresh]')) return load();
+  if (e.target.closest('[data-signout]')) return supabase.auth.signOut().then(() => showLogin());
   const s = e.target.closest('[data-sort]');
   if (s) { sort = s.dataset.sort; page = 0; return renderUsers(); }
   const p = e.target.closest('[data-page]');
   if (p) { page += Number(p.dataset.page); return renderUsers(); }
+});
+
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'dbLogin') return;
+  e.preventDefault();
+  login(e.target);
 });
 
 start();
