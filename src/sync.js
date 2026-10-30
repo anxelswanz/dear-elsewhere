@@ -9,6 +9,7 @@
 // 合并规则与 supabase/migrations/0002_checkins_sync.sql 中的 push_checkin 一致。
 import { supabase } from './supabase.js';
 import { limitCode, photoQuota } from './limits.js';
+import { track } from './track.js';
 
 const BUCKET = 'photos';
 const PULL_OVERLAP = 60_000;  // 拉取时往回多看 1 分钟，弥补并发事务的提交时间差
@@ -85,6 +86,7 @@ async function thumbnail(blob) {
 export function createSync({ uid, records, save, apply, onStatus, onPhotoLimit }) {
   const cursorKey = `mymap:${uid}:cursor`;
   let running = false, again = false, timer = null;
+  let errorReported = false; // 这次打开页面已经上报过同步失败
   let limited = false; // 这一轮有记录因超出用量限制没能上传
   let photosBlockedUntil = 0; // 照片额度用完，到这个时间之前不再尝试上传照片
   const pushed = new Map(); // id -> 上次推送时的版本，额度用完期间避免每分钟重复推送同一条
@@ -214,6 +216,11 @@ export function createSync({ uid, records, save, apply, onStatus, onPhotoLimit }
     } catch (err) {
       console.warn('同步失败', err);
       state = 'error';
+      // 使用统计：联网时的同步失败，每次打开页面只报一次（断网重试不算）
+      if (navigator.onLine && !errorReported) {
+        errorReported = true;
+        track('client_error', { where: 'sync', code: String(err?.code || err?.name || 'unknown') });
+      }
     } finally {
       running = false;
       status();

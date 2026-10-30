@@ -9,6 +9,7 @@ import { t, lang, applyStatic, localName } from './i18n.js';
 import { initAuth, avatarUrl, myBirthplace } from './auth.js';
 import { initSocial } from './social.js';
 import { initChat } from './chat.js';
+import { track } from './track.js';
 import { initSnapshot } from './snapshot.js';
 import { initJourney } from './journey.js';
 import { initSettings } from './settings.js';
@@ -691,9 +692,11 @@ function renderFriendDots() {
     const icon = L.divIcon({ className: 'mk-anchor', iconSize: [0, 0], iconAnchor: [0, 0],
       html: `<div class="fd n${Math.min(people.length, 3)}"><span class="fd-faces">${faces}</span>${count}</div>` });
     // 一个地点：飞过去；一簇：放大到刚好装下它们
-    const click = () => (list.length === 1 || list.every(p => p.lat === head.lat && p.lng === head.lng)
-      ? flyToRow({ ...head, user_id: head.owner?.id })
-      : map.flyToBounds(L.latLngBounds(list.map(p => toMap(p.lat, p.lng))).pad(0.5), { maxZoom: 13, duration: 1 }));
+    const click = () => {
+      track('friend_dot_click', { n: list.length });
+      if (list.length === 1 || list.every(p => p.lat === head.lat && p.lng === head.lng)) flyToRow({ ...head, user_id: head.owner?.id });
+      else map.flyToBounds(L.latLngBounds(list.map(p => toMap(p.lat, p.lng))).pad(0.5), { maxZoom: 13, duration: 1 });
+    };
     // 坐标取这一簇的平均位置
     const lat = list.reduce((a, p) => a + p.lat, 0) / list.length;
     const lng = list.reduce((a, p) => a + p.lng, 0) / list.length;

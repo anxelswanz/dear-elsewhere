@@ -1,6 +1,7 @@
 // 用量限制：前端先拦一道并给出提示，真正的防线在 supabase/migrations/0009_limits.sql
 import { supabase } from './supabase.js';
 import { t } from './i18n.js';
+import { track } from './track.js';
 
 export const LIMITS = {
   placesPerDay: 10,  // 每天最多打卡的景点（按账号时区的自然日）
@@ -52,5 +53,6 @@ export function limitCode(err) {
 }
 export function limitText(err) {
   const code = limitCode(err);
+  if (code) track('limit_hit', { code });
   return code ? t(`limit.${code}`, LIMITS) : null;
 }

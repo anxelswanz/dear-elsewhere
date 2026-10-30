@@ -9,6 +9,7 @@ import { supabase } from './supabase.js';
 import { avatarUrl } from './auth.js';
 import { t } from './i18n.js';
 import { limitText } from './limits.js';
+import { track } from './track.js';
 
 const BUCKET = 'photos';
 const URL_TTL = 3600;           // 签名链接有效期（秒）
@@ -401,6 +402,7 @@ export function initSocial({ me, helpers }) {
   let lastDrop = null;
   document.addEventListener('drop:change', e => {
     if (lastDrop && lastDrop !== e.detail) markSeen(lastDrop);
+    if (e.detail === 'feed' && lastDrop !== 'feed') track('feed_open');
     lastDrop = e.detail;
     if (e.detail === 'feed' || e.detail === 'me') renderDots();
   });
@@ -460,6 +462,7 @@ export function initSocial({ me, helpers }) {
       return act(supabase.from('friendships').delete().or(between(me.id, person)));
     }
     if (el.closest('[data-only]')) {
+      track('only_friend');
       state.only = person;
       setOverlay(true);
       helpers.fitPins(state.pins.filter(p => p.user_id === person));
@@ -522,6 +525,7 @@ export function initSocial({ me, helpers }) {
   }
 
   function setOverlay(on) {
+    if (on !== state.overlay) track('friends_overlay', { on });
     state.overlay = on;
     if (!on) state.only = null;
     localStorage.setItem(seenKey('overlay'), on ? '1' : '0');

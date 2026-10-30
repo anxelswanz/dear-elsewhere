@@ -10,6 +10,7 @@ import { avatarUrl } from './auth.js';
 import { t, lang } from './i18n.js';
 import { limitText, LIMITS } from './limits.js';
 import { ago } from './social.js';
+import { track } from './track.js';
 
 const PAGE = 50;
 const $ = sel => document.querySelector(sel);
@@ -245,6 +246,7 @@ export function initChat({ me, social, helpers }) {
     if (type === 'dm' ? !social.author(id) : !state.groups.has(id)) return;
     const switching = state.conv?.type !== type || state.conv.id !== id;
     if (switching) {
+      track('chat_open', { type });
       state.conv = { type, id };
       state.messages = []; state.more = false; state.readersOf = null;
       setTray(null); input.value = '';

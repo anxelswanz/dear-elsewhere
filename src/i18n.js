@@ -226,7 +226,7 @@ const DICT = {
   'au.termsTitleLogin': ['条款要点', 'Key points of our terms'],
   'au.termsVersion': ['版本 {v}', 'Version {v}'],
   'au.termsPoints': [() => [
-    '<b>收集什么</b>：邮箱、密码哈希、护照资料（ID、名字、国家、头像、选填生日）、你盖的章、照片、好友、评论、私信和群聊。不用广告或追踪 Cookie，不出售数据。',
+    '<b>收集什么</b>：邮箱、密码哈希、护照资料（ID、名字、国家、头像、选填生日）、你盖的章、照片、好友、评论、私信和群聊；另有匿名的使用统计（用了哪些功能，不含内容、位置和 IP，可在设置里关闭）。不用广告或追踪 Cookie，不出售数据。',
     '<b>谁能看到</b>：所有登录用户能看到你的 ID、名字、国家和头像；好友能看到你盖的全部章和照片；私信只有双方可见，群聊只有群成员可见；邮箱和生日只有你自己可见。',
     '<b>存在哪里</b>：Supabase（数据库与照片）、Resend（欧盟，发验证邮件）、Cloudflare（网站托管）。地图和地点搜索由天地图（中国，国家地理信息公共服务平台）、Esri（美国）提供，它们会收到你的 IP 和浏览的区域。',
     '<b>如何保护</b>：全程 HTTPS 传输；数据库、照片和备份 AES-256 加密存储；密码只存 bcrypt 哈希；每张表都有行级权限控制；上传照片时自动去除 GPS 等 EXIF 信息。',
@@ -234,7 +234,7 @@ const DICT = {
     '<b>使用规则</b>：仅限受邀用户，年满 16 周岁；只上传你有权分享的内容，不得侵犯他人隐私、骚扰他人或攻击服务。内容归你所有，我们只为向你和好友提供服务而存储和展示它。',
     '<b>免费且按现状提供</b>：这是个人项目，请定期导出备份；如果服务要停止运营，我们会至少提前 30 天通知。',
   ], () => [
-    '<b>What we collect</b>: email, password hash, passport details (handle, name, country, avatar, optional birthday), your stamps, photos, friends, comments, messages and group chats. No ad or tracking cookies; we never sell data.',
+    '<b>What we collect</b>: email, password hash, passport details (handle, name, country, avatar, optional birthday), your stamps, photos, friends, comments, messages and group chats; plus usage statistics (which features you use — never content, places or IP — and you can turn them off in Settings). No ad or tracking cookies; we never sell data.',
     '<b>Who sees it</b>: every signed-in user sees your handle, name, country and avatar; friends see all your stamps and photos; messages are visible only to the two people in the chat, and group chats only to their members; your email and birthday are visible only to you.',
     '<b>Where it lives</b>: Supabase (database and photos), Resend (EU, verification emails), Cloudflare (hosting). Maps and place search come from Tianditu (China, National Platform for Common Geospatial Information Services) and Esri (USA), which receive your IP address and the area you are viewing.',
     '<b>How it is protected</b>: HTTPS everywhere; database, photos and backups encrypted at rest with AES-256; passwords stored only as bcrypt hashes; row-level security on every table; GPS and other EXIF data removed from photos on upload.',
@@ -332,6 +332,8 @@ const DICT = {
   'st.theme': ['主题色', 'Theme'],
   'st.data': ['数据', 'Data'],
   'st.photos': ['下载照片', 'Download photos'],
+  'st.analytics': ['帮助改进 Dear Elsewhere', 'Help improve Dear Elsewhere'],
+  'st.analyticsSub': ['匿名记录你用了哪些功能（不含任何内容、位置或 IP），只用来改进产品', 'Records which features you use — never content, places or IP — only to improve the app'],
   'st.photosSub': ['按年份和地点勾选，打包成 zip', 'Pick by year and place, saved as a zip'],
   'st.photosTitle': ['下载照片', 'Download photos'],
   'st.photosNote': ['照片按「年份 / 国家 / 地区 / 城市 / 景点」整理成文件夹，每个地点附一份记录。下载的是云端保存的版本（长边 1600 像素），不是原图。',

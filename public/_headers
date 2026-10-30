@@ -29,3 +29,7 @@
   Cache-Control: public, max-age=604800
 /brand/*
   Cache-Control: public, max-age=604800
+
+# 管理员控制台：不让搜索引擎收录
+/dashboard/*
+  X-Robots-Tag: noindex, nofollow

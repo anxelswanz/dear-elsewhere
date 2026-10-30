@@ -4,6 +4,7 @@
 
 import { t, lang } from './i18n.js';
 import { loadStreets, STREETS_CREDIT } from './streets.js';
+import { track } from './track.js';
 
 const RATIOS = { '4:5': 4 / 5, '1:1': 1, '9:16': 9 / 16 };
 const SCALE = 2;
@@ -792,8 +793,10 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     const box = $('#shot');
     box.dataset.state = 'developing';
     $('#shotSave').disabled = true;
-    const out = await render();
+    const start = performance.now();
+    const out = await render().catch(err => { track('snapshot_ready', { ms: Math.round(performance.now() - start), ok: false }); throw err; });
     if (job !== rendering) return; // 期间换了比例
+    track('snapshot_ready', { ms: Math.round(performance.now() - start), ok: !!out });
     blob = out;
     const img = $('#shotImg');
     URL.revokeObjectURL(img.src);
@@ -816,7 +819,17 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     Object.assign(frameEl.style, { left: `${box.left + c.x}px`, top: `${box.top + c.y}px`, width: `${c.w}px`, height: `${c.h}px` });
   }
 
-  function open() {
+  // 使用统计：有没有拖动过相框、这张有没有保存
+  let moved = false, saved = false;
+  const marksBucket = n => (n <= 5 ? '1-5' : n <= 20 ? '6-20' : '20+');
+
+  // again：从预览「重新取景」回来，不算一次新的打开
+  function open(again = false) {
+    if (again !== true) {
+      moved = false;
+      const s = scene();
+      track('snapshot_open', { level: s.current?.level || 'world', marks: marksBucket(s.showMarkers ? s.markers.length : 0) });
+    }
     $('#shot').hidden = true;
     frameBox.hidden = false;
     document.body.classList.add('shot-framing');
@@ -828,16 +841,24 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     frameBox.hidden = true;
     document.body.classList.remove('shot-framing');
   }
+  function cancelFrame() {
+    track('snapshot_cancel', { stage: 'frame' });
+    closeFrame();
+  }
 
   // 冲洗：按相框里的范围出图
   function shoot() {
+    track('snapshot_shoot', { ratio, moved });
+    saved = false;
     closeFrame();
     $('#shotTitle').textContent = scene().title;
     $('#shot').hidden = false;
     develop();
   }
 
-  function close() {
+  // silent：重新取景时关掉预览，不算放弃
+  function close(silent = false) {
+    if (silent !== true && !saved && !$('#shot').hidden) track('snapshot_cancel', { stage: 'preview' });
     $('#shot').hidden = true;
     rendering++;
   }
@@ -854,6 +875,7 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
   frameEl.addEventListener('pointermove', e => {
     if (!drag || e.pointerId !== drag.id) return;
     framePos = { x: drag.x + e.clientX - drag.sx, y: drag.y + e.clientY - drag.sy };
+    moved = true;
     placeFrame(); // 会把相框限制在地图范围内
   });
   const endDrag = e => {
@@ -870,12 +892,13 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     if (e.key === 'Enter') { e.preventDefault(); return shoot(); }
     if (!d) return;
     e.preventDefault();
+    moved = true;
     framePos = { x: framePos.x + d[0], y: framePos.y + d[1] };
     placeFrame();
   });
   addEventListener('resize', () => { if (!frameBox.hidden) placeFrame(); });
   $('#sfShoot').onclick = shoot;
-  $('#sfCancel').onclick = closeFrame;
+  $('#sfCancel').onclick = cancelFrame;
   frameBox.addEventListener('click', e => {
     const b = e.target.closest('[data-ratio]');
     if (!b || b.dataset.ratio === ratio) return;
@@ -893,8 +916,15 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     const name = `${t('backupName')}-${scene().title}-${new Date().toISOString().slice(0, 10)}.png`;
     const file = new File([blob], name, { type: 'image/png' });
     // 手机上优先用系统分享（可以直接存到相册）
+    saved = true;
     if (innerWidth <= 700 && navigator.canShare?.({ files: [file] })) {
-      try { await navigator.share({ files: [file] }); return; } catch { /* 用户取消 */ }
+      try {
+        await navigator.share({ files: [file] });
+        return track('snapshot_save', { ratio, via: 'share' });
+      } catch { /* 用户取消，改成直接下载 */ }
+      track('snapshot_save', { ratio, via: 'share_cancel' });
+    } else {
+      track('snapshot_save', { ratio, via: 'download' });
     }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -903,15 +933,15 @@ export function initSnapshot({ map, toMap, scene, iconSvg }) {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
-  $('#shotClose').onclick = close;
-  $('#shot .shot-backdrop').onclick = close;
+  $('#shotClose').onclick = () => close();
+  $('#shot .shot-backdrop').onclick = () => close();
   $('#shotSave').onclick = save;
   // 重新取景：回到相框，位置不变
-  $('#shotReframe').onclick = () => { close(); open(); };
+  $('#shotReframe').onclick = () => { close(true); open(true); };
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if (!$('#shot').hidden) { e.stopImmediatePropagation(); close(); }
-    else if (!frameBox.hidden) { e.stopImmediatePropagation(); closeFrame(); }
+    else if (!frameBox.hidden) { e.stopImmediatePropagation(); cancelFrame(); }
   }, true);
 
   return { open, shoot, render, setRatio: r => { ratio = r; }, moveFrame: (x, y) => { framePos = { x, y }; placeFrame(); } };

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Dear Elsewhere · 控制台</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/brand/icon-32.png" />
+  <script src="/boot/theme.js"></script>
+  <script type="module" src="/src/dashboard/dashboard.js"></script>
+</head>
+<body>
+  <header class="db-top">
+    <a class="db-brand" href="/app/">
+      <img src="/brand/stamp.png" srcset="/brand/stamp.png 1x, /brand/stamp@2x.png 2x" alt="" />
+      <span><b><i>Dear</i> Elsewhere</b><small>控制台 · Dashboard</small></span>
+    </a>
+    <div class="db-range" role="radiogroup" aria-label="时间范围" hidden>
+      <button type="button" role="radio" data-days="7">7 天</button>
+      <button type="button" role="radio" data-days="30">30 天</button>
+      <button type="button" role="radio" data-days="90">90 天</button>
+    </div>
+    <button type="button" class="db-refresh" data-refresh hidden title="刷新">↻</button>
+  </header>
+  <main id="db" aria-live="polite">
+    <p class="db-note">读取中…</p>
+  </main>
+</body>
+</html>

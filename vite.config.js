@@ -15,10 +15,10 @@ export default defineConfig(({ mode }) => {
   else console.log(`\n▶ Dear Elsewhere · ${target === 'prod' ? '生产环境 PROD' : '测试环境 TEST'} · ${url}\n`);
 
   return {
-    // 两个页面：官网（/，介绍、教程、规则）和软件本身（/app/）
+    // 三个页面：官网（/，介绍、教程、规则）、软件本身（/app/）、管理员控制台（/dashboard/）
     build: {
       rollupOptions: {
-        input: { site: 'index.html', app: 'app/index.html' },
+        input: { site: 'index.html', app: 'app/index.html', dashboard: 'dashboard/index.html' },
       },
     },
     define: {

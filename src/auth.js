@@ -5,6 +5,7 @@ import { playWelcome } from './welcome.js';
 import { t, lang, localName, langSwitch } from './i18n.js';
 import { applyAccountSettings } from './settings.js';
 import { limitText } from './limits.js';
+import { track, setTracking, device } from './track.js';
 
 // 头像分四个稀有度，用文件名前缀区分（见 scripts/build-avatars.mjs 与 0013_avatars_birthplace.sql）。
 // 不能自己挑：注册时在普通头像里随机，之后每天抽 3 次
@@ -20,7 +21,7 @@ const HANDLE_MIN = 3, HANDLE_MAX = 20;
 const HANDLE_RE = new RegExp(`^[a-z0-9_]{${HANDLE_MIN},${HANDLE_MAX}}$`);
 const HANDLE_COOLDOWN_DAYS = 7;
 // 条款版本：改动 public/legal.html 的实质内容时更新，注册时记进 user_metadata 作为同意凭证
-const TERMS_VERSION = '2026-10-29';
+const TERMS_VERSION = '2026-10-30';
 const legalUrl = hash => `${import.meta.env.BASE_URL}legal.html?lang=${lang}${hash ? `#${lang}-${hash}` : ''}`;
 
 const $ = sel => document.querySelector(sel);
@@ -114,13 +115,20 @@ async function handleSession(s) {
   birthday = priv.data?.birthday || '';
   birthplace = priv.data?.birthplace || '';
   if (applyAccountSettings(uid, priv.data)) return; // 账号的语言和本机不同，页面即将刷新
+  setTracking(priv.data?.analytics);
+  if (!opened) {
+    opened = true;
+    track('app_open', { device: device(), lang, theme: document.documentElement.dataset.theme || 'airmail' });
+  }
   renderMe();
   if (profile) accountReady();
   else openPassport('create');
 }
 
 // ---------- 遮罩层 ----------
+let opened = false; // 这次打开页面已经上报过 app_open
 function showGate(next, message = '') {
+  if (next === 'signup' && view !== 'signup') track('signup_view');
   view = next;
   const gate = $('#auth');
   gate.hidden = false;
@@ -241,6 +249,19 @@ function authError(err) {
   return m || t('err.unknown');
 }
 
+// 注册失败的原因，用于使用统计（不含邮箱等任何输入）
+function signupCode(err) {
+  const m = err?.message || '';
+  if (/database error saving new user/i.test(m)) return 'invite';
+  if (/after \d+ seconds?/i.test(m)) return 'wait';
+  if (err?.code === 'over_email_send_rate_limit' || err?.status === 429 || /rate limit|LIMIT:/i.test(m)) return 'rate';
+  if (/error sending .*email/i.test(m)) return 'mail';
+  if (err?.code === 'user_already_exists' || /already registered/i.test(m)) return 'exists';
+  if (err?.code === 'weak_password' || /password should/i.test(m)) return 'weak';
+  if (/fetch|network/i.test(m)) return 'network';
+  return 'other';
+}
+
 const PASSWORD_MIN = 8; // 与 Supabase 控制台 Auth → Password 的最短长度保持一致
 const redirectTo = () => location.origin + location.pathname;
 
@@ -269,16 +290,18 @@ async function submitLetter(form) {
       welcome = 'login';
       // 成功后由 onAuthStateChange 接手
     } else if (view === 'signup') {
+      track('signup_submit');
+      const failed = (code, msg) => { track('signup_error', { code }); say(msg); };
       const { data: ok, error: inviteError } = await supabase.rpc('check_invite', { code: invite });
-      if (inviteError) return say(authError(inviteError));
-      if (!ok) return say(t('err.invite'));
+      if (inviteError) return failed(signupCode(inviteError), authError(inviteError));
+      if (!ok) return failed('invite', t('err.invite'));
       const { data: res, error } = await supabase.auth.signUp({
         email, password: data.password,
         options: { emailRedirectTo: redirectTo(), data: { invite_code: invite, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString(), lang } }, // lang：验证邮件用中文还是英文
       });
-      if (error) return say(authError(error));
+      if (error) return failed(signupCode(error), authError(error));
       // 开启邮箱验证时，已注册的邮箱会返回一个没有 identities 的假用户
-      if (res.user && !res.user.identities?.length) return say(t('err.exists'));
+      if (res.user && !res.user.identities?.length) return failed('exists', t('err.exists'));
       if (!res.session) showGate('check-email');
     } else if (view === 'forgot') {
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() });
@@ -807,6 +830,7 @@ async function exportAccount(button) {
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
     a.download = `dear-elsewhere-${profile.handle}-${today()}.json`;
     a.click();
+    track('account_export');
     URL.revokeObjectURL(a.href);
   } catch (err) {
     alert(t('me.exportFailed', { msg: err.message || err }));
@@ -822,6 +846,7 @@ async function deleteAccount() {
   });
   if (!yes) return;
   const uid = session.user.id;
+  track('account_delete');
   showGate('checking');
   try {
     // 先删 Storage 里的照片（SQL 删不了），再删账号，数据库里的其余数据随外键级联删除

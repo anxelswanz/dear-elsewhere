@@ -6,6 +6,7 @@ import '@fontsource/noto-serif-sc/500.css';
 import '@fontsource/noto-serif-sc/700.css';
 import '../styles/themes.css';
 import './site.css';
+import { track } from '../track.js';
 
 // 邮件链接（验证邮箱、重置密码）回跳到官网时，带着登录信息转到应用里处理
 if (/(^|[#&])(access_token|error_code)=/.test(location.hash)) location.replace(`${import.meta.env.BASE_URL}app/${location.hash}`);
@@ -56,6 +57,13 @@ function shuffleCompanions() {
 }
 shuffleCompanions();
 document.getElementById('dexShuffle')?.addEventListener('click', shuffleCompanions);
+
+// ---------- 使用统计：官网的浏览和「进入」（匿名，不带任何标识） ----------
+track('site_view', { lang: root.dataset.show || 'zh' });
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href="/app/"]');
+  if (a) track('site_cta', { from: a.closest('.nav') ? 'nav' : a.closest('.hero') ? 'hero' : a.closest('.closing') ? 'closing' : 'footer' });
+}, true);
 
 // ---------- 进入软件：寄出一封航空信 ----------
 // 信纸从点击处铺满屏幕，邮票盖在中央，然后跳转；软件页开头是同样的画面，接着把信纸收走（public/boot/arrive.js）

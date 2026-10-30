@@ -4,6 +4,7 @@ import { zip } from 'fflate';
 import { supabase } from './supabase.js';
 import { t, lang, langSwitch, beforeLangChange } from './i18n.js';
 import { initTimezone } from './limits.js';
+import { track, setTracking } from './track.js';
 
 const THEME_KEY = 'mymap:theme';
 export const THEMES = ['airmail', 'coast', 'forest', 'darkroom', 'night'];
@@ -32,6 +33,7 @@ async function saveToAccount(fields) {
   if (error) console.warn('保存设置失败', error);
 }
 beforeLangChange.push(next => saveToAccount({ lang: next }));
+beforeLangChange.push(next => track('lang_change', { lang: next }));
 
 // 系统邮件（重置密码、换邮箱）按用户资料里的 lang 发中文或英文，见 scripts/build-emails.mjs
 async function saveMailLang(next) {
@@ -44,8 +46,11 @@ async function saveMailLang(next) {
 beforeLangChange.push(saveMailLang);
 
 // 登录后用账号里的设置覆盖本机；语言不同时要整页刷新，返回 true 表示即将刷新
+let analyticsOn = true; // 设置 → 数据 →「帮助改进」，账号里存在 profile_private.analytics
+
 export function applyAccountSettings(userId, priv) {
   uid = userId;
+  analyticsOn = priv?.analytics !== false;
   initTimezone(userId, priv);
   if (priv?.theme && priv.theme !== currentTheme()) applyTheme(priv.theme);
   if (priv?.lang && priv.lang !== lang) {
@@ -64,6 +69,7 @@ let tab = 'main';
 const sheet = () => $('#settings');
 
 export function openSettings(view = 'main') {
+  if (sheet().hidden) track('settings_open');
   tab = view;
   sheet().hidden = false;
   render();
@@ -103,6 +109,10 @@ function render() {
       <button type="button" class="st-row" data-st-photos ${data ? '' : 'disabled'}>
         <span><b>${t('st.photos')}</b><small>${t('st.photosSub')}</small></span><i aria-hidden="true">›</i>
       </button>
+      <label class="st-row st-switch">
+        <span><b>${t('st.analytics')}</b><small>${t('st.analyticsSub')}</small></span>
+        <input type="checkbox" data-st-analytics ${analyticsOn ? 'checked' : ''} /><i aria-hidden="true"></i>
+      </label>
     </section>`;
   // 备份按钮放在「数据」一组的末尾
   body.querySelector('.st-group:last-child').append(backup);
@@ -261,6 +271,7 @@ async function download() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
     status.textContent = t('st.done', { n: total });
+    track('photos_zip', { photos: total });
   } catch (err) {
     console.warn('下载照片失败', err);
     status.textContent = t('st.failed', { msg: err.message || err });
@@ -278,6 +289,7 @@ document.addEventListener('click', e => {
   if (e.target.closest('#settingsBack')) { tab = 'main'; return render(); }
   const th = e.target.closest('[data-set-theme]');
   if (th) {
+    if (th.dataset.setTheme !== currentTheme()) track('theme_change', { theme: th.dataset.setTheme });
     applyTheme(th.dataset.setTheme);
     saveToAccount({ theme: th.dataset.setTheme });
     for (const b of document.querySelectorAll('[data-set-theme]')) b.setAttribute('aria-checked', b === th);
@@ -290,6 +302,11 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('change', e => {
+  if (e.target.matches('#settings [data-st-analytics]')) {
+    analyticsOn = e.target.checked;
+    setTracking(analyticsOn);
+    return saveToAccount({ analytics: analyticsOn });
+  }
   const box = e.target.closest('#settings [data-node]');
   if (!box) return;
   const tree = buildTree();

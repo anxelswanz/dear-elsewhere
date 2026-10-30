@@ -1,0 +1,117 @@
+/* =====================================================================
+   控制台：沿用纸面、航空信条纹和主题色（themes.css）；图表只用一个色相（--air-blue），
+   深浅表示多少，文字一律用墨色，不用系列色
+   ===================================================================== */
+:root {
+  --serif-zh: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+  --serif-en: 'Fraunces Variable', 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --sans: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --airmail: repeating-linear-gradient(135deg, var(--air-red) 0 16px, var(--paper) 16px 26px, var(--air-blue) 26px 42px, var(--paper) 42px 52px);
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); font: 14px/1.6 var(--sans); background: var(--paper); -webkit-font-smoothing: antialiased; }
+a { color: var(--air-blue); }
+button { font: inherit; color: inherit; }
+
+/* ---------- 顶栏 ---------- */
+.db-top {
+  position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16px;
+  padding: 12px max(16px, calc((100vw - 1180px) / 2)); background: rgb(var(--paper-hi-rgb) / .92);
+  border-bottom: 1px solid var(--rule); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.db-top::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; background: var(--airmail); }
+.db-brand { display: flex; align-items: center; gap: 10px; margin-right: auto; color: var(--ink); text-decoration: none; }
+.db-brand img { width: 30px; rotate: -6deg; }
+.db-brand span { display: grid; line-height: 1.2; }
+.db-brand b { font: 500 18px var(--serif-en); }
+.db-brand small { font-size: 11px; color: var(--ink-soft); letter-spacing: .06em; }
+.db-range { display: flex; padding: 2px; border: 1px solid var(--rule); border-radius: 999px; }
+.db-range button { padding: 4px 12px; font-size: 13px; color: var(--ink-soft); background: none; border: 0; border-radius: 999px; cursor: pointer; }
+.db-range button[aria-checked="true"] { color: var(--paper-hi); background: var(--ink); }
+.db-refresh { width: 32px; height: 32px; font-size: 16px; background: none; border: 1px solid var(--rule); border-radius: 50%; cursor: pointer; }
+.db-refresh:hover { border-color: var(--ink); }
+
+/* ---------- 版面 ---------- */
+main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+main.loading { opacity: .55; transition: opacity .2s; }
+.db-note { margin: 80px auto; max-width: 30em; text-align: center; font-size: 15px; color: var(--ink-soft); }
+.db-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.db-card { margin-top: 16px; padding: 18px 20px 20px; background: var(--card); border: 1px solid var(--rule); border-radius: 8px; min-width: 0; }
+.db-grid .db-card { margin-top: 16px; }
+.db-card h2 { margin: 0; font: 700 16px/1.4 var(--serif-zh); }
+.db-card h3 { margin: 14px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--ink-soft); }
+.db-hint { margin: 4px 0 10px; padding-left: 10px; font-size: 12.5px; color: var(--ink-soft); border-left: 2px solid rgb(var(--blue-rgb) / .35); }
+.db-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 28px; }
+.db-empty { margin: 8px 0; font-size: 12.5px; color: var(--ink-soft); }
+.db-foot { margin: 14px 0 0; padding-top: 10px; font-size: 12.5px; color: var(--ink-soft); border-top: 1px dashed var(--rule); }
+.db-generated { margin-top: 20px; text-align: center; font-size: 12px; color: var(--ink-soft); }
+.db-scroll { overflow-x: auto; }
+
+/* ---------- KPI ---------- */
+.db-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.db-kpis.small { margin-top: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.db-stat { padding: 14px 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 8px; }
+.db-kpis.small .db-stat { padding: 10px 12px; background: var(--paper-hi); }
+.db-stat small { display: block; font-size: 12px; color: var(--ink-soft); }
+.db-stat b { display: block; margin-top: 2px; font: 500 30px/1.15 var(--serif-en); font-variant-numeric: tabular-nums; }
+.db-kpis.small .db-stat b { font-size: 22px; }
+.db-stat span { display: block; margin-top: 2px; font-size: 12px; color: var(--ink-soft); }
+
+/* ---------- 趋势小图 ---------- */
+.db-sparks { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 20px; margin-top: 8px; }
+.db-spark { margin: 0; }
+.db-spark figcaption { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-soft); }
+.db-spark figcaption b { font: 600 15px var(--serif-en); color: var(--ink); font-variant-numeric: tabular-nums; }
+.db-spark svg { display: block; width: 100%; height: 90px; overflow: visible; }
+.db-spark .grid { stroke: var(--rule); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.db-spark .line { fill: none; stroke: var(--air-blue); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.db-spark .area { fill: rgb(var(--blue-rgb) / .1); }
+.db-spark .pt rect { fill: transparent; }
+.db-spark .pt circle { fill: var(--air-blue); stroke: var(--card); stroke-width: 2; opacity: 0; vector-effect: non-scaling-stroke; }
+.db-spark .pt:hover circle { opacity: 1; }
+.db-axis { display: flex; justify-content: space-between; margin: 2px 0 0; font-size: 11px; color: var(--ink-soft); }
+
+/* ---------- 横条与漏斗 ---------- */
+.db-bars, .db-funnel { margin: 0; padding: 0; list-style: none; }
+.db-bars li, .db-funnel li {
+  display: grid; grid-template-columns: minmax(70px, 34%) 1fr auto auto; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px;
+}
+.db-funnel li { grid-template-columns: 110px 1fr auto 130px; padding: 5px 0; }
+.db-bars li > span, .db-funnel li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-bars i, .db-funnel i { height: 10px; width: var(--w); background: var(--air-blue); border-radius: 0 4px 4px 0; }
+.db-funnel i { height: 16px; }
+/* 放在多列里的漏斗：窄一些，和普通横条同样的列宽 */
+.db-cols .db-funnel li { grid-template-columns: minmax(70px, 34%) 1fr auto auto; padding: 3px 0; }
+.db-cols .db-funnel i { height: 10px; }
+.db-bars b, .db-funnel b { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.db-bars small, .db-funnel small { min-width: 38px; font-size: 11.5px; color: var(--ink-soft); text-align: right; }
+.db-bars li:hover i, .db-funnel li:hover i { background: var(--ink); }
+
+/* ---------- 表格 ---------- */
+.db-table, .db-heat { width: 100%; border-collapse: collapse; font-size: 13px; }
+.db-table th, .db-table td, .db-heat th, .db-heat td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.db-table thead th, .db-heat thead th { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); }
+.db-table td.n, .db-heat td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.db-table tbody tr:hover { background: var(--paper-hi); }
+.db-table th button { padding: 0; font-weight: 600; color: var(--ink-soft); background: none; border: 0; cursor: pointer; }
+.db-table th button[aria-pressed="true"] { color: var(--ink); }
+/* 留存热力：同一色相，越深留存越高；数字始终用墨色 */
+.db-heat td:not(.n):not(.na) { text-align: center; font-variant-numeric: tabular-nums; background: rgb(var(--blue-rgb) / var(--a)); }
+.db-heat td.na { text-align: center; color: var(--ink-soft); }
+.db-who { display: flex; align-items: center; gap: 8px; }
+.db-who img { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); }
+.db-who span { display: grid; line-height: 1.25; }
+.db-who small { font-size: 11.5px; color: var(--ink-soft); }
+.db-pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 12px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.db-pager button { padding: 4px 12px; background: none; border: 1px solid var(--rule); border-radius: 999px; cursor: pointer; }
+.db-pager button:disabled { opacity: .4; cursor: default; }
+
+@media (max-width: 820px) {
+  .db-grid { grid-template-columns: 1fr; }
+  .db-funnel li { grid-template-columns: 84px 1fr auto; }
+  .db-funnel small { grid-column: 2 / -1; text-align: left; }
+}
+@media (max-width: 520px) {
+  .db-brand small { display: none; }
+  .db-stat b { font-size: 24px; }
+}
