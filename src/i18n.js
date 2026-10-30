@@ -146,6 +146,7 @@ const DICT = {
   'limit.avatar_draws': ['今天的 3 次抽取已经用完，明天再来吧', 'No draws left today — come back tomorrow'],
   'limit.too_fast': ['手速太快啦，歇一口气再发', 'Whoa, too fast — take a breath and try again'],
   'limit.comments_per_day': ['今天的评论已经够多啦，明天再聊', 'That’s plenty of comments for today — more tomorrow'],
+  'limit.comments_per_post': ['这张明信片你今天已经评论很多啦，明天再聊', 'You’ve said a lot on this postcard today — more tomorrow'],
   'limit.messages_per_day': ['今天发的消息太多了，明天再继续吧', 'You’ve sent a lot today — continue tomorrow'],
   'limit.requests_per_day': ['今天发出的好友申请太多了，明天再试', 'Too many friend requests today — try tomorrow'],
   'limit.requests_pending': ['还有很多申请没被处理，等对方回应后再发新的吧', 'Too many requests still pending — wait for some replies first'],

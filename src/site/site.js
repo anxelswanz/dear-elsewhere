@@ -93,7 +93,7 @@ fitRoute();
 narrow.addEventListener('change', fitRoute);
 
 // ---------- 滚动浮现：每组元素依次浮上来，浮完去掉 .rv，不影响各自的悬停效果 ----------
-const GROUPS = ['.features article', '.sec-head', '.steps > li', '.themes', '.timeline > li', '.dex', '.ticket', '.ledger', '.rule-card', '.legal-link', '.faq details', '.closing-card'];
+const GROUPS = ['.features article', '.sec-head', '.steps > li', '.themes', '.timeline > li', '.dex', '.ticket', '.ledger', '.rule-card', '.legal-link', '.parcel', '.faq details', '.closing-card'];
 if (!reduced.matches && 'IntersectionObserver' in window) {
   const io = new IntersectionObserver(entries => entries.forEach(({ isIntersecting, target }) => {
     if (!isIntersecting) return;

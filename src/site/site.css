@@ -366,6 +366,31 @@ html[data-show="en"] .rule-card h3 { font: 600 18px var(--serif-en); }
 .legal-link { margin: 24px 0 0; text-align: center; }
 .legal-link a { color: var(--air-blue); font-weight: 600; text-underline-offset: 4px; }
 
+/* ---------- 你的数据：四个「包裹」，右上角贴着格式标签 ---------- */
+.parcels { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.parcel {
+  position: relative; padding: 26px 26px 22px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px;
+  /* 包裹上的十字捆扎线 */
+  background-image: linear-gradient(90deg, transparent calc(100% - 46px), rgb(var(--red-rgb) / .1) calc(100% - 46px) calc(100% - 40px), transparent calc(100% - 40px));
+  box-shadow: 0 1px 0 rgb(var(--ink-rgb) / .04), 0 12px 28px -18px rgb(var(--ink-rgb) / .3);
+  transition: translate .2s, box-shadow .2s;
+}
+.parcel:hover { translate: 0 -2px; box-shadow: 0 1px 0 rgb(var(--ink-rgb) / .04), 0 18px 36px -18px rgb(var(--ink-rgb) / .38); }
+.parcel .f-ic { margin-bottom: 12px; }
+.parcel h3 { margin: 0; font: 700 18px/1.4 var(--serif-zh); }
+html[data-show="en"] .parcel h3 { font: 600 19px/1.3 var(--serif-en); }
+.parcel-fmt {
+  position: absolute; top: 18px; right: 18px; padding: 3px 9px; rotate: 4deg;
+  font: 700 11px/1.4 var(--serif-en); letter-spacing: .18em; color: var(--air-blue); border: 1.5px solid currentColor; border-radius: 3px; background: var(--card);
+}
+.parcel:nth-child(odd) .parcel-fmt { color: var(--air-red); rotate: -3deg; }
+.parcel-path {
+  display: inline-block; margin: 8px 0 10px; padding: 2px 10px; font-size: 12.5px; color: var(--ink);
+  background: var(--paper-2); border: 1px dashed var(--rule-strong); border-radius: 999px;
+}
+.parcel p:not(.parcel-path) { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+.parcel small { display: block; margin-top: 10px; padding-top: 8px; font-size: 12.5px; color: var(--ink-soft); border-top: 1px dashed var(--rule); }
+
 /* ---------- 常见问题 ---------- */
 .faq { display: grid; gap: 10px; max-width: 820px; }
 .faq details { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; }
@@ -470,6 +495,7 @@ html[data-show="en"] .closing-card h2 { font: 500 clamp(28px, 3.8vw, 42px)/1.2 v
   .features article:nth-child(3) { border-left: 0; padding-left: 0; }
   .tickets { grid-template-columns: repeat(2, 1fr); }
   .rules-grid { grid-template-columns: 1fr; }
+  .parcels { grid-template-columns: 1fr; }
   .updates { grid-template-columns: 1fr; }
   .dex { position: relative; top: 0; max-width: 440px; }
 }
