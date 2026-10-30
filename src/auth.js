@@ -231,6 +231,10 @@ function authError(err) {
   if (err?.code === 'same_password') return t('err.same');
   // 邀请码在数据库里校验，未通过时 Supabase 只会返回笼统的「Database error saving new user」
   if (/database error saving new user/i.test(m)) return t('err.invite');
+  // 429 分三种：同一邮箱 60 秒内只能发一次邮件；整个项目每小时的发信上限（控制台 Auth → Rate Limits）；其他限频
+  const wait = m.match(/after (\d+) seconds?/i);
+  if (wait) return t('err.wait', { n: wait[1] });
+  if (err?.code === 'over_email_send_rate_limit' || /email rate limit/i.test(m)) return t('err.mailLimit');
   if (err?.status === 429 || /rate limit|LIMIT:too_fast/i.test(m)) return t('err.rate'); // LIMIT：邀请码查询太频繁（0011）
   if (/error sending .*email/i.test(m)) return t('err.mail'); // Supabase 的 SMTP（Resend）发信失败
   if (/fetch|network/i.test(m)) return t('err.network');

@@ -81,3 +81,30 @@ prefetch.href = '/app/';
 document.head.append(prefetch);
 // 从软件按返回键回来时，页面可能是从缓存里恢复的，把盖住页面的信纸拿掉
 addEventListener('pageshow', e => { if (e.persisted) document.querySelectorAll('.warp').forEach(w => w.remove()); });
+
+// ---------- 首屏航线：宽屏按比例裁切，飞机才不会被拉扁；窄屏首屏很高，改回拉伸，只留虚线 ----------
+const route = document.querySelector('.hero-route');
+const narrow = matchMedia('(max-width: 720px)');
+function fitRoute() {
+  root.classList.toggle('narrow', narrow.matches);
+  route?.setAttribute('preserveAspectRatio', narrow.matches ? 'none' : 'xMidYMid slice');
+}
+fitRoute();
+narrow.addEventListener('change', fitRoute);
+
+// ---------- 滚动浮现：每组元素依次浮上来，浮完去掉 .rv，不影响各自的悬停效果 ----------
+const GROUPS = ['.features article', '.sec-head', '.steps > li', '.themes', '.timeline > li', '.dex', '.ticket', '.ledger', '.rule-card', '.legal-link', '.faq details', '.closing-card'];
+if (!reduced.matches && 'IntersectionObserver' in window) {
+  const io = new IntersectionObserver(entries => entries.forEach(({ isIntersecting, target }) => {
+    if (!isIntersecting) return;
+    io.unobserve(target);
+    target.classList.add('in');
+    setTimeout(() => target.classList.remove('rv', 'in'), 900 + Number(target.style.getPropertyValue('--d') || 0) * 80);
+  }), { rootMargin: '0px 0px -8% 0px' });
+  GROUPS.forEach(sel => document.querySelectorAll(sel).forEach((el, i, all) => {
+    // 同一行里的元素错开出场；超过 6 个的不再加长等待
+    el.style.setProperty('--d', String(Math.min(i % (all.length > 4 ? 4 : all.length), 6)));
+    el.classList.add('rv');
+    io.observe(el);
+  }));
+}

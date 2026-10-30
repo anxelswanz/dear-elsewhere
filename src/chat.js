@@ -9,6 +9,7 @@ import { supabase } from './supabase.js';
 import { avatarUrl } from './auth.js';
 import { t, lang } from './i18n.js';
 import { limitText, LIMITS } from './limits.js';
+import { ago } from './social.js';
 
 const PAGE = 50;
 const $ = sel => document.querySelector(sel);
@@ -36,6 +37,7 @@ const ICON = {
   users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><path d="M15.5 5.6a3.2 3.2 0 0 1 0 5.8M17.5 14.8c1.6.6 2.7 2.2 3 4.7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
+  chat: '<path d="M4.5 6.5h15v9.5h-9l-4.5 3.5v-3.5h-1.5z"/>',
 };
 const icon = name => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[name]}</svg>`;
 
@@ -74,6 +76,7 @@ export function initChat({ me, social, helpers }) {
     groupUnread: new Map(), // 群 id -> 未读数
     tray: null,          // 'emoji' | 'checkin' | null
     viewing: null,       // 正在查看的转发打卡消息
+    viewComments: [],    // 它的评论（和动态里那条打卡的评论是同一批），时间正序
     sheet: null,         // 盖在对话上的面板：'create' 建群 | 'info' 群聊信息 | null
     picked: new Set(),   // 建群、拉人时勾选的好友
     readersOf: null,     // 展开了已读名单的消息 id
@@ -300,9 +303,19 @@ export function initChat({ me, social, helpers }) {
       <span class="ch-ci-text">
         <b>${escapeHtml(c.name || t('unnamed'))}</b>
         <small>${escapeHtml(c.place || '')}</small>
-        <span class="ch-ci-meta">${c.date ? `<time>${escapeHtml(c.date.replaceAll('-', '.'))}</time>` : ''}<i>${icon('camera')}${c.photos.length}</i></span>
+        <span class="ch-ci-meta">${c.date ? `<time>${escapeHtml(c.date.replaceAll('-', '.'))}</time>` : ''}<span>${
+          commentCount(m) ? `<i>${icon('chat')}${commentCount(m)}</i>` : ''}<i>${icon('camera')}${c.photos.length}</i></span></span>
       </span>
     </button>`;
+  }
+
+  const commentCount = m => social.comments(`${m.sender}/${m.checkin.id}`).length;
+
+  // 评论消息：上面一行引用被评论的明信片，点它打开那张明信片
+  function commentHtml(m) {
+    return `<button class="ch-quote" data-view-ref="${escapeHtml(m.reply.to)}" title="${t('chat.viewCheckin')}">${icon('postcard')}<span>${
+      escapeHtml(t('chat.commentedOn', { name: m.reply.name || t('unnamed') }))}</span></button>
+      <p class="ch-bubble">${escapeHtml(m.body)}</p>`;
   }
 
   // 自己发出的消息：未读 / 已读（同一组消息只在最后一条下面显示）
@@ -376,6 +389,7 @@ export function initChat({ me, social, helpers }) {
       const from = group && !mine && !sameRun(prev)
         ? `<p class="ch-from"><img src="${avatarUrl(social.author(m.sender)?.avatar || 'a01')}" alt="" />${escapeHtml(nameOf(m.sender))}</p>` : '';
       const content = m.kind === 'checkin' ? checkinCard(m) + (m.body ? `<p class="ch-bubble">${escapeHtml(m.body)}</p>` : '')
+        : m.kind === 'comment' ? commentHtml(m)
         : bigEmoji(m.body) ? `<p class="ch-emoji">${escapeHtml(m.body.trim())}</p>`
         : `<p class="ch-bubble">${escapeHtml(m.body)}</p>`;
       const back = state.messages.length - 1 - i;
@@ -660,9 +674,10 @@ export function initChat({ me, social, helpers }) {
 
   // ---------- 查看转发的打卡 ----------
   async function view(id) {
-    const m = state.messages.find(x => x.id === id);
-    if (!m) return;
+    const m = state.messages.find(x => x.id === id) || await fetchMessage(id);
+    if (!m) return helpers.toast(t('chat.checkinGone'));
     state.viewing = m;
+    state.viewComments = [];
     const c = m.checkin;
     const from = social.author(m.sender);
     const paths = c.photos.map(pid => `${m.sender}/${pid}_t.jpg`);
@@ -682,18 +697,89 @@ export function initChat({ me, social, helpers }) {
           ${c.date ? `<time>${escapeHtml(c.date.replaceAll('-', '.'))}</time>` : '<span></span>'}
           ${c.country || c.lat != null ? `<button class="fr-btn" data-view-fly>${icon('pin')}${t('feed.fly')}</button>` : ''}
         </footer>
+        <section class="cv-comments" id="cvComments"></section>
       </div>`;
     $('#chatView').hidden = false;
+    renderViewComments();
+    loadViewComments();
+  }
+
+  // 被评论的那条转发消息不在当前这一页里时，单独读一次
+  async function fetchMessage(id) {
+    const conv = state.conv;
+    if (!conv) return null;
+    const { data } = await (conv.type === 'group' ? supabase.from('group_messages') : supabase.from('messages'))
+      .select('*').eq('id', id).eq('kind', 'checkin').maybeSingle();
+    if (data) await Promise.all([signThumbs([data]), people([data])]);
+    return data;
+  }
+
+  // ---------- 明信片上的评论：和原打卡的评论打通 ----------
+  async function loadViewComments() {
+    const m = state.viewing;
+    if (!m) return;
+    const { data, error } = await supabase.from('comments').select('*')
+      .eq('checkin_owner', m.sender).eq('checkin_id', m.checkin.id).order('created_at', { ascending: true }).limit(200);
+    if (error) return console.warn('读取评论失败', error);
+    await social.ensureProfiles(data.map(c => c.author));
+    if (state.viewing !== m) return;
+    state.viewComments = data;
+    renderViewComments();
+  }
+
+  // 本人和发帖人的好友可以评论；群里不是好友的人只能看
+  const canComment = m => m.sender === me.id || social.isFriend(m.sender);
+
+  function renderViewComments() {
+    const m = state.viewing;
+    const box = $('#cvComments');
+    if (!m || !box) return;
+    const input = box.querySelector('input');
+    const draft = input?.value || '';
+    const hadFocus = input && document.activeElement === input;
+    const list = state.viewComments;
+    box.innerHTML = `<p class="cv-c-title">${t('chat.comments')}${list.length ? ` <i>${list.length}</i>` : ''}</p>
+      ${list.length ? `<ul class="post-comments">${list.map(c => {
+        const a = social.author(c.author);
+        return `<li><img src="${avatarUrl(a?.avatar || 'a01')}" alt="" />
+          <p><b>${escapeHtml(c.author === me.id ? t('grp.you') : a?.name || t('grp.someone'))}</b>${escapeHtml(c.body)}<time>${ago(c.created_at)}</time></p></li>`;
+      }).join('')}</ul>` : `<p class="cv-c-none">${t('chat.noComments')}</p>`}
+      ${canComment(m)
+        ? `<form class="post-reply" id="cvReply" autocomplete="off"><input maxlength="140" placeholder="${t('feed.reply')}" />
+            <button type="submit" title="${t('feed.send')}">${icon('send')}</button></form>`
+        : `<p class="cv-c-none">${escapeHtml(t('chat.commentFriendsOnly', { name: social.author(m.sender)?.name || '' }))}</p>`}`;
+    const next = box.querySelector('input');
+    if (next) { next.value = draft; if (hadFocus) next.focus(); }
+    const ul = box.querySelector('.post-comments');
+    if (ul) ul.scrollTop = ul.scrollHeight;
+  }
+
+  async function submitComment(form) {
+    const m = state.viewing;
+    const field = form.querySelector('input');
+    const body = field.value.trim();
+    if (!m || !body || !state.conv) return;
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    const { error } = await supabase.rpc('comment_shared', { conv: state.conv.type, msg: m.id, body });
+    btn.disabled = false;
+    if (error) return helpers.toast(limitText(error) || t('opFailed', { msg: error.message }));
+    field.value = '';
+    // 对话里的评论消息由实时推送送到；评论列表和动态里的评论这里先刷新
+    loadViewComments();
+    social.load();
   }
 
   function closeView() {
     $('#chatView').hidden = true;
     state.viewing = null;
+    state.viewComments = [];
   }
 
   // ---------- 实时 ----------
   // 打开的对话里来了一条消息：替换自己发送中的那条，或者追加
   function arrive(m) {
+    if (m.kind === 'comment' && state.viewing?.id === m.reply?.to) loadViewComments();
     if (state.messages.some(x => x.id === m.id)) return;
     // 自己在别的设备上发的、或刚发出去还在等回执的
     const temp = state.messages.find(x => x.pending && x.sender === m.sender && x.kind === m.kind && x.body === m.body);
@@ -701,6 +787,10 @@ export function initChat({ me, social, helpers }) {
     else state.messages.push(m);
     Promise.all([signThumbs([m]), people([m])]).then(() => renderList({ fresh: temp ? null : m.id }));
   }
+
+  const previewText = m => (m.kind === 'checkin' ? t('chat.sharedCheckin')
+    : m.kind === 'comment' ? `${t('chat.commentedOn', { name: m.reply?.name || t('unnamed') })}：${m.body.slice(0, 30)}`
+    : m.body.slice(0, 40));
 
   function onInsert(m) {
     const peer = peerOf();
@@ -715,7 +805,7 @@ export function initChat({ me, social, helpers }) {
     state.unread.set(m.sender, (state.unread.get(m.sender) || 0) + 1);
     social.refresh();
     const p = social.author(m.sender);
-    helpers.toast(t('chat.newFrom', { name: p?.name || t('feed.friend'), text: m.kind === 'checkin' ? t('chat.sharedCheckin') : m.body.slice(0, 40) }));
+    helpers.toast(t('chat.newFrom', { name: p?.name || t('feed.friend'), text: previewText(m) }));
   }
 
   async function onGroupInsert(m) {
@@ -742,7 +832,7 @@ export function initChat({ me, social, helpers }) {
     state.groupUnread.set(m.group_id, (state.groupUnread.get(m.group_id) || 0) + 1);
     social.refresh();
     await social.ensureProfiles([m.sender]);
-    helpers.toast(t('grp.newFrom', { group: group?.name || '', name: nameOf(m.sender), text: m.kind === 'checkin' ? t('chat.sharedCheckin') : m.body.slice(0, 40) }));
+    helpers.toast(t('grp.newFrom', { group: group?.name || '', name: nameOf(m.sender), text: previewText(m) }));
   }
 
   function onUpdate(m) {
@@ -814,6 +904,8 @@ export function initChat({ me, social, helpers }) {
     if (pick) return shareCheckin(pick.dataset.pick);
     const v = el.closest('[data-view]');
     if (v) return view(v.dataset.view);
+    const ref = el.closest('[data-view-ref]');
+    if (ref) return view(ref.dataset.viewRef);
     if (el.closest('[data-view-close]')) return closeView();
     const full = el.closest('[data-full]');
     if (full && state.viewing) {
@@ -840,6 +932,11 @@ export function initChat({ me, social, helpers }) {
     rename(e.target);
   });
   $('#chatForm').addEventListener('submit', e => { e.preventDefault(); sendText(); });
+  $('#chatView').addEventListener('submit', e => {
+    if (e.target.id !== 'cvReply') return;
+    e.preventDefault();
+    submitComment(e.target);
+  });
   input.addEventListener('input', autosize);
   input.addEventListener('keydown', e => {
     // 回车发送，Shift+回车换行；输入法选字时的回车不算
@@ -865,8 +962,10 @@ export function initChat({ me, social, helpers }) {
     unread: id => (id ? state.unread.get(id) || 0
       : [...state.unread.values(), ...state.groupUnread.values()].reduce((a, b) => a + b, 0)),
     // 好友列表变化后（例如被删除好友）刷新输入框状态
+    // 好友动态重新读取后（好友、评论有变化）：刷新输入框状态、明信片上的评论数和正在看的评论
     friendsChanged: () => {
-      if (!box.hidden) renderCompose();
+      if (!box.hidden) { renderCompose(); if (state.conv) renderList(); }
+      if (state.viewing) loadViewComments();
       if (state.sheet) renderSheet();
     },
   };

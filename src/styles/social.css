@@ -158,6 +158,27 @@
 .mk-hi { animation: mk-hi 1s ease-in-out 3; }
 @keyframes mk-hi { 50% { filter: drop-shadow(0 0 10px rgb(var(--accent-rgb) / .9)); scale: 1.08; } }
 
+/* 缩小地图时的好友：头像小圆针（尖朝下落在坐标上），几个人挨在一起时头像叠放、右上角标数量 */
+.fd {
+  position: absolute; left: 0; bottom: 0; width: max-content; translate: -50% 0; transform-origin: bottom center; display: flex; padding: 3px 3px 9px; cursor: pointer;
+  filter: drop-shadow(0 3px 5px rgba(42, 39, 35, .3)); animation: fd-in .35s cubic-bezier(.3, 1.4, .5, 1) both;
+}
+/* 针尖 */
+.fd::after {
+  content: ''; position: absolute; left: 50%; bottom: 1px; width: 10px; height: 10px; translate: -50% 0; rotate: 45deg;
+  background: var(--card); border-radius: 0 0 3px 0;
+}
+.fd-faces { position: relative; z-index: 1; display: flex; padding: 2.5px; background: var(--card); border-radius: 999px; }
+.fd-faces img { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); box-shadow: 0 0 0 1.5px var(--card); }
+.fd-faces img + img { margin-left: -12px; }
+.fd-n {
+  position: absolute; z-index: 2; top: -3px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px;
+  font: 700 11px/18px -apple-system, "PingFang SC", sans-serif; font-style: normal; text-align: center;
+  color: #fff; background: var(--air-red); border-radius: 9px; box-shadow: 0 0 0 1.5px var(--card);
+}
+.fd:hover { scale: 1.08; }
+@keyframes fd-in { from { opacity: 0; translate: -50% 8px; scale: .6; } }
+
 /* 评论气泡：一行，最宽 170px，每 3 秒向上换一条 */
 .mk-chat { order: -1; max-width: 190px; height: 24px; margin-bottom: 6px; overflow: hidden; pointer-events: none; }
 .mk-chat[hidden] { display: none; }

@@ -75,10 +75,17 @@ img { display: block; max-width: 100%; }
   max-width: var(--wrap); margin: 0 auto; padding: clamp(48px, 9vh, 96px) 20px clamp(56px, 10vh, 110px);
 }
 .hero-route { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-.hero-route path {
+.hero-route .route {
   fill: none; stroke: rgb(var(--blue-rgb) / .22); stroke-width: 2; stroke-dasharray: 8 9; stroke-linecap: round;
   vector-effect: non-scaling-stroke;
 }
+/* 飞机飞过后留下的航迹：pathLength=1，dashoffset 从 1 到 0 跟着飞机画出来（SMIL 与飞机同一时间轴） */
+.hero-route .route-trail { fill: none; stroke: rgb(var(--red-rgb) / .3); stroke-width: 1.4; stroke-dasharray: 1 1; stroke-dashoffset: 1; stroke-linecap: round; }
+.route-plane { filter: drop-shadow(0 6px 4px rgb(var(--ink-rgb) / .18)); }
+/* 窄屏首屏太高，航线被拉伸，只留虚线（site.js 同时改回 preserveAspectRatio="none"） */
+html.narrow .route-trail, html.narrow .route-plane { display: none; }
+.prop { animation: prop .12s steps(2) infinite; }
+@keyframes prop { 50% { opacity: .15; } }
 .hero-copy { position: relative; }
 .hero h1 {
   margin: 18px 0 0; font: 700 clamp(36px, 5.4vw, 62px)/1.18 var(--serif-zh); letter-spacing: .02em;
@@ -128,8 +135,9 @@ html[data-show="en"] .hero h1 em { font-style: italic; }
 }
 .polaroid img { width: 100%; aspect-ratio: 1; background: var(--accent-soft); }
 .polaroid span { display: block; padding: 6px 0 8px; text-align: center; font: italic 500 12.5px var(--serif-en); color: #2a2723; }
-.polaroid.p1 { right: 0; bottom: -96px; rotate: 8deg; animation-delay: .25s; }
-.polaroid.p2 { left: 0; bottom: -74px; rotate: -7deg; animation-delay: .4s; }
+.polaroid.p1 { right: 0; bottom: -96px; rotate: 8deg; animation: env-in .9s cubic-bezier(.2, .8, .2, 1) .25s both, drift 7s ease-in-out 1.4s infinite alternate; }
+.polaroid.p2 { left: 0; bottom: -74px; rotate: -7deg; animation: env-in .9s cubic-bezier(.2, .8, .2, 1) .4s both, drift 6s ease-in-out 1.8s infinite alternate-reverse; }
+@keyframes drift { from { translate: 0 0; } to { translate: 0 -9px; } }
 
 @keyframes env-in { from { opacity: 0; translate: 0 26px; } }
 @keyframes pm-slam {
@@ -138,6 +146,83 @@ html[data-show="en"] .hero h1 em { font-style: italic; }
   100% { opacity: 1; scale: 1; rotate: -12deg; }
 }
 @keyframes pm-ripple { 0% { opacity: .5; scale: 1; } 100% { opacity: 0; scale: 1.7; } }
+
+/* ---------- 旅途长卷：首屏下面的一条全宽风景，火车过海上拱桥，轮船从桥下驶过 ----------
+   所有线条和填色都取主题变量；拱桥、海浪用 mask 画形状、background 上色，这样也能跟着主题变色 */
+.transit { position: relative; height: 170px; overflow: hidden; }
+.transit-in { position: absolute; left: 0; bottom: 0; width: 100%; height: 170px; container-type: inline-size; transform-origin: 0 100%; }
+.transit svg { position: absolute; overflow: visible; }
+.transit .ln { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; }
+.transit .dash { stroke-dasharray: 2 3; stroke-width: 1; }
+.transit .bd { fill: var(--card); stroke: var(--ink); stroke-width: 1.4; stroke-linejoin: round; }
+.transit .rd { fill: var(--air-red); }
+.transit .fn { fill: var(--air-red); stroke: var(--ink); stroke-width: 1.4; }
+.transit .ink { fill: var(--ink); }
+.transit .win, .transit .win * { fill: rgb(var(--blue-rgb) / .75); }
+.transit .flag { fill: var(--air-blue); }
+.transit .puff { fill: var(--paper-hi); stroke: rgb(var(--ink-rgb) / .35); stroke-width: 1; opacity: 0; transform-box: fill-box; transform-origin: center; }
+
+/* 天：三朵云慢慢往左飘，两只海鸥 */
+.t-cloud { width: 96px; top: 14px; left: 0; animation: float-l 90s linear infinite; }
+.t-cloud path { fill: var(--paper-hi); stroke: rgb(var(--ink-rgb) / .3); stroke-width: 1.2; }
+.t-cloud.c1 { animation-delay: -20s; }
+.t-cloud.c2 { width: 70px; top: 40px; animation-duration: 120s; animation-delay: -75s; opacity: .8; }
+.t-cloud.c3 { width: 120px; top: 4px; animation-duration: 105s; animation-delay: -55s; opacity: .9; }
+.t-gull { width: 18px; top: 34px; left: 0; animation: float-r 40s linear infinite; }
+.t-gull path { fill: none; stroke: var(--ink-soft); stroke-width: 1.6; stroke-linecap: round; animation: flap .9s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+.t-gull.g1 { animation-delay: -12s; }
+.t-gull.g2 { width: 13px; top: 52px; animation-duration: 46s; animation-delay: -30s; }
+.t-gull.g2 path { animation-delay: -.4s; }
+@keyframes flap { to { scale: 1 .45; } }
+@keyframes float-l { from { translate: 100cqw 0; } to { translate: -140px 0; } }
+@keyframes float-r { from { translate: -40px 0; } to { translate: 100cqw 0; } }
+
+/* 海：淡蓝底 + 两层往不同方向推的波纹 */
+.t-sea { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; background: linear-gradient(rgb(var(--blue-rgb) / .05), rgb(var(--blue-rgb) / .12)); }
+.t-sea::after, .t-waves {
+  content: ''; position: absolute; left: -80px; right: -80px; background: var(--air-blue);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='14'%3E%3Cpath d='M0 7 Q10 1 20 7 T40 7 T60 7 T80 7' fill='none' stroke='%23000' stroke-width='1.4'/%3E%3C/svg%3E") 0 0 / 80px 14px repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='14'%3E%3Cpath d='M0 7 Q10 1 20 7 T40 7 T60 7 T80 7' fill='none' stroke='%23000' stroke-width='1.4'/%3E%3C/svg%3E") 0 0 / 80px 14px repeat;
+}
+.t-sea::after { top: 4px; bottom: 0; opacity: .28; animation: waves 7s linear infinite; }
+.t-waves { bottom: 0; height: 22px; opacity: .5; animation: waves 4s linear infinite reverse; }
+@keyframes waves { to { translate: 80px 0; } }
+
+/* 海上拱桥（远景）：一层纸色填满桥身，一层墨线勾边；轮船在它前面的海上驶过 */
+.t-bridge { position: absolute; left: 0; right: 0; bottom: 38px; height: 54px; }
+.t-bridge::before, .t-bridge::after { content: ''; position: absolute; inset: 0; }
+.t-bridge::before {
+  background: var(--paper);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='54'%3E%3Cpath d='M0 0 H130 V54 H120 V32 Q120 14 65 14 Q10 14 10 32 V54 H0 Z'/%3E%3C/svg%3E") 0 0 / 130px 54px repeat-x;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='54'%3E%3Cpath d='M0 0 H130 V54 H120 V32 Q120 14 65 14 Q10 14 10 32 V54 H0 Z'/%3E%3C/svg%3E") 0 0 / 130px 54px repeat-x;
+}
+.t-bridge::after {
+  background: var(--ink);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='54'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M0 2.5 H130' stroke-width='5'/%3E%3Cpath d='M0 8.5 H130' stroke-width='1.2' stroke-dasharray='3 4'/%3E%3Cpath d='M10 54 V32 Q10 14 65 14 Q120 14 120 32 V54' stroke-width='1.4'/%3E%3Cpath d='M10 40 H0 M120 40 H130 M10 47 H0 M120 47 H130' stroke-width='.8'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 130px 54px repeat-x;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='54'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M0 2.5 H130' stroke-width='5'/%3E%3Cpath d='M0 8.5 H130' stroke-width='1.2' stroke-dasharray='3 4'/%3E%3Cpath d='M10 54 V32 Q10 14 65 14 Q120 14 120 32 V54' stroke-width='1.4'/%3E%3Cpath d='M10 40 H0 M120 40 H130 M10 47 H0 M120 47 H130' stroke-width='.8'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 130px 54px repeat-x;
+}
+
+/* 火车：从左往右开过桥面，车身随铁轨轻轻颠，车轮转，烟往后飘 */
+.t-train { position: absolute; left: 0; bottom: 89px; width: 300px; height: 50px; animation: drive-r 17s linear infinite; }
+.t-train svg { inset: 0; width: 100%; height: 100%; animation: rattle .26s steps(2) infinite; }
+.t-train .spin { animation: spin .7s linear infinite; transform-box: fill-box; transform-origin: center; }
+.t-train .puff { animation: puff-l 1.5s ease-out infinite; }
+.t-train .puff:nth-of-type(2) { animation-delay: -.5s; }
+.t-train .puff:nth-of-type(3) { animation-delay: -1s; }
+@keyframes drive-r { from { translate: -320px 0; } to { translate: 100cqw 0; } }
+@keyframes rattle { 50% { translate: 0 -.8px; } }
+@keyframes spin { to { rotate: 360deg; } }
+@keyframes puff-l { 0% { opacity: .9; translate: 0 0; scale: .6; } 100% { opacity: 0; translate: -34px -20px; scale: 2.2; } }
+
+/* 轮船：从右往左慢慢驶过桥下，船身随浪摇 */
+.t-ship { position: absolute; left: 0; bottom: 2px; width: 187px; height: 99px; animation: drive-l 46s linear infinite; animation-delay: -14s; }
+.t-ship svg { inset: 0; width: 100%; height: 100%; transform-origin: 50% 70%; animation: rock 3.6s ease-in-out infinite alternate; }
+.t-ship .puff { animation: puff-r 2.4s ease-out infinite; }
+.t-ship .puff:nth-of-type(2) { animation-delay: -.8s; }
+.t-ship .puff:nth-of-type(3) { animation-delay: -1.6s; }
+@keyframes drive-l { from { translate: 100cqw 0; } to { translate: -220px 0; } }
+@keyframes rock { from { rotate: -1.6deg; translate: 0 1px; } to { rotate: 1.6deg; translate: 0 -2px; } }
+@keyframes puff-r { 0% { opacity: .85; translate: 0 0; scale: .6; } 100% { opacity: 0; translate: 26px -26px; scale: 2.4; } }
 
 /* ---------- 功能 ---------- */
 .features {
@@ -153,6 +238,8 @@ html[data-show="en"] .hero h1 em { font-style: italic; }
 .features h3 { margin: 0 0 6px; font: 700 18px/1.35 var(--serif-zh); }
 html[data-show="en"] .features h3 { font: 600 19px/1.3 var(--serif-en); }
 .features p { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+.f-ic { transition: rotate .35s cubic-bezier(.3, 1.4, .5, 1), scale .35s cubic-bezier(.3, 1.4, .5, 1); }
+.features article:hover .f-ic { rotate: -14deg; scale: 1.08; }
 
 /* ---------- 通用区块 ---------- */
 .section { max-width: var(--wrap); margin: 0 auto; padding: 88px 20px 40px; }
@@ -202,6 +289,12 @@ html[data-show="en"] .step h3 { font: 600 19px/1.3 var(--serif-en); }
   background: var(--paper); border: 2px solid var(--air-blue); box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 8px var(--air-blue);
 }
 .timeline li:nth-child(-n+2)::before { border-color: var(--air-red); box-shadow: inset 0 0 0 3px var(--paper), inset 0 0 0 8px var(--air-red); }
+/* 最新一条像信号灯一样轻轻闪 */
+.timeline li:first-child::after {
+  content: ''; position: absolute; left: -30px; top: 5px; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--air-red); animation: beacon 2.4s ease-out infinite;
+}
+@keyframes beacon { 0% { opacity: .7; scale: 1; } 80%, 100% { opacity: 0; scale: 2.2; } }
 .timeline time { font: 600 12px var(--serif-en); letter-spacing: .16em; color: var(--ink-soft); }
 .tag { margin-left: 8px; padding: 1px 7px; font: 700 10px/1.6 var(--serif-en); letter-spacing: .14em; border-radius: 3px; vertical-align: 1px; }
 .tag-new { color: var(--air-red); border: 1.5px solid currentColor; rotate: -4deg; display: inline-block; }
@@ -250,6 +343,8 @@ html[data-show="en"] .timeline h3 { font: 600 18px/1.3 var(--serif-en); }
 .ticket:nth-child(even) b { color: var(--air-blue); }
 .ticket small { margin-left: 8px; font-size: 13px; color: var(--ink-soft); }
 .ticket p { margin: 26px 0 0; font-size: 14px; color: var(--ink-soft); }
+.ticket { transition: translate .2s, box-shadow .2s; }
+.ticket:hover { translate: 0 -3px; box-shadow: 0 16px 30px -20px rgb(var(--ink-rgb) / .45); }
 
 .ledger { overflow-x: auto; padding: 8px; border-radius: 7px; background: var(--airmail); }
 .ledger table { width: 100%; min-width: 640px; border-collapse: collapse; background: var(--card); border-radius: 3px; font-size: 14.5px; }
@@ -289,7 +384,7 @@ html[data-show="en"] .rule-card h3 { font: 600 18px var(--serif-en); }
 /* ---------- 结尾 ---------- */
 .closing { max-width: var(--wrap); margin: 0 auto; padding: 80px 20px 96px; }
 .closing-card {
-  position: relative; padding: 56px 24px; text-align: center; border-radius: 8px; color: #f4e3b5;
+  position: relative; overflow: hidden; padding: 56px 24px; text-align: center; border-radius: 8px; color: #f4e3b5;
   background:
     repeating-radial-gradient(circle at 50% 50%, transparent 0 22px, rgba(217, 180, 90, .07) 22px 23px),
     radial-gradient(ellipse at 50% 40%, #284670, transparent 70%), #1d3352;
@@ -302,6 +397,27 @@ html[data-show="en"] .rule-card h3 { font: 600 18px var(--serif-en); }
 .closing-card h2 { margin: 14px 0 30px; font: 700 clamp(24px, 3.4vw, 36px)/1.45 var(--serif-zh); letter-spacing: .06em; }
 html[data-show="en"] .closing-card h2 { font: 500 clamp(28px, 3.8vw, 42px)/1.2 var(--serif-en); letter-spacing: -.01em; }
 .closing-card .btn-accent { color: #1d3352; background: #d9b45a; box-shadow: 0 8px 24px rgba(217, 180, 90, .3); }
+.closing-card > :not(.night-sky):not(.night-flight) { position: relative; }
+.night-sky {
+  position: absolute; inset: 0; pointer-events: none; opacity: .8;
+  background:
+    radial-gradient(1.4px 1.4px at 8% 22%, #f4e3b5, transparent), radial-gradient(1px 1px at 19% 68%, #f4e3b5, transparent),
+    radial-gradient(1.2px 1.2px at 31% 14%, #f4e3b5, transparent), radial-gradient(1px 1px at 44% 80%, #f4e3b5, transparent),
+    radial-gradient(1.6px 1.6px at 63% 18%, #f4e3b5, transparent), radial-gradient(1px 1px at 72% 74%, #f4e3b5, transparent),
+    radial-gradient(1.2px 1.2px at 86% 30%, #f4e3b5, transparent), radial-gradient(1px 1px at 93% 82%, #f4e3b5, transparent);
+  animation: twinkle 4s ease-in-out infinite alternate;
+}
+@keyframes twinkle { from { opacity: .35; } to { opacity: .9; } }
+/* 一架夜航的航空信飞机从左往右掠过，翼尖闪着灯 */
+.night-flight {
+  --pl-fill: #f4e3b5; --pl-line: #1d3352;
+  position: absolute; left: 0; top: 30px; width: 100%; height: 40px; pointer-events: none;
+  animation: night-fly 22s linear infinite; animation-delay: -6s;
+}
+.night-flight svg { position: absolute; left: 0; top: 0; width: 44px; height: 37px; rotate: -8deg; filter: drop-shadow(0 0 8px rgba(244, 227, 181, .25)); }
+.nav-light { position: absolute; left: 14px; top: 2px; width: 4px; height: 4px; border-radius: 50%; background: #ff6b5e; box-shadow: 0 0 6px 2px rgba(255, 107, 94, .7); animation: blink 1.2s steps(1) infinite; }
+@keyframes night-fly { from { translate: -12% 26px; } to { translate: 104% -8px; } }
+@keyframes blink { 50% { opacity: 0; } }
 
 /* ---------- 页脚 ---------- */
 .foot-in {
@@ -342,6 +458,10 @@ html[data-show="en"] .closing-card h2 { font: 500 clamp(28px, 3.8vw, 42px)/1.2 v
 }
 @keyframes warp-ink { 0% { opacity: .55; scale: .7; } 100% { opacity: 0; scale: 1.5; } }
 
+/* ---------- 滚动浮现 ---------- */
+.rv { transition: opacity .7s ease, translate .8s cubic-bezier(.2, .8, .2, 1); transition-delay: calc(var(--d, 0) * 80ms); }
+.rv:not(.in) { opacity: 0; translate: 0 22px; }
+
 /* ---------- 窄屏 ---------- */
 @media (max-width: 960px) {
   .hero { grid-template-columns: 1fr; }
@@ -367,6 +487,8 @@ html[data-show="en"] .closing-card h2 { font: 500 clamp(28px, 3.8vw, 42px)/1.2 v
   .postmark { width: 120px; height: 120px; left: 14px; top: 16px; }
   .env-to, .env-line { margin-left: 24%; }
   .polaroid { width: 104px; }
+  .transit { height: 128px; }
+  .transit-in { width: calc(100% / .75); scale: .75; }
   .foot-in small { margin-left: 0; }
 }
 @media (max-width: 520px) {
@@ -377,5 +499,12 @@ html[data-show="en"] .closing-card h2 { font: 500 clamp(28px, 3.8vw, 42px)/1.2 v
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01s !important; animation-delay: 0s !important; transition: none !important; }
+  .transit *, .transit *::after, .night-flight, .night-sky, .polaroid, .prop, .timeline li::after { animation: none !important; }
+  .t-train { translate: 8cqw 0; }
+  .t-ship { translate: 58cqw 0; }
+  .t-cloud.c1 { translate: 20cqw 0; } .t-cloud.c2 { translate: 70cqw 0; } .t-cloud.c3 { translate: 44cqw 0; }
+  .t-gull, .route-trail, .route-plane, .night-flight .nav-light { display: none; }
+  .night-flight { translate: 70% 0; }
+  .rv:not(.in) { opacity: 1; translate: none; }
   html { scroll-behavior: auto; }
 }

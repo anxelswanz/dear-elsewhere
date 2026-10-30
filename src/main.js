@@ -647,7 +647,7 @@ function renderPlaces() {
   placeLayer.clearLayers();
   const z = map.getZoom();
   $('#map').classList.toggle('mk-far', z < 12);
-  if (view.level !== 'city' && z < 8) return;
+  if (view.level !== 'city' && z < 8) return renderFriendDots();
   const chatOf = key => (z >= 12 && social?.comments(key).length ? key : null);
   const own = places().map(r => ({ r, key: `${me}/${r.id}`, click: () => openEditor(r.id) }));
   const friends = (social?.pins() || []).map(p => ({
@@ -667,6 +667,43 @@ function renderPlaces() {
     }
   }
   updateChats(false);
+}
+
+// ---------- 缩小时的好友：头像小圆针，屏幕上挨得太近的合成一枚，标上人数 ----------
+const DOT_GAP = 40; // 两枚圆针中心小于这个像素距离就合并
+function renderFriendDots() {
+  const pins = social?.pins() || [];
+  const clusters = [];
+  for (const p of pins) {
+    const pt = map.project(toMap(p.lat, p.lng), map.getZoom());
+    const near = clusters.find(c => c.pt.distanceTo(pt) < DOT_GAP);
+    if (near) near.pins.push(p);
+    else clusters.push({ pt, pins: [p] });
+  }
+  for (const { pins: list } of clusters) {
+    const people = [...new Map(list.map(p => [p.owner?.id, p.owner])).values()];
+    const faces = people.slice(0, 3).map(o => `<img src="${avatarUrl(o?.avatar || 'a01')}" alt="" />`).join('');
+    const count = list.length > 1 ? `<i class="fd-n">${list.length}</i>` : '';
+    const head = list[0];
+    const tip = list.length > 1
+      ? people.map(o => escapeHtml(o?.name || '')).join(lang === 'zh' ? '、' : ', ')
+      : `${escapeHtml(head.owner?.name || '')} · ${escapeHtml(markerText(head))}`;
+    const icon = L.divIcon({ className: 'mk-anchor', iconSize: [0, 0], iconAnchor: [0, 0],
+      html: `<div class="fd n${Math.min(people.length, 3)}"><span class="fd-faces">${faces}</span>${count}</div>` });
+    // 一个地点：飞过去；一簇：放大到刚好装下它们
+    const click = () => (list.length === 1 || list.every(p => p.lat === head.lat && p.lng === head.lng)
+      ? flyToRow({ ...head, user_id: head.owner?.id })
+      : map.flyToBounds(L.latLngBounds(list.map(p => toMap(p.lat, p.lng))).pad(0.5), { maxZoom: 13, duration: 1 }));
+    // 坐标取这一簇的平均位置
+    const lat = list.reduce((a, p) => a + p.lat, 0) / list.length;
+    const lng = list.reduce((a, p) => a + p.lng, 0) / list.length;
+    for (const offset of WORLD_COPIES) {
+      L.marker(toMapAt(lat, lng, offset), { icon, riseOnHover: true })
+        .bindTooltip(tip, { direction: 'top', offset: [0, -40], className: 'geo-tip' })
+        .on('click', click)
+        .addTo(placeLayer);
+    }
+  }
 }
 
 // ---------- 标记上的评论走马灯：每 3 秒换一条，视野里最多 8 个 ----------

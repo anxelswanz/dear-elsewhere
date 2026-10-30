@@ -45,8 +45,30 @@
   <main id="top">
     <!-- ================= 首屏 ================= -->
     <section class="hero">
-      <svg class="hero-route" viewBox="0 0 1200 600" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M-20 520 C 220 420, 300 180, 560 230 S 930 470, 1220 90" />
+      <!-- 航线：一架航空信飞机沿虚线飞过，身后留下一道红色航迹（窄屏只留虚线，见 site.js） -->
+      <svg class="hero-route" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <!-- 俯视的小飞机，机头朝 +x；结尾夜航卡片也用它 -->
+          <symbol id="de-plane" viewBox="-24 -20 48 40" overflow="visible">
+            <path d="M3 -1 L-5 -17 L-10 -17 L-6 -1 Z M3 1 L-5 17 L-10 17 L-6 1 Z" style="fill: var(--pl-fill, var(--card)); stroke: var(--pl-line, var(--ink)); stroke-width: 1.4; stroke-linejoin: round" />
+            <path d="M-8 -16.5 L-10 -16.5 L-9.4 -13 L-7 -13 Z M-8 16.5 L-10 16.5 L-9.4 13 L-7 13 Z" style="fill: var(--air-red)" />
+            <path d="M-14 0 L-19 -7 L-21.5 -7 L-18.5 0 L-21.5 7 L-19 7 Z" style="fill: var(--pl-fill, var(--card)); stroke: var(--pl-line, var(--ink)); stroke-width: 1.4; stroke-linejoin: round" />
+            <ellipse cx="-1" cy="0" rx="17" ry="3.6" style="fill: var(--pl-fill, var(--card)); stroke: var(--pl-line, var(--ink)); stroke-width: 1.4" />
+            <path d="M-12 0 H10" style="stroke: var(--air-blue); stroke-width: 1.6; stroke-linecap: round" />
+            <path d="M17.5 -5 V5" class="prop" style="stroke: var(--pl-line, var(--ink)); stroke-width: 1.6; stroke-linecap: round" />
+          </symbol>
+        </defs>
+        <path id="heroRoute" class="route" d="M-40 520 C 220 420, 300 180, 560 230 S 930 470, 1250 70" />
+        <path class="route-trail" d="M-40 520 C 220 420, 300 180, 560 230 S 930 470, 1250 70" pathLength="1">
+          <animate attributeName="stroke-dashoffset" values="1;1;0;0" keyTimes="0;.12;.78;1" dur="15s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.12;.85;1" dur="15s" repeatCount="indefinite" />
+        </path>
+        <g class="route-plane">
+          <animateMotion dur="15s" repeatCount="indefinite" rotate="auto" calcMode="linear" keyPoints="0;0;1;1" keyTimes="0;.12;.78;1">
+            <mpath href="#heroRoute" />
+          </animateMotion>
+          <use href="#de-plane" x="-24" y="-20" width="48" height="40" />
+        </g>
       </svg>
 
       <div class="hero-copy">
@@ -97,6 +119,77 @@
       </div>
     </section>
 
+    <!-- ================= 旅途长卷：火车过海上拱桥，轮船从桥下驶过 ================= -->
+    <div class="transit" aria-hidden="true">
+      <div class="transit-in">
+        <svg class="t-cloud c1" viewBox="0 0 120 44"><path d="M14 38 H104 A14 14 0 0 0 98 12 A20 20 0 0 0 62 8 A18 18 0 0 0 30 18 A12 12 0 0 0 14 38 Z" /></svg>
+        <svg class="t-cloud c2" viewBox="0 0 120 44"><path d="M14 38 H104 A14 14 0 0 0 98 12 A20 20 0 0 0 62 8 A18 18 0 0 0 30 18 A12 12 0 0 0 14 38 Z" /></svg>
+        <svg class="t-cloud c3" viewBox="0 0 120 44"><path d="M14 38 H104 A14 14 0 0 0 98 12 A20 20 0 0 0 62 8 A18 18 0 0 0 30 18 A12 12 0 0 0 14 38 Z" /></svg>
+        <svg class="t-gull g1" viewBox="0 0 24 10"><path d="M1 6 Q6 0 12 6 Q18 0 23 6" /></svg>
+        <svg class="t-gull g2" viewBox="0 0 24 10"><path d="M1 6 Q6 0 12 6 Q18 0 23 6" /></svg>
+
+        <div class="t-sea"></div>
+
+        <div class="t-bridge"></div>
+
+        <!-- 轮船：从右往左，船头朝左；在桥前面的海上驶过 -->
+        <div class="t-ship">
+          <svg viewBox="0 0 170 90" overflow="visible">
+            <circle class="puff" cx="78" cy="10" r="5" /><circle class="puff" cx="78" cy="10" r="5" /><circle class="puff" cx="78" cy="10" r="5" />
+            <path class="ln" d="M30 54 V20 M150 54 V24" />
+            <path class="ln dash" d="M30 20 L150 24" />
+            <path class="flag" d="M150 24 L162 27 L150 30 Z" />
+            <rect class="fn" x="72" y="16" width="13" height="16" /><rect class="fn" x="96" y="16" width="13" height="16" />
+            <rect class="ink" x="72" y="16" width="13" height="4" /><rect class="ink" x="96" y="16" width="13" height="4" />
+            <rect class="bd" x="58" y="31" width="64" height="10" rx="1.5" />
+            <rect class="bd" x="40" y="40" width="96" height="15" rx="1.5" />
+            <g class="win"><circle cx="50" cy="47.5" r="2.2" /><circle cx="62" cy="47.5" r="2.2" /><circle cx="74" cy="47.5" r="2.2" /><circle cx="86" cy="47.5" r="2.2" /><circle cx="98" cy="47.5" r="2.2" /><circle cx="110" cy="47.5" r="2.2" /><circle cx="122" cy="47.5" r="2.2" /></g>
+            <path class="bd" d="M0 54 H170 L160 76 H20 Z" />
+            <path class="rd" d="M10 66 H165 L160 76 H20 Z" />
+            <path class="ln" d="M4 59 H167" />
+          </svg>
+        </div>
+
+        <!-- 火车：从左往右，车头在右 -->
+        <div class="t-train">
+          <svg viewBox="0 0 300 50" overflow="visible">
+            <circle class="puff" cx="273" cy="2" r="4.5" /><circle class="puff" cx="273" cy="2" r="4.5" /><circle class="puff" cx="273" cy="2" r="4.5" />
+            <g>
+                <rect class="rd" x="0" y="9" width="90" height="5" rx="2" />
+                <rect class="bd" x="2" y="13" width="86" height="27" rx="2.5" />
+                <g class="win"><rect x="9" y="18" width="10" height="9" rx="1" /><rect x="25" y="18" width="10" height="9" rx="1" /><rect x="41" y="18" width="10" height="9" rx="1" /><rect x="57" y="18" width="10" height="9" rx="1" /><rect x="73" y="18" width="9" height="9" rx="1" /></g>
+                <rect class="rd" x="2" y="31" width="86" height="3" />
+                <g transform="translate(18 43)"><g class="spin"><circle class="bd" r="5" /><path class="ln" d="M-3.5 0 H3.5 M0 -3.5 V3.5" /></g></g>
+                <g transform="translate(72 43)"><g class="spin"><circle class="bd" r="5" /><path class="ln" d="M-3.5 0 H3.5 M0 -3.5 V3.5" /></g></g>
+            </g>
+            <path class="ln" d="M88 36 H100 M186 36 H198" />
+            <g transform="translate(98 0)">
+                <rect class="rd" x="0" y="9" width="90" height="5" rx="2" />
+                <rect class="bd" x="2" y="13" width="86" height="27" rx="2.5" />
+                <g class="win"><rect x="9" y="18" width="10" height="9" rx="1" /><rect x="25" y="18" width="10" height="9" rx="1" /><rect x="41" y="18" width="10" height="9" rx="1" /><rect x="57" y="18" width="10" height="9" rx="1" /><rect x="73" y="18" width="9" height="9" rx="1" /></g>
+                <rect class="rd" x="2" y="31" width="86" height="3" />
+                <g transform="translate(18 43)"><g class="spin"><circle class="bd" r="5" /><path class="ln" d="M-3.5 0 H3.5 M0 -3.5 V3.5" /></g></g>
+                <g transform="translate(72 43)"><g class="spin"><circle class="bd" r="5" /><path class="ln" d="M-3.5 0 H3.5 M0 -3.5 V3.5" /></g></g>
+            </g>
+            <rect class="bd" x="268" y="7" width="10" height="13" />
+            <rect class="rd" x="265" y="4" width="16" height="4" rx="1" />
+            <rect class="bd" x="226" y="17" width="58" height="23" rx="9" />
+            <circle class="bd" cx="250" cy="17" r="5" />
+            <rect class="rd" x="240" y="17" width="3" height="23" /><rect class="rd" x="262" y="17" width="3" height="23" />
+            <rect class="bd" x="198" y="9" width="32" height="31" rx="1.5" />
+            <rect class="rd" x="194" y="5" width="40" height="5" rx="2" />
+            <rect class="win" x="206" y="15" width="15" height="10" rx="1" />
+            <path class="bd" d="M283 32 L297 46 H283 Z" />
+            <g transform="translate(212 43)"><g class="spin"><circle class="bd" r="5" /><path class="ln" d="M-3.5 0 H3.5 M0 -3.5 V3.5" /></g></g>
+            <g transform="translate(241 40)"><g class="spin"><circle class="bd" r="8" /><path class="ln" d="M-6 0 H6 M0 -6 V6" /></g></g>
+            <g transform="translate(263 40)"><g class="spin"><circle class="bd" r="8" /><path class="ln" d="M-6 0 H6 M0 -6 V6" /></g></g>
+            <path class="ln" d="M241 40 H263" />
+          </svg>
+        </div>
+
+        <div class="t-waves"></div>
+      </div>
+    </div>
     <div class="stripe" aria-hidden="true"></div>
 
     <!-- ================= 能做什么 ================= -->
@@ -346,16 +439,6 @@
               <td><span data-lang="zh">上传时自动压缩（长边 1600 像素），并去除 GPS 等 EXIF 信息</span><span data-lang="en">Resized to 1600 px on the long edge; GPS and other EXIF data removed</span></td>
             </tr>
             <tr>
-              <td><span data-lang="zh">评论</span><span data-lang="en">Comments</span></td>
-              <td><span data-lang="zh">每分钟 10 条；每天 300 条</span><span data-lang="en">10 / min; 300 / day</span></td>
-              <td><span data-lang="zh">发太快会提示「歇一口气再发」</span><span data-lang="en">Too fast? You'll be asked to take a breath</span></td>
-            </tr>
-            <tr>
-              <td><span data-lang="zh">私信与群聊</span><span data-lang="en">Messages &amp; groups</span></td>
-              <td><span data-lang="zh">每分钟 30 条；每天 2000 条</span><span data-lang="en">30 / min; 2,000 / day</span></td>
-              <td><span data-lang="zh">私信和群消息合并计算</span><span data-lang="en">Direct and group messages count together</span></td>
-            </tr>
-            <tr>
               <td><span data-lang="zh">好友申请</span><span data-lang="en">Friend requests</span></td>
               <td><span data-lang="zh">每天 30 个；待处理最多 50 个</span><span data-lang="en">30 / day; 50 pending</span></td>
               <td><span data-lang="zh">等对方回应一些后，再发新的</span><span data-lang="en">Wait for some replies before sending more</span></td>
@@ -374,16 +457,6 @@
               <td><span data-lang="zh">抽旅伴</span><span data-lang="en">Companion draws</span></td>
               <td><span data-lang="zh">每天 3 次</span><span data-lang="en">3 per day</span></td>
               <td><span data-lang="zh">抽到后可以换上，也可以保留原来的头像</span><span data-lang="en">Use the new one or keep your current avatar</span></td>
-            </tr>
-            <tr>
-              <td><span data-lang="zh">时区</span><span data-lang="en">Time zone</span></td>
-              <td><span data-lang="zh">24 小时内改一次</span><span data-lang="en">Once per 24 h</span></td>
-              <td><span data-lang="zh">「每天」以账号时区为准，跟随浏览器自动上报</span><span data-lang="en">“A day” follows your account time zone, reported by your browser</span></td>
-            </tr>
-            <tr>
-              <td><span data-lang="zh">注册</span><span data-lang="en">Sign-up</span></td>
-              <td><span data-lang="zh">邀请码 · 年满 16 岁 · 邮箱验证</span><span data-lang="en">Invite code · 16+ · verified email</span></td>
-              <td><span data-lang="zh">密码至少 8 位；邀请码查询有频率限制</span><span data-lang="en">Password ≥ 8 characters; invite checks are rate-limited</span></td>
             </tr>
           </tbody>
         </table>
@@ -489,6 +562,11 @@
     <!-- ================= 结尾 ================= -->
     <section class="closing">
       <div class="closing-card">
+        <div class="night-sky" aria-hidden="true"></div>
+        <div class="night-flight" aria-hidden="true">
+          <svg viewBox="0 0 48 40"><use href="#de-plane" /></svg>
+          <i class="nav-light"></i>
+        </div>
         <p class="kicker">PAR AVION</p>
         <h2><span data-lang="zh">去下一个地方之前，<br />先把上一个盖成邮戳。</span><span data-lang="en">Before the next place,<br />stamp the last one.</span></h2>
         <a class="btn btn-accent btn-lg" href="/app/"><span data-lang="zh">进入 Dear Elsewhere</span><span data-lang="en">Open Dear Elsewhere</span> →</a>

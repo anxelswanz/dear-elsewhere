@@ -14,6 +14,7 @@ const BUCKET = 'photos';
 const URL_TTL = 3600;           // 签名链接有效期（秒）
 const FEED_DAYS = 30;           // 动态流读取最近多少天
 const GROUP_HOURS = 72;         // 同一个人从第一条起多少小时内的动态合成一组
+const RECENT_DAYS = 7;          // 地图上默认显示好友最近多少天去过的地方
 const $ = sel => document.querySelector(sel);
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const keyOf = (owner, id) => `${owner}/${id}`;
@@ -502,6 +503,24 @@ export function initSocial({ me, helpers }) {
     if (e.target.id === 'overlayToggle') setOverlay(e.target.checked);
   });
 
+  // 到达日期；没填日期的用发布时间，都没有的排在最后
+  const dayOf = p => p.date || p.published_at?.slice(0, 10) || '';
+  function recentPins() {
+    const friendIds = new Set(state.friends.map(f => f.profile.id));
+    if (state.only) return state.pins.filter(p => p.user_id === state.only && friendIds.has(p.user_id));
+    const since = new Date(Date.now() - RECENT_DAYS * 864e5).toISOString().slice(0, 10);
+    const byUser = new Map();
+    for (const p of state.pins) {
+      if (!friendIds.has(p.user_id)) continue;
+      if (!byUser.has(p.user_id)) byUser.set(p.user_id, []);
+      byUser.get(p.user_id).push(p);
+    }
+    return [...byUser.values()].flatMap(list => {
+      const recent = list.filter(p => dayOf(p) >= since);
+      return recent.length ? recent : [list.reduce((a, b) => (dayOf(b) > dayOf(a) ? b : a))];
+    });
+  }
+
   function setOverlay(on) {
     state.overlay = on;
     if (!on) state.only = null;
@@ -550,13 +569,12 @@ export function initSocial({ me, helpers }) {
     photoUrls: async paths => { await sign(paths); return paths.map(p => signed.get(p)?.url || ''); },
     refresh: () => { renderFriends(); renderDots(); },
     // 地图上要画的好友打卡（照片用缩略图）
-    pins: () => !state.overlay ? [] : state.pins
-      .filter(p => !state.only || p.user_id === state.only)
-      .filter(p => state.friends.some(f => f.profile.id === p.user_id))
+    // 默认每位好友只画最近 7 天去过的地方，这周没出门的只画最近一次；「只看 TA」时画这个人的全部足迹
+    pins: () => !state.overlay ? [] : recentPins()
       .map(p => ({
         key: keyOf(p.user_id, p.id), owner: state.profiles.get(p.user_id),
         id: p.id, level: p.level, name: p.name, label: p.label, marker: p.marker, icon: p.icon, date: p.date || '',
-        lat: p.lat, lng: p.lng, published: !!p.published_at,
+        lat: p.lat, lng: p.lng, published: !!p.published_at, country: p.country, region: p.region, city: p.city,
         photos: p.published_at ? p.photos.slice(0, 3).map(ph => ({ id: ph.id, url: thumbUrl(p.user_id, ph.id) })) : [],
       })),
     // 某条打卡的评论（时间正序），用于标记上的滚动评论

@@ -422,6 +422,26 @@ label.sh-person:has(input:disabled) { cursor: not-allowed; }
 .cv-text .fr-btn .ic { width: 15px; height: 15px; color: var(--accent); }
 .cv-text .fr-btn:hover { color: var(--paper); background: var(--ink); border-color: var(--ink); }
 
+/* 评论消息：上面引用被评论的明信片 */
+.ch-quote {
+  display: flex; align-items: center; gap: 5px; max-width: 100%; margin-bottom: 4px; padding: 3px 9px 3px 7px; cursor: pointer;
+  font: 12px/1.4 var(--sans, -apple-system, "PingFang SC", sans-serif); color: var(--ink-soft); text-align: left;
+  background: rgb(var(--ink-rgb) / .05); border: 1px dashed var(--rule-strong); border-radius: 8px;
+}
+.ch-quote span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-quote .ic { flex: none; width: 14px; height: 14px; color: var(--air-red); }
+.ch-quote:hover { color: var(--ink); border-color: var(--ink-soft); }
+.ch-msg.mine .ch-quote { align-self: flex-end; }
+.ch-ci-meta > span { display: flex; gap: 8px; }
+
+/* 明信片上的评论 */
+.cv-comments { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--rule-strong); }
+.cv-text .cv-c-title { margin: 0 0 4px; padding: 0; background: none; line-height: 1.6; font: italic 600 10.5px var(--serif-en); letter-spacing: .16em; text-transform: uppercase; color: var(--air-blue); }
+.cv-c-title i { font-style: normal; color: var(--ink-soft); }
+.cv-comments .post-comments { max-height: 180px; margin: 0; overflow-y: auto; }
+.cv-comments .post-comments p { margin: 1px 0 0; padding: 0; font: 13px/1.5 var(--sans, -apple-system, "PingFang SC", sans-serif); color: var(--ink); background: none; white-space: normal; }
+.cv-text .cv-c-none { margin: 6px 0 0; padding: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); background: none; }
+
 @media (max-width: 700px) {
   #chat { inset: 0; width: auto; height: auto; border-radius: 0; padding-bottom: env(safe-area-inset-bottom); animation-name: sheet-up; }
   .ch-checkin { width: 240px; }
