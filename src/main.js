@@ -502,25 +502,26 @@ const COLOR = { accent: '#e8590c', line: '#8b95a5', dim: '#1f2937' };
 const VISITED = { color: COLOR.accent, weight: 1, fillColor: COLOR.accent, fillOpacity: 0.4 };
 const OPEN = { color: '#5b6577', weight: 1.2, fillColor: COLOR.line, fillOpacity: 0.06 };
 const CURRENT = { color: COLOR.accent, weight: 2.5, fillColor: COLOR.accent, fillOpacity: 0 };
+const CURRENT_VISITED = { ...CURRENT, fillOpacity: 0.12 }; // 正在查看、且盖过章：淡淡填一层，不挡底图
 const DIMMED = v => ({ color: COLOR.line, weight: 0.5, fillColor: v ? COLOR.accent : COLOR.dim, fillOpacity: v ? 0.15 : 0.12 });
 
 // 每一级：正在查看的区域透明高亮，同级其他区域变暗，下一级按是否去过上色
 function countryStyle(f) {
   const id = f.properties.id;
   if (view.level === 'world') return visited.country.has(id) ? VISITED : OPEN;
-  return id === view.country ? CURRENT : DIMMED(visited.country.has(id));
+  return id === view.country ? (visited.country.has(id) ? CURRENT_VISITED : CURRENT) : DIMMED(visited.country.has(id));
 }
 
 function regionStyle(f) {
   const id = f.properties.id;
   if (view.level === 'country') return visited.region.has(id) ? VISITED : OPEN;
-  return id === view.region ? CURRENT : DIMMED(visited.region.has(id));
+  return id === view.region ? (visited.region.has(id) ? CURRENT_VISITED : CURRENT) : DIMMED(visited.region.has(id));
 }
 
 function cityStyle(f) {
   const id = f.properties.id;
   if (view.level === 'region') return visited.city.has(id) ? VISITED : OPEN;
-  return id === view.city ? { ...CURRENT, weight: 3 } : DIMMED(visited.city.has(id));
+  return id === view.city ? { ...(visited.city.has(id) ? CURRENT_VISITED : CURRENT), weight: 3 } : DIMMED(visited.city.has(id));
 }
 
 function geoLayer(fc, styleFn, level) {
@@ -586,10 +587,10 @@ function drawLevelLayers() {
       drawn = new Set(list.map(c => c.id));
     }
   }
-  // 其他地方去过的城市也显示出来
+  // 其他地方去过的城市也显示出来；没有边界的当前城市（国外城市只有中心点）也要画，否则盖了章看不出来
   geo.cities
-    .filter(c => visited.city.has(c.id) && !drawn.has(c.id) && c.id !== view.city)
-    .forEach(c => overlay.addLayer(cityDot(c, view.level !== 'city')));
+    .filter(c => visited.city.has(c.id) && !drawn.has(c.id))
+    .forEach(c => overlay.addLayer(cityDot(c, view.level !== 'city' || c.id === view.city)));
 }
 
 // ---------- 具体地点 ----------
