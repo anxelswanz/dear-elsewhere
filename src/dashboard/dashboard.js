@@ -44,7 +44,7 @@ const LABEL = {
   sign: '路牌', flag: '旗帜', neon: '霓虹', stamp: '印章', pin: '图钉', plane: '飞机', train: '火车', ship: '轮船', car: '汽车', none: '没选',
   comment: '评论', friend_request: '好友申请', group_create: '建群',
   // 限额代码（limits.js / 各迁移里的 limit_exceeded）
-  too_fast: '太快', places_per_day: '每天盖章', records_per_day: '每天记录', photos_per_place: '每章照片', photos_per_day: '每天照片', photos_total: '照片总量',
+  too_fast: '太快', places_per_day: '每天盖章', records_per_day: '每天记录', photos_per_place: '每章照片', photos_per_day: '每天照片', photos_per_year: '每年照片', photos_total: '照片总量',
   comments_per_day: '每天评论', comments_per_post: '单张明信片评论', messages_per_day: '每天消息', requests_per_day: '每天好友申请', requests_pending: '待处理申请',
   group_full: '群满员', groups_per_day: '每天建群', avatar_draws: '抽旅伴',
 };
@@ -145,7 +145,7 @@ function content(d) {
       <div><h3>热门国家（章数）</h3>${bars((c.countries || []).map(x => [x.country, x.stamps]))}</div>
     </div>
     <p class="db-foot">已发布到动态的章：${num(c.published)} / ${num(d.kpi.stamps)}（${pct(c.published, d.kpi.stamps)}）</p>`,
-  '冷门样式砍掉或重做；常塞满 5 张 → 放宽或做付费；发布率低 → 用户把它当私密日记。');
+  '冷门样式砍掉或重做；常塞满 3 张 → 放宽或做付费；发布率低 → 用户把它当私密日记。');
 }
 
 function social(d) {

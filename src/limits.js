@@ -5,9 +5,10 @@ import { track } from './track.js';
 
 export const LIMITS = {
   placesPerDay: 10,  // 每天最多打卡的景点（按账号时区的自然日）
-  photosPerPlace: 5, // 每个景点最多的照片
+  photosPerPlace: 3, // 每个景点最多的照片（与 0020 迁移一致）
   photosPerDay: 50,  // 任意 24 小时内最多上传的照片（删了重传也算）
   photosTotal: 1000, // 每人最多保存的照片（与 0014 迁移一致）
+  photosPerYear: 365, // 每人每年最多上传的照片，按账号时区的自然年（与 0020 迁移一致）
   groupSize: 20,     // 每个群最多的人数（含群主）
 };
 
@@ -37,12 +38,17 @@ export function accountDay(ts = Date.now()) {
 }
 
 // ---------- 照片额度 ----------
-// { left, nextAt, totalLeft }：今天还剩几张、下一张额度恢复的时间（毫秒，可能为 null）、总量还能存几张
+// { left, nextAt, totalLeft, yearUsed, yearLimit }：今天还剩几张、下一张额度恢复的时间（毫秒，可能为 null）、
+// 总量还能存几张、今年已经上传几张、每年上限
 export async function photoQuota() {
   const { data, error } = await supabase.rpc('photo_quota');
   if (error) throw error;
   // totalLeft：总量还能存几张；0014 之前的数据库没有这一项，按不限处理
-  return { left: data.left, nextAt: data.next_at ? Date.parse(data.next_at) : null, totalLeft: data.total_left ?? Infinity };
+  // yearUsed / yearLimit：0020 之前的数据库没有，按不限处理
+  return {
+    left: data.left, nextAt: data.next_at ? Date.parse(data.next_at) : null, totalLeft: data.total_left ?? Infinity,
+    yearUsed: data.year_used ?? 0, yearLimit: data.year_limit ?? Infinity,
+  };
 }
 
 export const hhmm = ts => new Date(ts).toTimeString().slice(0, 5);

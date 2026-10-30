@@ -1462,6 +1462,7 @@ function openEditor(id) {
   ed.classList.remove('closing');
   fillEditor(current());
   ed.hidden = false;
+  loadYearQuota();
 }
 
 function closeEditor() {
@@ -1557,7 +1558,34 @@ $('#markerOptions').addEventListener('click', async e => {
   flashSaved();
 });
 
+// 今年的照片额度：打开明信片时问一次服务端，之后加减照片时用本地待上传的张数修正
+// waiting：问服务端时还在排队的照片；之后传上去了，服务端的 used 里还没有它们，本地补上
+let yearQuota = null; // { used, limit, waiting }
+const queuedPhotos = () => records.reduce((n, x) => n + x.photos.filter(p => !p.up && p.blob).length, 0);
+const setYearQuota = q => {
+  const waiting = new Set(records.flatMap(x => x.photos.filter(p => !p.up && p.blob).map(p => p.id)));
+  yearQuota = { used: q.yearUsed, limit: q.yearLimit, waiting };
+};
+function renderYearQuota() {
+  const box = $('#photoYear');
+  box.hidden = !yearQuota || !Number.isFinite(yearQuota.limit);
+  if (box.hidden) return;
+  const { used, limit, waiting } = yearQuota;
+  const sent = records.reduce((n, x) => n + x.photos.filter(p => p.up && waiting.has(p.id)).length, 0);
+  const left = Math.max(0, limit - used - sent - queuedPhotos());
+  box.querySelector('b').style.width = `${(left / limit) * 100}%`;
+  box.querySelector('small').textContent = t('photosYear', { left, total: limit });
+  box.classList.toggle('low', left <= limit * 0.1);
+}
+async function loadYearQuota() {
+  try {
+    setYearQuota(await photoQuota());
+  } catch { /* 离线：不显示 */ }
+  renderYearQuota();
+}
+
 function renderPhotos(r) {
+  renderYearQuota();
   const grid = $('#photoGrid');
   const sig = r.id + ':' + r.photos.map(p => p.id).join();
   if (grid.dataset.sig === sig) return; // 只改了文字时不重绘照片
@@ -1682,14 +1710,20 @@ async function addPhotos(files) {
   } catch (err) {
     return toast(limitText(err) || t('opFailed', { msg: err.message }));
   }
+  setYearQuota(quota);
+  renderYearQuota();
   // 本地还没传上去的照片也会占额度
-  const queued = records.reduce((n, x) => n + x.photos.filter(p => !p.up && p.blob).length, 0);
+  const queued = queuedPhotos();
   if (quota.totalLeft - queued <= 0) return toast(t('limit.photos_total', LIMITS));
+  const yearLeft = Math.max(0, quota.yearLimit - quota.yearUsed - queued);
+  if (!yearLeft) return toast(t('limit.photos_per_year', LIMITS));
   const left = Math.max(0, Math.min(quota.left, quota.totalLeft) - queued);
   if (!left) return toast(quota.nextAt ? t('photosQuotaUntil', { t: hhmm(quota.nextAt) }) : t('limit.photos_per_day', LIMITS));
-  if (files.length > Math.min(room, left)) {
-    toast(room <= left ? t('photosPick', { n: LIMITS.photosPerPlace }) : t('photosTodayLeft', { n: left }));
-    files = files.slice(0, Math.min(room, left));
+  const fit = Math.min(room, left, yearLeft);
+  if (files.length > fit) {
+    toast(fit === room ? t('photosPick', { n: LIMITS.photosPerPlace })
+      : fit === yearLeft ? t('photosYearLeft', { n: yearLeft }) : t('photosTodayLeft', { n: left }));
+    files = files.slice(0, fit);
   }
 
   $('#photoDrop').classList.remove('empty');

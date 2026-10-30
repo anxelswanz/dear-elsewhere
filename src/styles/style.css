@@ -533,3 +533,13 @@ button, input, textarea { font: inherit; }
   padding: 0 6px; white-space: nowrap; font: 700 10.5px/1.6 "Noto Serif SC", "Songti SC", serif; letter-spacing: .08em;
   color: #2f6f5b; background: rgba(244, 248, 239, .92); border-radius: 3px;
 }
+
+/* 今年的照片额度：一卷胶片，剩下的越少越短 */
+.pc-quota {
+  position: absolute; right: 16px; bottom: 5px; display: flex; align-items: center; gap: 7px;
+  font: 500 10.5px var(--serif-zh); color: var(--ink-soft); pointer-events: none;
+}
+.pc-quota i { width: 64px; height: 4px; overflow: hidden; border-radius: 2px; background: rgb(var(--ink-rgb) / .14); }
+.pc-quota b { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .4s ease; }
+.pc-quota.low b { background: var(--air-red); }
+.pc-quota.low small { color: var(--air-red); }
