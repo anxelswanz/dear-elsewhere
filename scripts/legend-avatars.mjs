@@ -32,12 +32,17 @@ const EMBLEMS = [
   '<path d="M12 3a6 6 0 0 1 6 6c0 3-2.5 5-4 6h-4c-1.5-1-4-3-4-6a6 6 0 0 1 6-6z M10 15l.5 3h3l.5-3 M10.5 18h3v2.5h-3z"/>', // 热气球
   '<path d="M2.5 14c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M2.5 18.5c2-2 4-2 6 0s4 2 6 0 4-2 6 0 M12 4v7M9 7.5l3-3.5 3 3.5"/>', // 远洋
   '<path d="M12 3l7 9-7 9-7-9z M5 12h14"/>',                                                                // 宝石
+  '<path d="M3 20L12 4l9 16z M12 4v16M8.5 20l3.5-6 3.5 6"/>',                                               // 帐篷
+  '<rect x="5" y="4" width="14" height="12" rx="3"/><path d="M5 10h14M8 16l-2 4M16 16l2 4M8.5 13h.01M15.5 13h.01"/>', // 火车
+  '<rect x="3" y="7" width="18" height="12" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-3h5L16 7"/>', // 相机
+  '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>', // 图钉
 ];
 
 // 种子：古往今来的旅行者（只用来生成随机样貌，不代表任何人的长相）
 const SEEDS = [
   'Xuanzang', 'Ibn Battuta', 'Marco Polo', 'Xu Xiake', 'Isabella Bird', 'Matsuo Basho', 'Zheng He', 'Freya Stark',
   'Nellie Bly', 'Humboldt', 'Gertrude Bell', 'Tenzing', 'Amelia', 'Magellan', 'Ella Maillart', 'Faxian',
+  'Zhang Qian', 'Alexandra David-Neel', 'Shackleton', 'Jianzhen',
 ];
 
 const round = n => Math.round(n * 100) / 100;

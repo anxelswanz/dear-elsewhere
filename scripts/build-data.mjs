@@ -20,12 +20,23 @@ const OUT = path.join(ROOT, 'public', 'data');
 
 const NE = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson';
 const DATAV = 'https://geo.datav.aliyun.com/areas_v3/bound';
-// 台湾、香港、澳门在 Natural Earth 中已作为独立区域存在，避免重复
-const CN_SKIP = new Set([710000, 810000, 820000]);
+// 台湾、香港、澳门是中国的省级行政区：并入中国的国界，作为中国的省份显示。
+// Natural Earth 把它们列为单独的「国家」，这里合并进 CHN；
+// DataV 没有台湾省的下一级边界，台湾的县市、香港的 18 区沿用 Natural Earth 的一级行政区（id 不变，旧打卡能对上），
+// 澳门的 8 个堂区用 DataV。旧打卡怎么改到新结构，见 src/main.js 的 migrateChinaParts()
+const CN_PARTS = { TWN: 710000, HKG: 810000, MAC: 820000 };
+const NO_DATAV_CHILDREN = new Set([710000]);
+// Natural Earth 里香港各区的中文名不全（「北」「群岛」），按标准名称改写
+const HK_ZH = {
+  'Central and Western': '中西区', 'Wan Chai': '湾仔区', Eastern: '东区', Southern: '南区', 'Yau Tsim Mong': '油尖旺区',
+  'Sham Shui Po': '深水埗区', 'Kowloon City': '九龙城区', 'Wong Tai Sin': '黄大仙区', 'Kwun Tong': '观塘区',
+  'Tsuen Wan': '荃湾区', 'Tuen Mun': '屯门区', 'Yuen Long': '元朗区', North: '北区', 'Tai Po': '大埔区',
+  'Sai Kung': '西贡区', 'Sha Tin': '沙田区', 'Kwai Tsing': '葵青区', Islands: '离岛区',
+};
 
 // 常用中文简称
 const NAME_OVERRIDES = {
-  CHN: '中国', TWN: '台湾', KOR: '韩国', PRK: '朝鲜', CYN: '北塞浦路斯',
+  CHN: '中国', KOR: '韩国', PRK: '朝鲜', CYN: '北塞浦路斯',
   IOA: '澳属印度洋领地', ARE: '阿联酋', BIH: '波黑', COD: '刚果（金）', COG: '刚果（布）',
 };
 
@@ -138,8 +149,9 @@ const files = ['ne_50m_admin_0_countries', 'ne_10m_admin_1_states_provinces', 'n
 for (const f of files) await download(`${NE}/${f}.geojson`, path.join(RAW, `${f}.geojson`));
 await download(`${DATAV}/100000_full.json`, path.join(RAW, 'cn/100000_full.json'));
 const cnProvinces = readJson(path.join(RAW, 'cn/100000_full.json')).features
-  .filter(f => typeof f.properties.adcode === 'number' && f.properties.name && !CN_SKIP.has(f.properties.adcode));
+  .filter(f => typeof f.properties.adcode === 'number' && f.properties.name);
 for (const p of cnProvinces) {
+  if (NO_DATAV_CHILDREN.has(p.properties.adcode)) continue;
   await download(`${DATAV}/${p.properties.adcode}_full.json`, path.join(RAW, `cn/${p.properties.adcode}_full.json`));
 }
 
@@ -147,7 +159,11 @@ fs.rmSync(OUT, { recursive: true, force: true });
 
 // 1. 世界国家
 console.log('处理 国家…');
-const world = await shaper(readJson(path.join(RAW, 'ne_50m_admin_0_countries.geojson')),
+const rawWorld = readJson(path.join(RAW, 'ne_50m_admin_0_countries.geojson'));
+const isCn = f => f.properties.ADM0_A3 === 'CHN' || f.properties.ADM0_A3 in CN_PARTS;
+const cnWhole = await shaper({ type: 'FeatureCollection', features: rawWorld.features.filter(isCn)
+  .map(f => ({ ...f, properties: { ADM0_A3: 'CHN', NAME: 'China', NAME_ZH: '中国' } })) }, '-dissolve ADM0_A3 copy-fields=NAME,NAME_ZH');
+const world = await shaper({ ...rawWorld, features: [...rawWorld.features.filter(f => !isCn(f)), ...cnWhole.features] },
   '-filter-fields ADM0_A3,NAME,NAME_ZH -simplify 40% keep-shapes');
 for (const f of world.features) {
   const p = f.properties;
@@ -159,7 +175,7 @@ const countryIds = new Set(world.features.map(f => f.properties.id));
 // 2. 各国一级行政区（中国除外）
 console.log('处理 一级行政区…');
 const rawAdmin1 = readJson(path.join(RAW, 'ne_10m_admin_1_states_provinces.geojson'));
-const skip = JSON.stringify(['CHN', ...Object.keys(GROUP_BY)]);
+const skip = JSON.stringify(['CHN', ...Object.keys(CN_PARTS), ...Object.keys(GROUP_BY)]);
 const admin1 = await shaper(rawAdmin1,
   `-filter "!${skip.replace(/"/g, "'")}.includes(adm0_a3)" -filter-fields adm1_code,adm0_a3,name,name_zh -simplify interval=800 keep-shapes`);
 const regionsByCountry = new Map();
@@ -188,8 +204,23 @@ const cnRegions = cnProvinces.map(f => ({
 regionsByCountry.set('CHN', (await shaper({ type: 'FeatureCollection', features: cnRegions }, '-simplify 30% keep-shapes')).features);
 
 const cities = [];
+// 台湾的县市、香港的 18 区：Natural Earth 一级行政区（WGS84，不用转坐标）
+const neParts = { 710000: 'TWN', 810000: 'HKG' };
+for (const [adcode, a3] of Object.entries(neParts)) {
+  const regionId = 'CN' + adcode;
+  const own = rawAdmin1.features.filter(f => f.properties.adm0_a3 === a3);
+  const feats = own.map(f => ({ ...f, properties: { id: f.properties.adm1_code,
+    name: HK_ZH[f.properties.name] || f.properties.name_zh || f.properties.name } }));
+  writeJson(`region/${regionId}.json`, await shaper({ type: 'FeatureCollection', features: feats }, '-simplify interval=200 keep-shapes'));
+  for (const f of own) {
+    const p = f.properties;
+    cities.push([p.adm1_code, HK_ZH[p.name] || p.name_zh || p.name, p.name || '', 'CHN', regionId, round(p.latitude), round(p.longitude), 3]);
+  }
+}
+
 for (const prov of cnProvinces) {
   const regionId = 'CN' + prov.properties.adcode;
+  if (NO_DATAV_CHILDREN.has(prov.properties.adcode) || neParts[prov.properties.adcode]) continue;
   const raw = readJson(path.join(RAW, `cn/${prov.properties.adcode}_full.json`)).features.filter(f => f.properties.name);
   const feats = raw.map(f => ({ ...toWgs(f), properties: { id: 'CN' + f.properties.adcode, name: f.properties.name } }));
   writeJson(`region/${regionId}.json`, await shaper({ type: 'FeatureCollection', features: feats }, ''));
@@ -201,10 +232,24 @@ for (const prov of cnProvinces) {
 
 for (const [a3, feats] of regionsByCountry) writeJson(`country/${a3}.json`, { type: 'FeatureCollection', features: feats });
 
+// 台湾、香港、澳门原来的城市点（旧打卡、出生地里可能存着）→ 现在所在的县市 / 区 / 堂区
+const legacy = {};
+const partShapes = {};
+for (const a3 of Object.keys(CN_PARTS)) {
+  partShapes[a3] = readJson(path.join(OUT, `region/CN${CN_PARTS[a3]}.json`)).features;
+}
+function legacyCity(p) {
+  const pt = [p.LONGITUDE, p.LATITUDE];
+  const shapes = partShapes[p.ADM0_A3];
+  const hit = shapes.find(f => inGeometry(pt, f.geometry)) || nearestRegion(pt, shapes);
+  if (hit) legacy['P' + p.NE_ID] = hit.properties.id;
+}
+
 // 4. 全球城市点（中国用上面的地级市代替）
 console.log('处理 城市…');
 for (const f of readJson(path.join(RAW, 'ne_10m_populated_places.geojson')).features) {
   const p = f.properties;
+  if (p.ADM0_A3 in CN_PARTS) { legacyCity(p); continue; }
   if (p.ADM0_A3 === 'CHN' || !countryIds.has(p.ADM0_A3)) continue;
   const pt = [p.LONGITUDE, p.LATITUDE];
   const candidates = regionsByCountry.get(p.ADM0_A3) || [];
@@ -217,7 +262,7 @@ for (const f of readJson(path.join(RAW, 'ne_10m_populated_places.geojson')).feat
 // 5. 索引
 const regions = [];
 for (const [a3, feats] of regionsByCountry) for (const f of feats) regions.push([f.properties.id, f.properties.name, f.properties.en, a3]);
-writeJson('index.json', { regions, cities });
+writeJson('index.json', { regions, cities, legacy });
 
 const size = dir => fs.readdirSync(dir, { recursive: true })
   .map(f => path.join(dir, f)).filter(f => fs.statSync(f).isFile()).reduce((n, f) => n + fs.statSync(f).size, 0);

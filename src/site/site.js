@@ -36,7 +36,7 @@ document.querySelectorAll('[data-today]').forEach(el => {
 // ---------- 旅伴们：从全部旅伴里随机摆出一批，点一下放大；不分档、不提概率 ----------
 // 编号范围与 scripts/build-avatars.mjs、0013 迁移里的头像目录一致
 const ids = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
-const COMPANIONS = [...ids('a', 130), ...ids('p', 50), ...ids('r', 40), ...ids('l', 16)];
+const COMPANIONS = [...ids('a', 200), ...ids('p', 100), ...ids('r', 50), ...ids('e', 40), ...ids('l', 20)];
 const SHOWN = 12;
 const avatarUrl = id => `/avatars/${id}.svg?v=${import.meta.env.VITE_AVATAR_V}`;
 

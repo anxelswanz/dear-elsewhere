@@ -1,5 +1,5 @@
 // 稀有旅伴：小动物（由 scripts/build-avatars.mjs 调用）
-// 画法和普通、高级的 notionists 一致：深墨色粗描边 + 平涂色块；10 种动物 × 4 种旅行配饰 = 40 位
+// 画法和普通、高级的 notionists 一致：深墨色粗描边 + 平涂色块；10 种动物 × 5 种旅行配饰 = 50 位
 // 底是柔和的邮票色，加一圈放射光和虚线邮票环。头像在界面里会被裁成圆形，重要内容都在圆内
 const INK = '#2a2723';
 // 描边：默认 4，细一点的部位传入粗细（同一个元素上不能写两个 stroke-width）
@@ -166,6 +166,13 @@ const ACCESSORIES = {
     <rect x="86" y="164" width="11" height="6" rx="1.5" fill="#3a3a3a" ${line(2.5)}/>
     <circle cx="100" cy="181" r="9" fill="#cfd8e2" ${line(3)}/><circle cx="100" cy="181" r="3.5" fill="${INK}"/>
     <circle cx="113" cy="173" r="2" fill="#f4d06b"/>`,
+  // 胸前挂着一本护照（第五种配饰，r41–r50）
+  passport: (a, color) => `
+    <path d="M70 150 L90 170 M130 150 L110 170" ${line(3)}/>
+    <rect x="84" y="166" width="32" height="30" rx="3" fill="${color}" ${line(3)}/>
+    <circle cx="100" cy="179" r="6.5" fill="none" stroke="#f4d06b" stroke-width="2"/>
+    <path d="M93.5 179 H106.5 M100 172.5 V185.5" stroke="#f4d06b" stroke-width="1.5"/>
+    <path d="M90 191 H110" stroke="#f4d06b" stroke-width="2" stroke-linecap="round"/>`,
   // 领结（猫头鹰戴不了眼镜时用）
   bowtie: (a, color) => `
     <path d="M100 150 L78 140 L78 162 Z M100 150 L122 140 L122 162 Z" fill="${color}" ${line(3)}/>
@@ -195,7 +202,7 @@ function ground(color) {
 }
 
 const ORDER = ['fox', 'cat', 'rabbit', 'bear', 'panda', 'owl', 'penguin', 'raccoon', 'frog', 'shiba'];
-const KINDS = ['scarf', 'glasses', 'camera', 'flower'];
+const KINDS = ['scarf', 'glasses', 'camera', 'flower', 'passport'];
 
 export function rareAvatar(i) {
   const a = ANIMALS[ORDER[i % ORDER.length]];

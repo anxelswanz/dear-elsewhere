@@ -7,11 +7,11 @@ import { applyAccountSettings } from './settings.js';
 import { limitText } from './limits.js';
 import { track, setTracking, device } from './track.js';
 
-// 头像分四个稀有度，用文件名前缀区分（见 scripts/build-avatars.mjs 与 0013_avatars_birthplace.sql）。
-// 不能自己挑：注册时在普通头像里随机，之后每天抽 3 次
+// 头像分五个稀有度，用文件名前缀区分（见 scripts/build-avatars.mjs 与 0022_more_avatars.sql）：
+// 普通 a、高级 p、稀有 r、史诗 e、传说 l。不能自己挑：注册时在普通头像里随机，之后每天抽 3 次
 const avatarIds = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
-const COMMON = avatarIds('a', 130);
-const ALL_AVATARS = [...COMMON, ...avatarIds('p', 50), ...avatarIds('r', 40), ...avatarIds('l', 16)];
+const COMMON = avatarIds('a', 200);
+const ALL_AVATARS = [...COMMON, ...avatarIds('p', 100), ...avatarIds('r', 50), ...avatarIds('e', 40), ...avatarIds('l', 20)];
 const randomOf = list => list[Math.floor(Math.random() * list.length)];
 const BRAND = `${import.meta.env.BASE_URL}brand/`; // Logo：航空邮票（无文字）
 // 出生地（城市 ID），仅自己可见；修改时派发 birthplace:change
@@ -438,6 +438,10 @@ async function loadCities() {
   try {
     const index = await (await fetch(`${import.meta.env.BASE_URL}data/index.json`)).json();
     cities = index.cities.map(([id, zh, en, country, , , , rank]) => ({ id, zh, en: en || '', name: localName(zh, en), country, rank }));
+    // 台湾、香港、澳门并入中国后，原来的城市点换成了所在的县市 / 区（scripts/build-data.mjs）
+    const legacy = index.legacy || {};
+    if (legacy[birthplace]) birthplace = legacy[birthplace];
+    if (pp && legacy[pp.birthplace]) pp.birthplace = legacy[pp.birthplace];
   } catch {
     return;
   }

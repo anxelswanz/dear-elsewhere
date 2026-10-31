@@ -1,8 +1,10 @@
 // 生成头像到 public/avatars/，分四个稀有度（抽到的概率见 supabase/migrations/0013_avatars_birthplace.sql）：
-//   普通 a01–a130  人物      DiceBear notionists（Zoish，CC0 1.0）；a01–a60 是最早的 60 个，保持原样
-//   高级 p01–p50   人物      notionists，带手势和胸前徽章，配色更鲜明
-//   稀有 r01–r40   小动物    原创绘制，10 种动物 × 4 种旅行配饰（scripts/rare-avatars.mjs）
-//   传说 l01–l16   烫金肖像  notionists 人物 + 勋章边框（scripts/legend-avatars.mjs）
+//   普通 a01–a200  人物      DiceBear notionists（Zoish，CC0 1.0）；a01–a60 是最早的 60 个，保持原样
+//   高级 p01–p100  人物      notionists，带手势和胸前徽章，配色更鲜明
+//   稀有 r01–r50   小动物    原创绘制，10 种动物 × 5 种旅行配饰（scripts/rare-avatars.mjs）
+//   史诗 e01–e40   像素旅人  原创像素画，NFT 式的特征组合 + 全息底（scripts/epic-avatars.mjs）
+//   传说 l01–l20   烫金肖像  notionists 人物 + 勋章边框（scripts/legend-avatars.mjs）
+// 扩充时只往后加：已有编号用的种子和参数不变，用户已经在用的头像不会变样
 // 用法：npm run build:avatars
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,6 +13,7 @@ import { createAvatar } from '@dicebear/core';
 import { notionists } from '@dicebear/collection';
 import { legendAvatar } from './legend-avatars.mjs';
 import { rareAvatar } from './rare-avatars.mjs';
+import { epicAvatar } from './epic-avatars.mjs';
 
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'avatars');
 
@@ -48,6 +51,13 @@ const MORE = [
   'Rovinj', 'Salento', 'Shirakawa', 'Sigiriya', 'Skagen', 'Sorrento', 'Stari Grad', 'Tartu', 'Tarifa', 'Tofino',
   'Ubud', 'Ulm', 'Vernazza', 'Wengen', 'Xitang', 'Yixian', 'Zadar', 'Zakopane', 'Zhouzhuang', 'Zlatibor',
   'Akaroa', 'Alberobello', 'Albi', 'Bayeux', 'Berat', 'Biarritz', 'Blois', 'Cefalu', 'Cochem', 'Dinan',
+  // 第三圈（a131–a200、p51–p100 用到这里）
+  'Eger', 'Eze', 'Fussen', 'Gjirokaster', 'Guanajuato', 'Hallasan', 'Hamelin', 'Honfleur', 'Hpa-An', 'Icod',
+  'Jaisalmer', 'Kalambaka', 'Karimun', 'Kilchoan', 'Kinderdijk', 'Kotka', 'Lauterbrunnen', 'Lindos', 'Loket', 'Luxembourg',
+  'Mandalay', 'Menton', 'Mirissa', 'Monschau', 'Moraira', 'Nazare', 'Obidos', 'Omis', 'Orvieto', 'Palenque',
+  'Pamukkale', 'Parati', 'Pienza', 'Polignano', 'Pucon', 'Quedlinburg', 'Ribe', 'Rjukan', 'Saint-Malo', 'Sandakan',
+  'Sanya', 'Shaxi', 'Sidi Bou Said', 'Sighisoara', 'Spiez', 'Svaneti', 'Tadoussac', 'Telc', 'Tongli', 'Ubeda',
+  'Uzes', 'Valldemossa', 'Vianden', 'Visby', 'Wachau', 'Whitby', 'Yuanyang', 'Zanjan', 'Zell am See', 'Zhaoxing',
 ];
 let used = 0;
 const nextSeed = () => MORE[used++];
@@ -63,21 +73,24 @@ fs.mkdirSync(OUT, { recursive: true });
 SEEDS.forEach((seed, i) => write(id('a', i + 1), createAvatar(notionists, {
   seed, backgroundColor: [pick(BACKGROUNDS, i)], scale: 92, translateY: 4,
 }).toString()));
-for (let i = 60; i < 130; i++) {
-  write(id('a', i + 1), createAvatar(notionists, {
-    seed: nextSeed(), backgroundColor: [pick(BACKGROUNDS, i)], scale: 92, translateY: 4,
-    bodyIconProbability: 0, gestureProbability: 0,
-  }).toString());
-}
+const common = i => write(id('a', i + 1), createAvatar(notionists, {
+  seed: nextSeed(), backgroundColor: [pick(BACKGROUNDS, i)], scale: 92, translateY: 4,
+  bodyIconProbability: 0, gestureProbability: 0,
+}).toString());
 // 高级：一定带手势和胸前徽章
-for (let i = 0; i < 50; i++) {
-  write(id('p', i + 1), createAvatar(notionists, {
-    seed: nextSeed(), backgroundColor: [pick(PREMIUM_BG, i)], scale: 92, translateY: 4,
-    bodyIconProbability: 100, gestureProbability: 100,
-  }).toString());
-}
+const premium = i => write(id('p', i + 1), createAvatar(notionists, {
+  seed: nextSeed(), backgroundColor: [pick(PREMIUM_BG, i)], scale: 92, translateY: 4,
+  bodyIconProbability: 100, gestureProbability: 100,
+}).toString());
+// 种子按生成顺序依次取用，顺序不能改：第一批 a61–a130、p01–p50，第二批 a131–a200、p51–p100
+for (let i = 60; i < 130; i++) common(i);
+for (let i = 0; i < 50; i++) premium(i);
+for (let i = 130; i < 200; i++) common(i);
+for (let i = 50; i < 100; i++) premium(i);
 // 稀有：小动物
-for (let i = 0; i < 40; i++) write(id('r', i + 1), rareAvatar(i));
+for (let i = 0; i < 50; i++) write(id('r', i + 1), rareAvatar(i));
+// 史诗：像素旅人
+for (let i = 0; i < 40; i++) write(id('e', i + 1), epicAvatar(i));
 // 传说：烫金版画肖像
-for (let i = 0; i < 16; i++) write(id('l', i + 1), legendAvatar(i));
-console.log(`已生成 130 + 50 + 40 + 16 = 236 个头像 → public/avatars/（新种子用了 ${used} 个）`);
+for (let i = 0; i < 20; i++) write(id('l', i + 1), legendAvatar(i));
+console.log(`已生成 200 + 100 + 50 + 40 + 20 = 410 个头像 → public/avatars/（新种子用了 ${used} 个）`);

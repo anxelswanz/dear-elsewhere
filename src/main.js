@@ -7,7 +7,7 @@ import '@fontsource/noto-serif-sc/500.css';
 import '@fontsource/noto-serif-sc/700.css';
 import { t, lang, applyStatic, localName } from './i18n.js';
 import { initAuth, avatarUrl, myBirthplace } from './auth.js';
-import { initSocial } from './social.js';
+import { initSocial, ago } from './social.js';
 import { initChat } from './chat.js';
 import { track } from './track.js';
 import { initSnapshot } from './snapshot.js';
@@ -158,6 +158,7 @@ async function loadBase() {
     geo.countryById.set(f.properties.id, f);
   });
   index.regions.forEach(([id, name, en, country]) => geo.regionById.set(id, { id, name: localName(name, en), zh: name, en, country }));
+  geo.legacyCity = index.legacy || {};
   index.cities.forEach(([id, name, en, country, region, lat, lng, rank]) => {
     const c = { id, name: localName(name, en), zh: name, en, country, region, lat, lng, rank };
     geo.cities.push(c);
@@ -188,13 +189,58 @@ async function loadRegionCities(regionId) {
   return geo.regionCities.get(regionId);
 }
 
-const countryName = id => geo.countryById.get(id)?.properties.name || '';
+// 台湾、香港、澳门是中国的省级行政区（scripts/build-data.mjs）。旧数据里它们是单独的「国家」TWN / HKG / MAC：
+// 护照上的旧代码仍然显示名称；打卡用 chinaPartPatch() 改到新结构
+const CN_PART = {
+  TWN: { region: 'CN710000', zh: '中国台湾', en: 'Taiwan, China' },
+  HKG: { region: 'CN810000', zh: '中国香港', en: 'Hong Kong, China' },
+  MAC: { region: 'CN820000', zh: '中国澳门', en: 'Macau, China' },
+};
+const legacyCountry = id => CN_PART[id] && { id, name: localName(CN_PART[id].zh, CN_PART[id].en), zh: CN_PART[id].zh, en: CN_PART[id].en };
+
+// 旧打卡 → 新结构（返回要改的字段，不需要改时返回 null）：
+//   国家 台湾/香港/澳门 → 中国的省级行政区；原来的一级行政区（台湾县市、香港各区）→ 城市（id 不变）；
+//   原来的城市点（台湾、香港的乡镇）→ 地点，名字和坐标都保留；澳门按坐标找最近的堂区
+function chinaPartPatch(r) {
+  const part = CN_PART[r.country];
+  if (!part) return null;
+  const region = part.region;
+  let city = r.region && geo.cityById.get(r.region)?.region === region ? r.region
+    : geo.legacyCity[r.city] || '';
+  if (!city && r.lat != null && r.lng != null) {
+    let best = null, bestKm = 25;
+    for (const c of geo.cities) {
+      if (c.region !== region) continue;
+      const km = distKm(r.lat, r.lng, c.lat, c.lng);
+      if (km < bestKm) { bestKm = km; best = c; }
+    }
+    city = best?.id || '';
+  }
+  const patch = { country: 'CHN', region, city };
+  if (r.level === 'country' || (r.level === 'region' && !city)) Object.assign(patch, { level: 'region', ref: region, city: '', name: regionName(region) });
+  else if (r.level === 'region') Object.assign(patch, { level: 'city', ref: city, name: cityName(city) });
+  else if (r.level === 'city') Object.assign(patch, r.lat != null && r.lng != null ? { level: 'place', ref: '' } : { level: 'region' });
+  if (patch.level === 'region' && r.level === 'city') Object.assign(patch, { ref: region, city: '', name: regionName(region) });
+  return patch;
+}
+
+async function migrateChinaParts() {
+  for (const r of [...records, ...tombstones]) {
+    const patch = chinaPartPatch(r);
+    if (!patch) continue;
+    Object.assign(r, patch);
+    touch(r);
+    await db.put(r);
+  }
+}
+
+const countryName = id => geo.countryById.get(id)?.properties.name || legacyCountry(id)?.name || '';
 const regionName = id => geo.regionById.get(id)?.name || '';
 const cityName = id => geo.cityById.get(id)?.name || '';
-const countryZh = id => geo.countryById.get(id)?.properties.zh || '';
+const countryZh = id => geo.countryById.get(id)?.properties.zh || CN_PART[id]?.zh || '';
 const regionZh = id => geo.regionById.get(id)?.zh || '';
 const cityZh = id => geo.cityById.get(id)?.zh || '';
-const countryEn = id => geo.countryById.get(id)?.properties.en || '';
+const countryEn = id => geo.countryById.get(id)?.properties.en || CN_PART[id]?.en || '';
 const regionEn = id => geo.regionById.get(id)?.en || '';
 const cityEn = id => geo.cityById.get(id)?.en || '';
 
@@ -358,6 +404,9 @@ async function removeRecord(r) {
 // 同步拉取或推送后，把合并好的记录放回界面
 let refreshQueued = false;
 function applySynced(r) {
+  // 别的设备还是旧版本时，同步回来的可能仍是旧结构
+  const patch = chinaPartPatch(r);
+  if (patch) { Object.assign(r, patch); touch(r); db.put(r); }
   const shown = records.includes(r);
   if (r.deleted && shown) {
     records = records.filter(x => x !== r);
@@ -378,7 +427,7 @@ let birthLayer = null; // 地图在后面才创建，第一次用到时再加
 function renderBirthplace() {
   birthLayer ||= L.layerGroup().addTo(map);
   birthLayer.clearLayers();
-  const c = geo.cityById.get(myBirthplace());
+  const c = geo.cityById.get(geo.legacyCity[myBirthplace()] || myBirthplace());
   if (!c) return;
   const label = t('birth.marker');
   const html = `<div class="birth-mark" title="${label} · ${escapeHtml(c.name)}">
@@ -1492,8 +1541,34 @@ const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', '
 const TILTS = [-3, 2.2, -1.4, 3.2, -2.4, 1.2];
 let shownPhotos = new Set(); // 已经入场过的照片，不再重复播放动画
 
+// ---------- 明信片里的好友评论 ----------
+const CARD_COMMENTS = 3;
+let cardCommentsOpen = false;
+function renderCardComments(r) {
+  const box = $('#cardComments');
+  const list = r && social && me ? [...social.comments(`${me}/${r.id}`)].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)) : [];
+  box.hidden = !list.length;
+  if (!list.length) { box.innerHTML = ''; return; }
+  const shown = cardCommentsOpen ? list : list.slice(0, CARD_COMMENTS);
+  const rest = list.length - CARD_COMMENTS;
+  box.innerHTML = `<p class="pc-marker-title"><span>${t('card.comments')}</span><small>${t('card.commentsN', { n: list.length })}</small></p>
+    <ul class="post-comments">${shown.map(c => {
+      const a = social.author(c.author);
+      const name = c.author === me ? t('feed.me') : a?.name || t('feed.friend');
+      return `<li><img src="${avatarUrl(a?.avatar || 'a01')}" alt="" />
+        <p><b>${escapeHtml(name)}</b>${escapeHtml(c.body)}<time>${ago(c.created_at)}</time></p></li>`;
+    }).join('')}</ul>
+    ${rest > 0 ? `<button type="button" class="pc-comments-more" data-card-more aria-expanded="${cardCommentsOpen}">${cardCommentsOpen ? t('card.less') : t('card.more', { n: rest })}</button>` : ''}`;
+}
+$('#cardComments').addEventListener('click', e => {
+  if (!e.target.closest('[data-card-more]')) return;
+  cardCommentsOpen = !cardCommentsOpen;
+  renderCardComments(current());
+});
+
 function openEditor(id) {
   currentId = id;
+  cardCommentsOpen = false;
   shownPhotos = new Set();
   $('#photoGrid').dataset.sig = '';
   const ed = $('#editor');
@@ -1543,6 +1618,7 @@ function fillEditor(r) {
   $('#doneEditor').textContent = t(r.photos.length && !r.publishedAt ? 'doneSend' : 'done');
   renderPhotos(r);
   renderMarkerPicker(r);
+  renderCardComments(r);
 }
 
 // 「地图上的样子」：每个选项都是真实标记的缩小预览
@@ -2031,7 +2107,7 @@ async function assignMissing() {
 // ---------- 启动 ----------
 (async () => {
   const baseReady = withLoading(loadBase());
-  const account = initAuth({ countries: baseReady.then(() => geo.world.features.map(f => f.properties)) });
+  const account = initAuth({ countries: baseReady.then(() => [...geo.world.features.map(f => f.properties), ...Object.keys(CN_PART).map(legacyCountry)]) });
   await baseReady;
   drawWorld();
   renderCrumbs();
@@ -2042,6 +2118,7 @@ async function assignMissing() {
   const all = await db.all();
   records = all.filter(r => !r.deleted);
   tombstones = all.filter(r => r.deleted);
+  await migrateChinaParts();
   await assignMissing();
   refresh();
   initSettings({ records: () => records, pathOf });
@@ -2063,13 +2140,15 @@ async function assignMissing() {
     me: { id: user.id, profile },
     helpers: {
       placeText: row => pathOf(row).map(p => p.name).join(' / '),
+      fixPlace: chinaPartPatch,
       countryName,
+      closeDrop: () => closeDrop(),
       myRecords: () => records,
       showPhoto: showLightbox,
       openDrop: name => openDrop !== name && setDrop(name),
       flyTo: flyToRow,
       fitPins: list => list.length && map.flyToBounds(L.latLngBounds(list.map(p => toMap(p.lat, p.lng))).pad(0.4), { maxZoom: 15, duration: 1 }),
-      onChange: () => { renderPlaces(); friendsControl.sync(); chat?.friendsChanged(); },
+      onChange: () => { renderPlaces(); friendsControl.sync(); chat?.friendsChanged(); if (currentId) renderCardComments(current()); },
       chatUnread: id => chat?.unread(id) || 0,
       groupsHtml: () => chat?.groupsHtml() || '',
     },
@@ -2083,6 +2162,7 @@ async function assignMissing() {
       myRecords: () => records,
       localPhotoUrl: photoUrl,
       placeText: row => pathOf(row).map(p => p.name).join(' / '),
+      fixPlace: chinaPartPatch,
       showPhoto: showLightbox,
       flyTo: flyToRow,
       toast,

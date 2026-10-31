@@ -11,6 +11,8 @@ const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'publ
 // 约定俗成的英文名，或拼音容易出错的
 const OVERRIDES = {
   内蒙古自治区: 'Inner Mongolia', 西藏自治区: 'Tibet', 香港特别行政区: 'Hong Kong', 澳门特别行政区: 'Macau', 台湾省: 'Taiwan',
+  花地玛堂区: 'Our Lady of Fátima', 花王堂区: 'St. Anthony', 望德堂区: 'St. Lazarus', 大堂区: 'Sé (Cathedral)',
+  风顺堂区: 'St. Lawrence', 嘉模堂区: 'Taipa', 路凼填海区: 'Cotai', 圣方济各堂区: 'Coloane',
   陕西省: 'Shaanxi', 山西省: 'Shanxi',
   呼和浩特市: 'Hohhot', 乌鲁木齐市: 'Ürümqi', 拉萨市: 'Lhasa', 哈尔滨市: 'Harbin', 喀什地区: 'Kashgar',
   西双版纳傣族自治州: 'Xishuangbanna', 日喀则市: 'Shigatse', 包头市: 'Baotou', 重庆市: 'Chongqing',

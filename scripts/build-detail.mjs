@@ -28,6 +28,7 @@ const LAYERS = {
   rivers: ['ne_10m_rivers_lake_centerlines', 'ne_10m_rivers_europe', 'ne_10m_rivers_north_america'],
 };
 const RANKED = new Set(['lakes', 'urban', 'rivers']);
+const CN_PARTS = new Set(['CHN', 'TWN', 'HKG', 'MAC']);
 
 async function download(name) {
   const file = path.join(RAW, `${name}.geojson`);
@@ -72,6 +73,8 @@ for (const [layer, names] of Object.entries(LAYERS)) {
       if (!f.geometry) continue;
       const rank = f.properties.scalerank ?? f.properties.SCALERANK ?? 0;
       if (layer === 'coast' && rank > 6) continue; // 100 = 南极冰架边缘之类
+      // 香港、澳门与内地之间是中国境内的界线，不画成国界（与 build-data.mjs 一致）
+      if (layer === 'borders' && CN_PARTS.has(f.properties.ADM0_A3_L) && CN_PARTS.has(f.properties.ADM0_A3_R)) continue;
       features.push({ type: 'Feature', properties: { r: rank }, geometry: f.geometry });
     }
   }

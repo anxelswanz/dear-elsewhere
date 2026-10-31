@@ -7,7 +7,7 @@
 // 数据权限见 supabase/migrations/0003_social.sql
 import { supabase } from './supabase.js';
 import { avatarUrl } from './auth.js';
-import { t } from './i18n.js';
+import { t, lang } from './i18n.js';
 import { limitText } from './limits.js';
 import { track } from './track.js';
 
@@ -20,6 +20,7 @@ const $ = sel => document.querySelector(sel);
 const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const keyOf = (owner, id) => `${owner}/${id}`;
 const fmtDate = d => (d || '').replaceAll('-', '.');
+const BRAND = `${import.meta.env.BASE_URL}brand/`; // 护照封皮上的烫金邮票
 
 export function ago(at) {
   const s = (Date.now() - Date.parse(at)) / 1000;
@@ -120,6 +121,8 @@ export function initSocial({ me, helpers }) {
         supabase.from('comments').select('*').order('created_at', { ascending: false }).limit(500),
       ]);
       for (const r of [fr, posts, pins, comments]) if (r.error) throw r.error;
+      // 好友还没升级时，打卡里的台湾/香港/澳门仍是旧结构
+      for (const row of [...posts.data, ...pins.data]) { const patch = helpers.fixPlace?.(row); if (patch) Object.assign(row, patch); }
       // 静音列表：还没执行 0015 时没有这张表，当作没静音任何人
       const mutes = await supabase.from('feed_mutes').select('muted');
       state.muted = new Set(mutes.error ? [] : mutes.data.map(m => m.muted));
@@ -195,7 +198,8 @@ export function initSocial({ me, helpers }) {
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && soon());
 
   // ---------- 渲染 ----------
-  const avatarImg = (p, cls = 'avatar') => `<span class="${cls}"><img src="${avatarUrl(p?.avatar || 'a01')}" alt="" /></span>`;
+  // data-passport：点头像打开这个人的护照（见 openPassport）
+  const avatarImg = (p, cls = 'avatar') => `<span class="${cls}"${p?.id ? ` data-passport="${p.id}"` : ''}><img src="${avatarUrl(p?.avatar || 'a01')}" alt="" /></span>`;
   const countryText = id => helpers.countryName(id) || '';
 
   function render() {
@@ -289,7 +293,7 @@ export function initSocial({ me, helpers }) {
       <ul class="post-comments">${shown.map(c => {
         const a = state.profiles.get(c.author);
         const canDel = c.author === me.id || owner === me.id;
-        return `<li data-comment="${c.id}"><img src="${avatarUrl(a?.avatar || 'a01')}" alt="" />
+        return `<li data-comment="${c.id}"><img src="${avatarUrl(a?.avatar || 'a01')}" alt="" data-passport="${c.author}" />
           <p><b>${escapeHtml(a?.name || t('feed.friend'))}</b>${escapeHtml(c.body)}<time>${ago(c.created_at)}</time></p>
           ${canDel ? `<button class="post-del" data-del-comment title="${t('feed.deleteComment')}">×</button>` : ''}</li>`;
       }).join('')}</ul>`;
@@ -360,7 +364,7 @@ export function initSocial({ me, helpers }) {
     if (open) {
       return `<article class="post post-group open${fresh ? ' fresh' : ''}" data-group="${g.key}" data-user="${g.user}">
         ${head}<p class="pg-title">${title}</p>
-        <ol class="pg-stops">${g.posts.map(p => `<li class="pg-stop${isFresh(p) ? ' fresh' : ''}" data-post="${keyOf(p.user_id, p.id)}">
+        <ol class="pg-stops">${[...g.posts].reverse().map(p => `<li class="pg-stop${isFresh(p) ? ' fresh' : ''}" data-post="${keyOf(p.user_id, p.id)}">
           <span class="pg-when">${ago(p.published_at)}</span>${postBody(p, drafts)}</li>`).join('')}</ol>
         ${toggle}</article>`;
     }
@@ -418,7 +422,7 @@ export function initSocial({ me, helpers }) {
         const a = state.profiles.get(c.author);
         const fresh = Date.parse(c.created_at) > state.commentsSeen;
         return `<li class="${fresh ? 'fresh' : ''}" data-open-post="${keyOf(c.checkin_owner, c.checkin_id)}">
-          <img src="${avatarUrl(a?.avatar || 'a01')}" alt="" />
+          <img src="${avatarUrl(a?.avatar || 'a01')}" alt="" data-passport="${c.author}" />
           <p><b>${escapeHtml(a?.name)}</b> ${t('me.commented', { title: escapeHtml(title(c.checkin_id)) })}<span>${escapeHtml(c.body)}</span></p>
           <time>${ago(c.created_at)}</time></li>`;
       }).join('')}</ul>` : '';
@@ -602,6 +606,120 @@ export function initSocial({ me, helpers }) {
   render();
   load();
 
+
+  // ---------- 好友的护照：资料（不含生日、出生地）+ 今年去过的地方 ----------
+  const passportBox = document.createElement('div');
+  passportBox.className = 'fp-wrap';
+  passportBox.hidden = true;
+  document.body.append(passportBox);
+  let passportFor = null;
+
+  const fpField = (zh, en, value, wide = false) => `<div class="pp-field fp-field${wide ? ' pp-field-wide' : ''}">
+    <span>${lang === 'zh' && en ? `${t(zh)} · <i>${t(en)}</i>` : t(zh)}</span><b>${value}</b></div>`;
+  const levelText = l => t(`level.${l}`);
+
+  function closePassport() {
+    passportFor = null;
+    passportBox.hidden = true;
+    passportBox.innerHTML = '';
+  }
+
+  async function openPassport(id) {
+    passportFor = id;
+    track('friend_passport');
+    const cached = state.profiles.get(id);
+    const year = new Date().getFullYear();
+    drawPassport(cached, null, null);
+    passportBox.hidden = false;
+
+    const [pr, rows] = await Promise.all([
+      supabase.from('profiles').select('id, handle, name, country, avatar, created_at').eq('id', id).maybeSingle(),
+      supabase.from('checkins').select('user_id, id, level, name, label, date, note, lat, lng, country, region, city, photos, published_at')
+        .eq('user_id', id).eq('deleted', false).gte('date', `${year}-01-01`).lte('date', `${year}-12-31`)
+        .order('date', { ascending: false }).limit(500),
+    ]);
+    if (passportFor !== id) return;
+    const profile = pr.data || cached;
+    if (pr.data) putProfile(pr.data);
+    const places = rows.error ? [] : rows.data;
+    for (const row of places) { const patch = helpers.fixPlace?.(row); if (patch) Object.assign(row, patch); }
+    // 只给已经发布的明信片签照片链接（和动态、地图一致：没发布的不给好友看照片）
+    await sign(places.filter(p => p.published_at).flatMap(p => p.photos.slice(0, 1).map(ph => `${p.user_id}/${ph.id}_t.jpg`)));
+    if (passportFor !== id) return;
+    passportBox._places = places;
+    drawPassport(profile, places, year);
+
+    function drawPassport(p, list, y) {
+      const friend = state.friends.find(f => f.profile.id === id);
+      const no = id.slice(0, 8).toUpperCase();
+      const issued = p?.created_at ? fmtDate(p.created_at.slice(0, 10)) : '—';
+      const stats = list && {
+        countries: new Set(list.map(r => r.country).filter(Boolean)).size,
+        cities: new Set(list.map(r => r.city).filter(Boolean)).size,
+      };
+      passportBox.innerHTML = `<div class="fp-backdrop" data-fp-close></div>
+        <article class="passport fp" role="dialog" aria-modal="true" aria-labelledby="fpTitle">
+          <button type="button" class="pc-close" data-fp-close title="${t('close')}">×</button>
+          <header class="pp-cover">
+            <img class="pp-emblem" src="${BRAND}stamp-gold.png" srcset="${BRAND}stamp-gold.png 1x, ${BRAND}stamp-gold@2x.png 2x" alt="" />
+            <div><p>${t('pp.kicker')}</p><h2 id="fpTitle">${escapeHtml(p?.name || t('feed.friend'))}</h2></div>
+            <span class="pp-no">No. ${no}</span>
+          </header>
+          <div class="pp-page">
+            <div class="pp-main">
+              <div class="pp-photo"><span class="pp-photo-frame"><img src="${avatarUrl(p?.avatar || 'a01')}" alt="" /></span></div>
+              <div class="pp-fields">
+                ${fpField('pp.handle', 'pp.handleEn', `@${escapeHtml(p?.handle || '')}`, true)}
+                ${fpField('pp.name', 'pp.nameEn', escapeHtml(p?.name || '—'))}
+                ${fpField('pp.country', 'pp.countryEn', escapeHtml(countryText(p?.country) || '—'))}
+                ${fpField('fp.no', 'fp.noEn', no)}
+                ${fpField('fp.issued', 'fp.issuedEn', issued)}
+                ${friend?.since ? fpField('fp.since', 'fp.sinceEn', fmtDate(friend.since.slice(0, 10)), true) : ''}
+              </div>
+            </div>
+            <section class="fp-year">
+              <p class="fp-year-head"><b>${t('fp.year', { y: y || new Date().getFullYear() })}</b>
+                ${list ? `<small>${list.length ? t('fp.yearStats', { n: list.length, c: stats.countries, k: stats.cities }) : ''}</small>` : `<small>${t('loading')}</small>`}</p>
+              ${!list ? '' : list.length ? `<div class="fp-cards">${list.map(placeCard).join('')}</div>`
+                : `<p class="fp-empty">${t(id === me.id ? 'fp.emptyMine' : friend ? 'fp.empty' : 'fp.notFriend')}</p>`}
+            </section>
+          </div>
+        </article>`;
+    }
+  }
+
+  function placeCard(r) {
+    const thumb = r.published_at && r.photos[0] ? thumbUrl(r.user_id, r.photos[0].id) : '';
+    const title = (r.label || '').trim() || r.name || t('unnamed');
+    const where = helpers.placeText(r);
+    return `<button type="button" class="fp-card${thumb ? '' : ' no-photo'}" data-fp-fly="${r.id}">
+      <span class="fp-thumb">${thumb ? `<img src="${thumb}" alt="" loading="lazy" />` : icon('pin')}</span>
+      <span class="fp-text"><b>${escapeHtml(title)}</b>
+        ${where && where !== title ? `<small>${escapeHtml(where)}</small>` : ''}
+        <i>${levelText(r.level)} · ${fmtDate(r.date)}</i></span>
+    </button>`;
+  }
+
+  // 头像在各处（好友列表、动态、评论、聊天）都可以点；捕获阶段处理，不触发所在行的其他动作
+  document.addEventListener('click', e => {
+    const el = e.target.closest?.('[data-passport]');
+    if (!el || !el.dataset.passport) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openPassport(el.dataset.passport);
+  }, true);
+  passportBox.addEventListener('click', e => {
+    if (e.target.closest('[data-fp-close]')) return closePassport();
+    const fly = e.target.closest('[data-fp-fly]')?.dataset.fpFly;
+    const row = fly && passportBox._places?.find(p => p.id === fly);
+    if (!row) return;
+    closePassport();
+    helpers.closeDrop?.();
+    if (row.user_id !== me.id && !state.overlay) setOverlay(true);
+    helpers.flyTo(row, row.user_id === me.id ? row.id : null);
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !passportBox.hidden) closePassport(); });
+
   return {
     load,
     get overlay() { return state.overlay; },
@@ -627,5 +745,6 @@ export function initSocial({ me, helpers }) {
     // 读取不在好友列表里的人（群成员）的资料，之后 author() 就能拿到
     ensureProfiles: profilesFor,
     openPost,
+    openPassport,
   };
 }

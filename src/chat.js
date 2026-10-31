@@ -237,7 +237,7 @@ export function initChat({ me, social, helpers }) {
     }
     const p = social.author(peerOf());
     avatar.className = 'ch-stamp';
-    avatar.innerHTML = `<img src="${avatarUrl(p?.avatar || 'a01')}" alt="" />`;
+    avatar.innerHTML = `<img src="${avatarUrl(p?.avatar || 'a01')}" alt="" data-passport="${peerOf()}" />`;
     $('#chatKicker').textContent = t('chat.kicker');
     $('#chatName').textContent = p?.name || '';
     $('#chatHandle').textContent = p ? `@${p.handle}` : '';
@@ -390,7 +390,7 @@ export function initChat({ me, social, helpers }) {
       const tail = !sameRun(next);
       // 群里别人的一组消息，开头写上是谁
       const from = group && !mine && !sameRun(prev)
-        ? `<p class="ch-from"><img src="${avatarUrl(social.author(m.sender)?.avatar || 'a01')}" alt="" />${escapeHtml(nameOf(m.sender))}</p>` : '';
+        ? `<p class="ch-from"><img src="${avatarUrl(social.author(m.sender)?.avatar || 'a01')}" alt="" data-passport="${m.sender}" />${escapeHtml(nameOf(m.sender))}</p>` : '';
       const content = m.kind === 'checkin' ? checkinCard(m) + (m.body ? `<p class="ch-bubble">${escapeHtml(m.body)}</p>` : '')
         : m.kind === 'comment' ? commentHtml(m)
         : bigEmoji(m.body) ? `<p class="ch-emoji">${escapeHtml(m.body.trim())}</p>`
@@ -519,7 +519,7 @@ export function initChat({ me, social, helpers }) {
         <ul class="sh-people">${members.map(m => {
           const p = social.author(m.user_id);
           return `<li class="sh-person">
-            <span class="avatar"><img src="${avatarUrl(p?.avatar || 'a01')}" alt="" /></span>
+            <span class="avatar" data-passport="${m.user_id}"><img src="${avatarUrl(p?.avatar || 'a01')}" alt="" /></span>
             <span class="person-text"><b>${escapeHtml(p?.name || t('grp.someone'))}${m.user_id === me.id ? ` <em>(${t('grp.you')})</em>` : ''}</b><small>${p ? `@${escapeHtml(p.handle)}` : ''}</small></span>
             ${m.user_id === g.owner ? `<em class="sh-owner">${t('grp.owner')}</em>` : ''}
             ${owner && m.user_id !== me.id ? `<button type="button" class="fr-btn fr-more" data-kick="${m.user_id}">${t('grp.kick')}</button>` : ''}
@@ -744,7 +744,7 @@ export function initChat({ me, social, helpers }) {
     box.innerHTML = `<p class="cv-c-title">${t('chat.comments')}${list.length ? ` <i>${list.length}</i>` : ''}</p>
       ${list.length ? `<ul class="post-comments">${list.map(c => {
         const a = social.author(c.author);
-        return `<li><img src="${avatarUrl(a?.avatar || 'a01')}" alt="" />
+        return `<li><img src="${avatarUrl(a?.avatar || 'a01')}" alt="" data-passport="${c.author}" />
           <p><b>${escapeHtml(c.author === me.id ? t('grp.you') : a?.name || t('grp.someone'))}</b>${escapeHtml(c.body)}<time>${ago(c.created_at)}</time></p></li>`;
       }).join('')}</ul>` : `<p class="cv-c-none">${t('chat.noComments')}</p>`}
       ${canComment(m)

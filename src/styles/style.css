@@ -446,6 +446,10 @@ button, input, textarea { font: inherit; }
 
 /* ---- 明信片里的样式选择 ---- */
 .pc-marker { padding: 6px 30px 0; }
+.pc-comments { padding: 4px 30px 0; }
+.pc-comments .post-comments { margin: 0; max-height: 320px; overflow-y: auto; }
+.pc-comments-more { margin: 2px 0 4px 30px; padding: 2px 0; border: none; background: none; font: 600 12px var(--serif-zh); color: var(--air-blue); cursor: pointer; }
+.pc-comments-more:hover { color: var(--air-red); }
 .pc-marker[hidden] { display: none; }
 .pc-marker-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 8px; }
 .pc-marker-title span { font: 600 11px var(--serif-en); letter-spacing: .26em; color: var(--air-red); }
@@ -469,6 +473,7 @@ button, input, textarea { font: inherit; }
 }
 @media (max-width: 700px) {
   .pc-marker { padding: 4px 18px 0; }
+  .pc-comments { padding: 4px 18px 0; }
   .mk-options { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
