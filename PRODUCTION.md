@@ -11,7 +11,7 @@
 
 ## 1. 数据库（Supabase → SQL Editor）
 
-- [ ] 按编号顺序执行 `supabase/migrations/0001` … `0018`，已经执行过的跳过（或 `node scripts/setup-prod.mjs migrate`）。
+- [ ] 按编号顺序执行 `supabase/migrations/0001` … `0019`，已经执行过的跳过（或 `node scripts/setup-prod.mjs migrate`）。
 - [ ] 把自己设为控制台管理员：`insert into public.admins (user_id) select id from auth.users where email = '你的邮箱';`，然后打开 `/dashboard/`。
 - [ ] 执行完打开 **Advisors → Security Advisor**，确认没有 “RLS disabled” 或 “Function search path mutable” 之类的警告。
 - [ ] 邀请码：旧的 `ANSEL-FRIEND` 太短，而且写在过代码里。换成随机码，再停用旧的：

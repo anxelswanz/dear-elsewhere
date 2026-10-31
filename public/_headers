@@ -1,7 +1,8 @@
 # Cloudflare Pages 的响应头（部署到其他平台时，把同样的头配到对应的配置里）
 #
 # CSP 允许的外部来源，新增服务时要同步加上：
-#   *.supabase.co             数据库、登录、实时推送（wss）、照片签名链接
+#   'self' + wss://本站        线上经 /sb/ 转发到 Supabase（worker/index.js）；wss 单独写上，旧版 Safari 的 'self' 不含 websocket
+#   *.supabase.co             数据库、登录、实时推送（wss）、照片签名链接（本地开发直连）
 #   server.arcgisonline.com   Esri 底图瓦片
 #   geocode.arcgis.com        Esri 地名反查、地点搜索
 #   *.tianditu.gov.cn         天地图瓦片和接口（配了 VITE_TIANDITU_KEY 才会用到）
@@ -9,7 +10,7 @@
 # 样式需要 'unsafe-inline'：页面里有 style="--i: …" 这类内联样式；脚本不允许内联（主题、语言脚本放在 public/boot/）
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://server.arcgisonline.com https://*.tianditu.gov.cn; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://geocode.arcgis.com https://api.tianditu.gov.cn https://tiles.openfreemap.org; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://server.arcgisonline.com https://*.tianditu.gov.cn; font-src 'self' data:; connect-src 'self' wss://dear-elsewhere.com wss://www.dear-elsewhere.com https://*.supabase.co wss://*.supabase.co https://geocode.arcgis.com https://api.tianditu.gov.cn https://tiles.openfreemap.org; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

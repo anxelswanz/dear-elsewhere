@@ -76,7 +76,12 @@ async function migrate() {
 }
 
 async function auth() {
-  const tpl = name => readFileSync(new URL(`supabase/templates/${name}.html`, root), 'utf8');
+  // 邮件里的链接改走本站 /sb/ 转发（worker/index.js）：国内直连 supabase.co 不稳定，点了打不开。
+  // ConfirmationURL 形如 https://<ref>.supabase.co/auth/v1/verify?...，用 Go 模板的 slice 去掉域名部分再接到本站后面
+  const direct = `https://${ref()}.supabase.co`;
+  const viaSite = `${CONFIG.siteUrl}/sb{{ slice .ConfirmationURL ${direct.length} }}`;
+  const tpl = name => readFileSync(new URL(`supabase/templates/${name}.html`, root), 'utf8')
+    .replaceAll('{{ .ConfirmationURL }}', viaSite);
   // 模板和主题由 scripts/build-emails.mjs 生成，按用户资料里的 lang 发中文或英文
   const subjects = JSON.parse(readFileSync(new URL('supabase/templates/subjects.json', root), 'utf8'));
   const resend = readFileSync(secret('resend_api_key.md'), 'utf8').match(/re_[A-Za-z0-9_]+/)?.[0];
@@ -144,7 +149,14 @@ async function admin() {
   const fields = { password, email_confirm: true, app_metadata: { dashboard: true } };
   let id = found?.id;
   if (id) await authApi('PUT', `/users/${id}`, fields);
-  else id = (await authApi('POST', '/users', { email: DASHBOARD_EMAIL, ...fields })).id;
+  else {
+    // Supabase 先插入用户、之后才写 app_metadata，邀请码触发器那一刻看不到 dashboard 标记，
+    // 所以建号时用一个临时的一次性邀请码，建完就删
+    const code = 'ADMIN' + randomBytes(8).toString('hex').toUpperCase();
+    await query(`insert into public.invite_codes (code, note) values ('${code}', 'dashboard account (temporary)')`);
+    try { id = (await authApi('POST', '/users', { email: DASHBOARD_EMAIL, user_metadata: { invite_code: code }, ...fields })).id; }
+    finally { await query(`delete from public.invite_codes where code = '${code}'`); }
+  }
   await query(`delete from public.admins where user_id <> '${id}'; insert into public.admins (user_id) values ('${id}') on conflict do nothing;`);
   console.log(`控制台账号已${found ? '更新密码' : '创建'}：用户名 admin（${DASHBOARD_EMAIL}），已设为唯一的管理员`);
 }

@@ -11,6 +11,8 @@ export default defineConfig(({ mode }) => {
   const suffix = target.toUpperCase();
   const url = env[`SUPABASE_URL_${suffix}`] || '';
   const key = env[`SUPABASE_KEY_${suffix}`] || '';
+  // 线上经本站 /sb/ 转发到 Supabase（worker/index.js），国内直连 supabase.co 不稳定；测试环境默认直连
+  const proxy = env[`SUPABASE_PROXY_${suffix}`] ?? (target === 'prod' ? '/sb/' : '');
   if (!url || !key) console.warn(`\n⚠ 没有配置 SUPABASE_URL_${suffix} / SUPABASE_KEY_${suffix}（见 .env.example）\n`);
   else console.log(`\n▶ Dear Elsewhere · ${target === 'prod' ? '生产环境 PROD' : '测试环境 TEST'} · ${url}\n`);
 
@@ -25,6 +27,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_APP_ENV': JSON.stringify(target),
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(url),
       'import.meta.env.VITE_SUPABASE_KEY': JSON.stringify(key),
+      'import.meta.env.VITE_SUPABASE_PROXY': JSON.stringify(proxy),
     },
   };
 });

@@ -1,0 +1,29 @@
+// Cloudflare Worker：/sb/* 转发到 Supabase，其余请求交给静态文件（dist/）
+// 为什么要转发：国内直连 *.supabase.co（法兰克福）很不稳定，点登录会一直没反应；
+// 走自己的域名后，浏览器只需要连得上 Cloudflare，Cloudflare 到 Supabase 是境外线路，很稳定。
+// 邮件里的链接（验证邮箱、重置密码）也改走这里，见 scripts/setup-prod.mjs 的 auth 步骤。
+
+const PREFIX = '/sb/';
+// 只转发 Supabase 的这几类接口
+const ALLOWED = /^(auth|rest|storage|realtime|functions)\/v1(\/|$)/;
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (!url.pathname.startsWith(PREFIX)) return env.ASSETS.fetch(request);
+
+    const rest = url.pathname.slice(PREFIX.length);
+    if (!ALLOWED.test(rest)) return new Response('Not found', { status: 404 });
+    const target = new URL(rest + url.search, env.SUPABASE_UPSTREAM.replace(/\/?$/, '/'));
+
+    const headers = new Headers(request.headers);
+    // Supabase 按 IP 限频（登录、注册、邀请码查询）：把真实访客 IP 带过去，不然所有人共用 Worker 的 IP
+    const ip = request.headers.get('cf-connecting-ip');
+    if (ip) headers.set('x-forwarded-for', ip);
+    headers.delete('cookie'); // Supabase 不用 cookie，不把本站的 cookie 带过去
+
+    // 实时推送是 websocket：原样转发，Workers 会把升级后的连接接起来
+    // redirect: manual —— 邮件链接验证后的 303 跳转要交给浏览器，不能在这里跟随
+    return fetch(new Request(target, { method: request.method, headers, body: request.body, redirect: 'manual' }));
+  },
+};

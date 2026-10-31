@@ -1559,19 +1559,19 @@ $('#markerOptions').addEventListener('click', async e => {
 });
 
 // 今年的照片额度：打开明信片时问一次服务端，之后加减照片时用本地待上传的张数修正
-// waiting：问服务端时还在排队的照片；之后传上去了，服务端的 used 里还没有它们，本地补上
-let yearQuota = null; // { used, limit, waiting }
+// uploaded：问服务端时已经传上去的照片；之后才传上去的（包括之后才加的），服务端的 used 里还没有，本地补上
+let yearQuota = null; // { used, limit, uploaded }
 const queuedPhotos = () => records.reduce((n, x) => n + x.photos.filter(p => !p.up && p.blob).length, 0);
 const setYearQuota = q => {
-  const waiting = new Set(records.flatMap(x => x.photos.filter(p => !p.up && p.blob).map(p => p.id)));
-  yearQuota = { used: q.yearUsed, limit: q.yearLimit, waiting };
+  const uploaded = new Set(records.flatMap(x => x.photos.filter(p => p.up).map(p => p.id)));
+  yearQuota = { used: q.yearUsed, limit: q.yearLimit, uploaded };
 };
 function renderYearQuota() {
   const box = $('#photoYear');
   box.hidden = !yearQuota || !Number.isFinite(yearQuota.limit);
   if (box.hidden) return;
-  const { used, limit, waiting } = yearQuota;
-  const sent = records.reduce((n, x) => n + x.photos.filter(p => p.up && waiting.has(p.id)).length, 0);
+  const { used, limit, uploaded } = yearQuota;
+  const sent = records.reduce((n, x) => n + x.photos.filter(p => p.up && !uploaded.has(p.id)).length, 0);
   const left = Math.max(0, limit - used - sent - queuedPhotos());
   box.querySelector('b').style.width = `${(left / limit) * 100}%`;
   box.querySelector('small').textContent = t('photosYear', { left, total: limit });

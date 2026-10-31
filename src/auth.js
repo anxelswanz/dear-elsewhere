@@ -245,7 +245,7 @@ function authError(err) {
   if (err?.code === 'over_email_send_rate_limit' || /email rate limit/i.test(m)) return t('err.mailLimit');
   if (err?.status === 429 || /rate limit|LIMIT:too_fast/i.test(m)) return t('err.rate'); // LIMIT：邀请码查询太频繁（0011）
   if (/error sending .*email/i.test(m)) return t('err.mail'); // Supabase 的 SMTP（Resend）发信失败
-  if (/fetch|network/i.test(m)) return t('err.network');
+  if (/fetch|network|timed? ?out|timeout|abort/i.test(m)) return t('err.network'); // 含 20 秒超时（src/supabase.js）
   return m || t('err.unknown');
 }
 
