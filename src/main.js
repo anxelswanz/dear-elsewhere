@@ -508,7 +508,8 @@ function autoPickBase() {
 const COLOR = { accent: '#e8590c', line: '#8b95a5', dim: '#1f2937' };
 const VISITED = { color: COLOR.accent, weight: 1, fillColor: COLOR.accent, fillOpacity: 0.4 };
 const OPEN = { color: '#5b6577', weight: 1.2, fillColor: COLOR.line, fillOpacity: 0.06 };
-const CURRENT = { color: COLOR.accent, weight: 2.5, fillColor: COLOR.accent, fillOpacity: 0 };
+// current：正在查看的区域，悬停时不再加填充，免得鼠标一划过整片变红、挡住底图
+const CURRENT = { color: COLOR.accent, weight: 2.5, fillColor: COLOR.accent, fillOpacity: 0, current: true };
 const CURRENT_VISITED = { ...CURRENT, fillOpacity: 0.12 }; // 正在查看、且盖过章：淡淡填一层，不挡底图
 const DIMMED = v => ({ color: COLOR.line, weight: 0.5, fillColor: v ? COLOR.accent : COLOR.dim, fillOpacity: v ? 0.15 : 0.12 });
 
@@ -531,6 +532,8 @@ function cityStyle(f) {
   return id === view.city ? { ...(visited.city.has(id) ? CURRENT_VISITED : CURRENT), weight: 3 } : DIMMED(visited.city.has(id));
 }
 
+let mapDragging = false;
+
 function geoLayer(fc, styleFn, level) {
   return L.featureGroup(WORLD_COPIES.map(offset => L.geoJSON(fc, {
     renderer, style: styleFn, bubblingMouseEvents: false,
@@ -544,7 +547,10 @@ function geoLayer(fc, styleFn, level) {
       });
       layer.on('mouseover', () => {
         if (view.level === 'city') return;
+        // 拖地图找地方时鼠标会扫过很多区域，不要一路闪；触屏点一下也会触发 mouseover，同样跳过
+        if (mapDragging || !matchMedia('(hover: hover)').matches) return;
         const s = styleFn(f);
+        if (s.current) return;
         layer.setStyle({ weight: s.weight + 1.5, fillOpacity: Math.min(0.7, s.fillOpacity + 0.15) });
       });
       layer.on('mouseout', () => layer.setStyle(styleFn(f)));
@@ -871,6 +877,8 @@ for (const type of ['pointerup', 'pointercancel']) {
   });
 }
 map.on('movestart zoomstart', cancelPress);
+map.on('dragstart', () => { mapDragging = true; });
+map.on('dragend', () => { mapDragging = false; });
 // 长按别弹出系统菜单
 mapEl.addEventListener('contextmenu', e => { if (canStamp()) e.preventDefault(); });
 
