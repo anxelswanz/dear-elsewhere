@@ -8,6 +8,7 @@
 
 import { VectorTile } from '@mapbox/vector-tile';
 import { PbfReader } from 'pbf';
+import { routed } from './net.js';
 
 export const STREETS_CREDIT = '© OpenStreetMap contributors · © OpenMapTiles · OpenFreeMap';
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
@@ -22,7 +23,8 @@ const tiles = new Map(); // "z/x/y" -> Promise<要素[]>
 
 // 瓦片地址里带数据版本号，从 TileJSON 取
 function tileUrl() {
-  template ||= fetch(TILEJSON).then(r => r.json()).then(j => j.tiles[0]).catch(e => { template = null; throw e; });
+  // 国内用户经本站 /ofm/ 转发（src/net.js），TileJSON 和瓦片都要换地址
+  template ||= fetch(routed(TILEJSON)).then(r => r.json()).then(j => routed(j.tiles[0])).catch(e => { template = null; throw e; });
   return template;
 }
 

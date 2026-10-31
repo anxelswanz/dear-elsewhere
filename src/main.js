@@ -18,6 +18,7 @@ applyStatic();
 import { createSync, touch } from './sync.js';
 import { LIMITS, accountDay, photoQuota, hhmm, limitText } from './limits.js';
 import { viaSite } from './supabase.js';
+import { routed } from './net.js';
 //
 // 层级：世界 -> 国家 -> 省/州 -> 城市 -> 具体地点
 // 每条打卡记录（record）的 level 为 country / region / city / place，
@@ -415,8 +416,10 @@ function refresh() {
 const TDT_KEY = import.meta.env.VITE_TIANDITU_KEY;
 // 线上经本站 /geo/ 转发（worker/index.js）：国内直连 arcgis.com 很慢，搜索要等十几秒甚至没结果
 const ESRI_GEOCODE = viaSite ? `${location.origin}/geo` : 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer';
+// 慢网络下缩放更顺：缩放动画过程中不请求中间层级的瓦片，停下再加载；周围多留一圈瓦片，拖动时不露白
+const TILE_OPTS = { updateWhenZooming: false, keepBuffer: 3 };
 const tdt = (layer, opts) => L.tileLayer(`https://t{s}.tianditu.gov.cn/${layer}_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TDT_KEY}`, {
-  subdomains: '01234567', maxZoom: 18, ...opts,
+  subdomains: '01234567', maxZoom: 18, ...TILE_OPTS, ...opts,
 });
 // 天地图的底图和注记是两层：vec/img + cva/eva、cia/eia（c 中文，e 英文）
 const tdtBase = (layer, notes) => L.layerGroup([
@@ -428,13 +431,15 @@ if (TDT_KEY) {
   baseLayers[t('base.tdt')] = tdtBase('vec', 'va');
   baseLayers[t('base.tdtSat')] = tdtBase('img', 'ia');
 }
-baseLayers[t('base.intl')] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+// 国内用户的 Esri 瓦片经本站转发、Cloudflare 缓存（src/net.js）
+baseLayers[t('base.intl')] = L.tileLayer(routed('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'), {
+  ...TILE_OPTS,
   maxZoom: 19,
   // Esri 要求的署名：Powered by Esri + 底图的数据来源（取自 World Street Map 图层的 Credits）
   attribution: 'Powered by <a href="https://www.esri.com" target="_blank">Esri</a> | Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors, and the GIS User Community',
 });
 // 卫星图 + 地名注记两层，免 key（没配天地图 key 时，全球默认用上面的街道图）
-const esri = (path, opts) => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${path}/MapServer/tile/{z}/{y}/{x}`, { maxZoom: 19, ...opts });
+const esri = (path, opts) => L.tileLayer(routed(`https://server.arcgisonline.com/ArcGIS/rest/services/${path}/MapServer/tile/{z}/{y}/{x}`), { ...TILE_OPTS, maxZoom: 19, ...opts });
 baseLayers[t('base.sat')] = L.layerGroup([
   esri('World_Imagery', { attribution: 'Powered by <a href="https://www.esri.com" target="_blank">Esri</a> | Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community' }),
   esri('Reference/World_Boundaries_and_Places'),
@@ -647,9 +652,16 @@ const markerIcon = (r, opts) =>
 
 let highlight = null; // 从动态飞过来时，高亮这条打卡
 
-function renderPlaces() {
-  placeLayer.clearLayers();
+// onZoom：缩放触发时，标记由 Leaflet 自己跟着地图移动，只有跨过显示方式的分界（远 / 近、评论气泡）才重画；
+// 缩得很小时的好友圆点按屏幕距离合并，每一级都要重算
+let placesBucket = null;
+function renderPlaces({ onZoom = false } = {}) {
   const z = map.getZoom();
+  const near = view.level === 'city' || z >= 8;
+  const bucket = near ? `near|${z >= 12}` : 'dots';
+  if (onZoom && near && bucket === placesBucket) return;
+  placesBucket = bucket;
+  placeLayer.clearLayers();
   $('#map').classList.toggle('mk-far', z < 12);
   if (view.level !== 'city' && z < 8) return renderFriendDots();
   const chatOf = key => (z >= 12 && social?.comments(key).length ? key : null);
@@ -1041,7 +1053,7 @@ const parentOf = v =>
   : v.level === 'country' ? { level: 'world' } : null;
 
 map.on('zoomend', () => {
-  renderPlaces();
+  renderPlaces({ onZoom: true });
   const z = map.getZoom();
   let next = view;
   while (next.level !== 'world') {
