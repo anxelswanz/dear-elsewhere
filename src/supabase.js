@@ -8,7 +8,9 @@ const proxy = import.meta.env.VITE_SUPABASE_PROXY; // 生产环境为 /sb/：经
 
 // 国内直连 *.supabase.co 不稳定，线上走本站的 /sb/；本地开发（vite）没有 Worker，仍然直连
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);
-const url = proxy && direct && !local ? new URL(proxy, location.origin).href : direct;
+// 线上有 Worker：Supabase 和 Esri 地名搜索都经本站转发（worker/index.js）
+export const viaSite = Boolean(proxy && !local);
+const url = viaSite && direct ? new URL(proxy, location.origin).href : direct;
 
 // 登录状态按原来的直连地址命名保存，换成转发地址后已登录的用户不会被登出
 export const clientOptions = direct ? { auth: { storageKey: `sb-${new URL(direct).hostname.split('.')[0]}-auth-token` } } : {};

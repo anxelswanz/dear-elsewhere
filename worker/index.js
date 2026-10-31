@@ -1,4 +1,4 @@
-// Cloudflare Worker：/sb/* 转发到 Supabase，其余请求交给静态文件（dist/）
+// Cloudflare Worker：/sb/* 转发到 Supabase，/geo/* 转发到 Esri 地名搜索，其余请求交给静态文件（dist/）
 // 为什么要转发：国内直连 *.supabase.co（法兰克福）很不稳定，点登录会一直没反应；
 // 走自己的域名后，浏览器只需要连得上 Cloudflare，Cloudflare 到 Supabase 是境外线路，很稳定。
 // 邮件里的链接（验证邮箱、重置密码）也改走这里，见 scripts/setup-prod.mjs 的 auth 步骤。
@@ -7,9 +7,22 @@ const PREFIX = '/sb/';
 // 只转发 Supabase 的这几类接口
 const ALLOWED = /^(auth|rest|storage|realtime|functions)\/v1(\/|$)/;
 
+// Esri 地名搜索、坐标反查（免 key 接口）：国内直连 arcgis.com 同样很慢
+const GEO_PREFIX = '/geo/';
+const GEO_UPSTREAM = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/';
+const GEO_ALLOWED = /^(findAddressCandidates|reverseGeocode|suggest)$/;
+
+function geocode(request, url) {
+  const op = url.pathname.slice(GEO_PREFIX.length);
+  if (request.method !== 'GET' || !GEO_ALLOWED.test(op)) return new Response('Not found', { status: 404 });
+  // 只带必要的头：不把本站的 cookie、来源页面等信息交给第三方
+  return fetch(GEO_UPSTREAM + op + url.search, { headers: { accept: 'application/json' } });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith(GEO_PREFIX)) return geocode(request, url);
     if (!url.pathname.startsWith(PREFIX)) return env.ASSETS.fetch(request);
 
     const rest = url.pathname.slice(PREFIX.length);

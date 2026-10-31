@@ -17,6 +17,7 @@ import { initSettings } from './settings.js';
 applyStatic();
 import { createSync, touch } from './sync.js';
 import { LIMITS, accountDay, photoQuota, hhmm, limitText } from './limits.js';
+import { viaSite } from './supabase.js';
 //
 // 层级：世界 -> 国家 -> 省/州 -> 城市 -> 具体地点
 // 每条打卡记录（record）的 level 为 country / region / city / place，
@@ -412,7 +413,8 @@ function refresh() {
 // 天地图管中国（坐标就是 WGS84，不用再做偏移），key 写在 .env.local；
 // Esri 管国外，用的是免 key 的公开接口（非商业用途；商用需改成带 API key 的 ArcGIS Location Platform）
 const TDT_KEY = import.meta.env.VITE_TIANDITU_KEY;
-const ESRI_GEOCODE = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer';
+// 线上经本站 /geo/ 转发（worker/index.js）：国内直连 arcgis.com 很慢，搜索要等十几秒甚至没结果
+const ESRI_GEOCODE = viaSite ? `${location.origin}/geo` : 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer';
 const tdt = (layer, opts) => L.tileLayer(`https://t{s}.tianditu.gov.cn/${layer}_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TDT_KEY}`, {
   subdomains: '01234567', maxZoom: 18, ...opts,
 });
@@ -926,8 +928,15 @@ async function locate(lat, lng) {
   return loc;
 }
 
+// 地名接口最多等 8 秒：一家卡住时不能让整个搜索一直转圈
+const GEO_TIMEOUT = 8000;
+function withTimeout(signal) {
+  const t = AbortSignal.timeout(GEO_TIMEOUT);
+  return !signal ? t : AbortSignal.any ? AbortSignal.any([signal, t]) : signal; // 老浏览器没有 any：只靠调用方取消
+}
+
 async function getJson(url, signal) {
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, { signal: withTimeout(signal) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -1370,7 +1379,8 @@ async function searchEsri(q, signal) {
   });
 }
 
-async function searchPlaces(q) {
+// 天地图和 Esri 谁先回来先显示谁（onUpdate），不用等慢的那一家
+async function searchPlaces(q, onUpdate) {
   poiCtrl?.abort();
   poiCtrl = new AbortController();
   const { signal } = poiCtrl;
@@ -1380,16 +1390,25 @@ async function searchPlaces(q) {
   if (china !== true || !TDT_KEY) jobs.push(searchEsri(q, signal));
   // 世界视图下输入中文时天地图的结果排前面，否则 Esri 排前面
   if (china === null && !/[一-鿿]/.test(q)) jobs.reverse();
-  const lists = await Promise.all(jobs.map(j => j.catch(() => [])));
-  const seen = new Set();
-  const out = [];
-  for (const p of lists.flat()) {
-    const key = `${p.name}|${p.lat?.toFixed(3)}|${p.lng?.toFixed(3)}`;
-    if (!p.name || !Number.isFinite(p.lat) || !Number.isFinite(p.lng) || seen.has(key)) continue;
-    seen.add(key);
-    out.push(p);
-  }
-  return out.slice(0, 8);
+  const lists = jobs.map(() => []);
+  const merged = () => {
+    const seen = new Set();
+    const out = [];
+    for (const p of lists.flat()) {
+      const key = `${p.name}|${p.lat?.toFixed(3)}|${p.lng?.toFixed(3)}`;
+      if (!p.name || !Number.isFinite(p.lat) || !Number.isFinite(p.lng) || seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+    return out.slice(0, 8);
+  };
+  let left = jobs.length;
+  await Promise.all(jobs.map((job, i) => job.catch(() => []).then(list => {
+    lists[i] = list;
+    left--;
+    if (!signal.aborted && (list.length || !left)) onUpdate?.(merged(), left > 0);
+  })));
+  return merged();
 }
 
 async function focusPlace(p) {
@@ -1410,7 +1429,7 @@ function renderSearch(local, pois, pending) {
   const poiHtml = pois.map((p, i) => `<li data-poi="${i}"><span>${icon('pin')}<em>${escapeHtml(p.name)}</em></span><small>${escapeHtml(p.sub)}</small></li>`).join('');
   $('#searchResults').innerHTML = localHtml
     + (pending || pois.length ? `<li class="group">${t('searchPlaces')}</li>` : '')
-    + (pending ? `<li class="group">${t('searching')}</li>` : poiHtml)
+    + poiHtml + (pending ? `<li class="group">${t('searching')}</li>` : '')
     + (!pending && !local.length && !pois.length ? `<li class="group">${t('notFound')}</li>` : '');
 }
 
@@ -1424,12 +1443,11 @@ $('#searchInput').addEventListener('input', e => {
     const local = search(q);
     if (q.length < 2) return renderSearch(local, [], false);
     renderSearch(local, [], true);
-    poiTimer = setTimeout(async () => {
-      const pois = await searchPlaces(q);
+    poiTimer = setTimeout(() => searchPlaces(q, (pois, pending) => {
       if ($('#searchInput').value.trim() !== q) return; // 已有更新的输入
       poiResults = pois;
-      renderSearch(local, pois, false);
-    }, 350);
+      renderSearch(local, pois, pending);
+    }), 350);
   }, 120);
 });
 

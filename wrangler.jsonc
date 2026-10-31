@@ -1,5 +1,5 @@
 // Cloudflare 部署配置：发布 npm run build 生成的静态文件（dist/），外加 worker/index.js
-// worker 只处理 /sb/*（转发到 Supabase，国内直连 supabase.co 不稳定），其余请求直接走静态文件
+// worker 只处理 /sb/*（转发到 Supabase）和 /geo/*（转发到 Esri 地名搜索）：国内直连这两家都很慢；其余请求直接走静态文件
 // 有了这个文件，wrangler 就不会去自动识别项目、解析 vite.config.js
 // public/_headers（CSP、缓存）会被一起发布并对静态文件生效
 {
@@ -10,7 +10,7 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/sb/*"]
+    "run_worker_first": ["/sb/*", "/geo/*"]
   },
   "vars": {
     // 生产库地址（不是密钥，前端打包产物里本来就有）
