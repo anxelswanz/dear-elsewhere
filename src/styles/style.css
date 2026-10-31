@@ -198,6 +198,14 @@ button, input, textarea { font: inherit; }
 .polaroid:first-child figcaption { font-family: var(--serif-zh); font-style: normal; color: var(--air-red); }
 .pol-tools { position: absolute; top: 13px; right: 13px; display: flex; gap: 5px; opacity: 0; transition: opacity .2s; }
 .polaroid:hover .pol-tools { opacity: 1; }
+#photoGrid .polaroid { cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+#photoGrid.sorting, #photoGrid.sorting .polaroid, #photoGrid.sorting img { cursor: grabbing; }
+#photoGrid.sorting .polaroid:not(.lifted) { pointer-events: none; }
+#photoGrid .polaroid.lifted {
+  z-index: 5; transform: rotate(0) translateY(-10px) scale(1.07);
+  box-shadow: 0 22px 34px -8px rgba(30,20,10,.5); transition: box-shadow .2s, transform .2s;
+}
+#photoGrid .polaroid.lifted .pol-tools { opacity: 0; }
 .pol-tools button { width: 26px; height: 26px; border: none; border-radius: 50%; background: rgba(42, 39, 35, .72); color: #fff; font-size: 14px; line-height: 1; cursor: pointer; }
 .pol-tools button:hover { background: var(--air-red); }
 .polaroid.developing .dev {

@@ -5,6 +5,7 @@ import { supabase } from './supabase.js';
 import { t, lang, langSwitch, beforeLangChange } from './i18n.js';
 import { initTimezone } from './limits.js';
 import { track, setTracking } from './track.js';
+import { soundOn, setSound } from './sound.js';
 
 const THEME_KEY = 'mymap:theme';
 export const THEMES = ['airmail', 'coast', 'forest', 'darkroom', 'night'];
@@ -103,6 +104,13 @@ function render() {
           <b>${t(`theme.${id}`)}</b><small>${t(`theme.${id}.sub`)}</small>
         </button>`).join('')}
       </div>
+    </section>
+    <section class="st-group">
+      <h3>${t('st.notify')}</h3>
+      <label class="st-row st-switch">
+        <span><b>${t('st.sound')}</b><small>${t('st.soundSub')}</small></span>
+        <input type="checkbox" data-st-sound ${soundOn() ? 'checked' : ''} /><i aria-hidden="true"></i>
+      </label>
     </section>
     <section class="st-group">
       <h3>${t('st.data')}</h3>
@@ -302,6 +310,7 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('change', e => {
+  if (e.target.matches('#settings [data-st-sound]')) return setSound(e.target.checked);
   if (e.target.matches('#settings [data-st-analytics]')) {
     analyticsOn = e.target.checked;
     setTracking(analyticsOn);

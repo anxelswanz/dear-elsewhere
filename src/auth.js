@@ -16,7 +16,8 @@ const randomOf = list => list[Math.floor(Math.random() * list.length)];
 const BRAND = `${import.meta.env.BASE_URL}brand/`; // Logo：航空邮票（无文字）
 // 出生地（城市 ID），仅自己可见；修改时派发 birthplace:change
 export const myBirthplace = () => birthplace;
-export const avatarUrl = id => `${import.meta.env.BASE_URL}avatars/${id}.svg`;
+// ?v= 是头像图片内容的哈希（vite.config.js），重画头像后旧缓存自动失效
+export const avatarUrl = id => `${import.meta.env.BASE_URL}avatars/${id}.svg?v=${import.meta.env.VITE_AVATAR_V}`;
 const HANDLE_MIN = 3, HANDLE_MAX = 20;
 const HANDLE_RE = new RegExp(`^[a-z0-9_]{${HANDLE_MIN},${HANDLE_MAX}}$`);
 const HANDLE_COOLDOWN_DAYS = 7;

@@ -38,7 +38,7 @@ document.querySelectorAll('[data-today]').forEach(el => {
 const ids = (prefix, n) => Array.from({ length: n }, (_, i) => `${prefix}${String(i + 1).padStart(2, '0')}`);
 const COMPANIONS = [...ids('a', 130), ...ids('p', 50), ...ids('r', 40), ...ids('l', 16)];
 const SHOWN = 12;
-const avatarUrl = id => `/avatars/${id}.svg`;
+const avatarUrl = id => `/avatars/${id}.svg?v=${import.meta.env.VITE_AVATAR_V}`;
 
 function shuffleCompanions() {
   const grid = document.getElementById('dexGrid');

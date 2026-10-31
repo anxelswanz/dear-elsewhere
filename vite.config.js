@@ -1,6 +1,17 @@
 // 环境开关：.env 里的 APP_ENV（test / prod）决定连哪一套 Supabase；命令行或部署平台的 APP_ENV 优先
 // 只把选中那一套的地址和 key 注入前端，另一套不会出现在打包产物里
 import { defineConfig, loadEnv } from 'vite';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+
+// 头像图片按 id 命名、浏览器缓存 7 天（public/_headers）。重画过头像后，同一个 id 在不同人的浏览器里
+// 可能一新一旧；链接带上全部头像内容的哈希，画一改链接就变，大家都会重新下载
+function avatarVersion() {
+  const dir = 'public/avatars';
+  const h = crypto.createHash('sha1');
+  for (const f of fs.readdirSync(dir).sort()) h.update(f).update(fs.readFileSync(`${dir}/${f}`));
+  return h.digest('hex').slice(0, 8);
+}
 
 const ENVS = ['test', 'prod'];
 
@@ -28,6 +39,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(url),
       'import.meta.env.VITE_SUPABASE_KEY': JSON.stringify(key),
       'import.meta.env.VITE_SUPABASE_PROXY': JSON.stringify(proxy),
+      'import.meta.env.VITE_AVATAR_V': JSON.stringify(avatarVersion()),
     },
   };
 });

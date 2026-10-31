@@ -1633,10 +1633,15 @@ function renderPhotos(r) {
     fig.style.setProperty('--i', i);
     fig.style.setProperty('--tilt', `${TILTS[i % TILTS.length]}deg`);
     shownPhotos.add(photo.id);
-    fig.innerHTML = `<img src="${photoUrl(photo)}" alt="" />
+    fig.dataset.id = photo.id;
+    fig.innerHTML = `<img src="${photoUrl(photo)}" alt="" draggable="false" />
       <figcaption>${i === 0 ? t('cover') : String(i + 1).padStart(2, '0')}</figcaption>
       <div class="pol-tools">${i ? `<button data-cover title="${t('setCover')}">★</button>` : ''}<button data-del title="${t('deletePhoto')}">×</button></div>`;
-    fig.querySelector('img').onclick = () => showLightbox(photoUrl(photo));
+    fig.querySelector('img').onclick = () => { if (!grid.dataset.dragged) showLightbox(photoUrl(photo)); };
+    if (r.photos.length > 1) {
+      fig.title = t('dragToReorder');
+      fig.addEventListener('pointerdown', e => dragPhoto(e, fig, r));
+    }
     fig.querySelector('[data-cover]')?.addEventListener('click', async () => {
       r.photos.splice(i, 1);
       r.photos.unshift(photo);
@@ -1652,6 +1657,74 @@ function renderPhotos(r) {
     grid.append(fig);
   });
 }
+
+// 拖动照片调换顺序：鼠标按下移动即可拖，触屏需要长按一下（不影响正常滑动页面）
+function dragPhoto(e, fig, r) {
+  if (e.button !== 0 || e.target.closest('button')) return;
+  const grid = fig.parentElement;
+  const touch = e.pointerType === 'touch';
+  let startX = e.clientX, startY = e.clientY, dragging = false, dx = 0;
+  let hold = touch ? setTimeout(() => begin(), 260) : 0;
+
+  const begin = () => {
+    hold = 0;
+    dragging = true;
+    grid.dataset.dragged = '1';
+    fig.classList.add('lifted');
+    grid.classList.add('sorting');
+    try { fig.setPointerCapture(e.pointerId); } catch { /* 指针已经离开 */ }
+    navigator.vibrate?.(10);
+  };
+  const move = ev => {
+    if (ev.pointerId !== e.pointerId) return;
+    if (!dragging) {
+      const far = Math.hypot(ev.clientX - startX, ev.clientY - startY) > 6;
+      if (touch) { if (far) end(); return; } // 长按前就滑动了：当作滚动页面
+      if (!far) return;
+      begin();
+    }
+    dx = ev.clientX - startX;
+    fig.style.translate = `${dx}px 0`;
+    // 拖过相邻照片的中线就和它换位
+    const others = [...grid.children].filter(el => el !== fig && el.classList.contains('polaroid'));
+    const before = others.find(el => { const b = el.getBoundingClientRect(); return ev.clientX < b.left + b.width / 2; });
+    if ((before || null) !== nextPolaroid(fig)) {
+      const was = fig.getBoundingClientRect().left - dx;
+      grid.insertBefore(fig, before || others.at(-1)?.nextSibling || null);
+      startX += fig.getBoundingClientRect().left - dx - was; // 换位后保持照片仍在手指下
+      dx = ev.clientX - startX;
+      fig.style.translate = `${dx}px 0`;
+    }
+  };
+  const blockScroll = ev => { if (dragging) ev.preventDefault(); };
+  const end = async () => {
+    clearTimeout(hold);
+    fig.removeEventListener('pointermove', move);
+    fig.removeEventListener('pointerup', end);
+    fig.removeEventListener('pointercancel', end);
+    fig.removeEventListener('touchmove', blockScroll);
+    if (!dragging) return;
+    dragging = false;
+    fig.classList.remove('lifted');
+    grid.classList.remove('sorting');
+    fig.style.translate = '';
+    setTimeout(() => delete grid.dataset.dragged); // 拖完松手不要顺带打开大图
+    const order = [...grid.querySelectorAll('.polaroid')].map(el => el.dataset.id);
+    if (order.join() === r.photos.map(p => p.id).join()) return;
+    const byId = new Map(r.photos.map(p => [p.id, p]));
+    r.photos = order.map(id => byId.get(id)).filter(Boolean);
+    await saveRecord(r);
+  };
+  fig.addEventListener('pointermove', move);
+  fig.addEventListener('pointerup', end);
+  fig.addEventListener('pointercancel', end);
+  fig.addEventListener('touchmove', blockScroll, { passive: false });
+}
+const nextPolaroid = el => {
+  let n = el.nextElementSibling;
+  while (n && !n.classList.contains('polaroid')) n = n.nextElementSibling;
+  return n;
+};
 
 function flashSaved() {
   const el = $('#savedHint');

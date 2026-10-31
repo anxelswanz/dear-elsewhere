@@ -7,6 +7,7 @@
 // 数据权限见 supabase/migrations/0004_chat.sql、0010_groups.sql
 import { supabase } from './supabase.js';
 import { avatarUrl } from './auth.js';
+import { play as playSound } from './sound.js';
 import { t, lang } from './i18n.js';
 import { limitText, LIMITS } from './limits.js';
 import { ago } from './social.js';
@@ -799,6 +800,7 @@ export function initChat({ me, social, helpers }) {
     const inOpenChat = !box.hidden && peer && (m.sender === peer || m.recipient === peer);
     if (inOpenChat) {
       arrive(m);
+      if (m.recipient === me.id) playSound(document.visibilityState === 'visible' ? 'soft' : 'dm');
       if (m.recipient === me.id && document.visibilityState === 'visible') markRead(m.sender);
       else if (m.recipient === me.id) { state.unread.set(m.sender, (state.unread.get(m.sender) || 0) + 1); social.refresh(); }
       return;
@@ -806,6 +808,7 @@ export function initChat({ me, social, helpers }) {
     if (m.recipient !== me.id) return;
     state.unread.set(m.sender, (state.unread.get(m.sender) || 0) + 1);
     social.refresh();
+    playSound('dm');
     const p = social.author(m.sender);
     helpers.toast(t('chat.newFrom', { name: p?.name || t('feed.friend'), text: previewText(m) }));
   }
@@ -818,6 +821,7 @@ export function initChat({ me, social, helpers }) {
     if (isOpenGroup(m.group_id)) {
       arrive(m);
       if (m.sender !== me.id && m.kind !== 'system') {
+        playSound(document.visibilityState === 'visible' ? 'soft' : 'group');
         if (document.visibilityState === 'visible') markGroupRead(m.group_id);
         else { state.groupUnread.set(m.group_id, (state.groupUnread.get(m.group_id) || 0) + 1); social.refresh(); }
       }
@@ -833,6 +837,7 @@ export function initChat({ me, social, helpers }) {
     }
     state.groupUnread.set(m.group_id, (state.groupUnread.get(m.group_id) || 0) + 1);
     social.refresh();
+    playSound('group');
     await social.ensureProfiles([m.sender]);
     helpers.toast(t('grp.newFrom', { group: group?.name || '', name: nameOf(m.sender), text: previewText(m) }));
   }
@@ -865,6 +870,12 @@ export function initChat({ me, social, helpers }) {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages' }, e => onGroupInsert(e.new))
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'group_members' }, e => onMemberUpdate(e.new))
     .subscribe();
+  // 有人换了头像或名字：重画正在看的会话
+  document.addEventListener('profiles:change', () => {
+    if (box.hidden || !state.conv) return;
+    renderHead();
+    if (!state.sheet) renderList();
+  });
   // 回到页面时补上断线期间的消息
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;

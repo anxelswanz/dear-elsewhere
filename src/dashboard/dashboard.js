@@ -223,7 +223,7 @@ async function renderUsers() {
   box.innerHTML = `<div class="db-scroll"><table class="db-table db-users">
       <thead><tr>${COLS.map(([k, t, sortable]) => `<th>${sortable ? `<button type="button" data-sort="${k}" aria-pressed="${sort === k}">${t}${sort === k ? ' ↓' : ''}</button>` : t}</th>`).join('')}</tr></thead>
       <tbody>${(data.rows || []).map(r => `<tr>
-        <td><span class="db-who"><img src="/avatars/${esc(r.avatar || 'a01')}.svg" alt="" /><span><b>${esc(r.name || '（没建护照）')}</b><small>${r.handle ? `@${esc(r.handle)}` : ''}</small></span></span></td>
+        <td><span class="db-who"><img src="/avatars/${esc(r.avatar || 'a01')}.svg?v=${import.meta.env.VITE_AVATAR_V}" alt="" /><span><b>${esc(r.name || '（没建护照）')}</b><small>${r.handle ? `@${esc(r.handle)}` : ''}</small></span></span></td>
         <td>${esc(String(r.created_at).slice(0, 10))}</td><td>${ago(r.last_active)}</td>
         <td class="n">${num(r.stamps)}</td><td class="n">${num(r.photos)}</td><td class="n">${num(r.friends)}</td><td class="n">${num(r.comments)}</td><td class="n">${num(r.messages)}</td>
       </tr>`).join('')}</tbody>

@@ -85,11 +85,24 @@ export function initSocial({ me, helpers }) {
   }
 
   // ---------- 读取 ----------
-  async function profilesFor(ids) {
-    const missing = [...new Set(ids)].filter(id => !state.profiles.has(id));
-    if (!missing.length) return;
-    const { data } = await supabase.from('profiles').select('id, handle, name, country, avatar').in('id', missing);
-    for (const p of data || []) state.profiles.set(p.id, p);
+  // 资料对象原地更新：好友列表、动态等处拿的都是同一个对象，改一处处处生效
+  const PROFILE_COLS = 'id, handle, name, country, avatar';
+  function putProfile(p) {
+    const cur = state.profiles.get(p.id);
+    if (!cur) { state.profiles.set(p.id, p); return true; }
+    const changed = ['handle', 'name', 'country', 'avatar'].some(k => p[k] !== undefined && cur[k] !== p[k]);
+    if (changed) Object.assign(cur, { handle: p.handle ?? cur.handle, name: p.name ?? cur.name, country: p.country ?? cur.country, avatar: p.avatar ?? cur.avatar });
+    return changed;
+  }
+  // refresh=true 时连已缓存的人也重新读取（好友换了头像、改了名字）
+  async function profilesFor(ids, { refresh = false } = {}) {
+    const want = [...new Set(ids)].filter(id => id && (refresh || !state.profiles.has(id)));
+    let changed = false;
+    for (let i = 0; i < want.length; i += 100) {
+      const { data } = await supabase.from('profiles').select(PROFILE_COLS).in('id', want.slice(i, i + 100));
+      for (const p of data || []) changed = putProfile(p) || changed;
+    }
+    if (changed) document.dispatchEvent(new CustomEvent('profiles:change'));
   }
 
   let loading = null, reloadAgain = false;
@@ -113,7 +126,7 @@ export function initSocial({ me, helpers }) {
 
       const rows = fr.data;
       const other = f => (f.requester === me.id ? f.addressee : f.requester);
-      await profilesFor([...rows.map(other), ...comments.data.map(c => c.author), ...posts.data.map(p => p.user_id)]);
+      await profilesFor([me.id, ...rows.map(other), ...comments.data.map(c => c.author), ...posts.data.map(p => p.user_id)], { refresh: true });
       state.friends = rows.filter(f => f.status === 'accepted').map(f => ({ profile: state.profiles.get(other(f)), since: f.accepted_at }))
         .filter(f => f.profile).sort((a, b) => a.profile.name.localeCompare(b.profile.name));
       state.incoming = rows.filter(f => f.status === 'pending' && f.addressee === me.id).map(f => ({ profile: state.profiles.get(f.requester), at: f.created_at })).filter(f => f.profile);
@@ -132,6 +145,7 @@ export function initSocial({ me, helpers }) {
       if (state.only && !state.friends.some(f => f.profile.id === state.only)) state.only = null;
       render();
       helpers.onChange();
+      watchProfiles();
     })().catch(err => console.warn('读取好友动态失败', err)).finally(() => {
       loading = null;
       if (reloadAgain) { reloadAgain = false; load(); }
@@ -150,6 +164,32 @@ export function initSocial({ me, helpers }) {
       soon();
     })
     .subscribe();
+  // 实时：好友（和自己）换头像、改名字时立刻更新，不用等下一次整体刷新
+  let profileChannel = null, watching = '';
+  function watchProfiles() {
+    const ids = [...new Set([me.id, ...state.friends.map(f => f.profile.id), ...state.incoming.map(f => f.profile.id),
+      ...state.outgoing.map(f => f.profile.id)])].sort().slice(0, 100); // 实时过滤最多 100 个 id，其余靠定时刷新
+    const key = ids.join();
+    if (key === watching) return;
+    watching = key;
+    if (profileChannel) supabase.removeChannel(profileChannel);
+    profileChannel = supabase.channel('profiles')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=in.(${ids.join(',')})` }, e => {
+        if (!e.new?.id || !putProfile(e.new)) return;
+        render();
+        helpers.onChange();
+        document.dispatchEvent(new CustomEvent('profiles:change'));
+      })
+      .subscribe();
+  }
+  // 自己抽到新头像：本地马上换上
+  document.addEventListener('avatar:change', e => {
+    if (!putProfile({ id: me.id, avatar: e.detail })) return;
+    render();
+    helpers.onChange();
+    document.dispatchEvent(new CustomEvent('profiles:change'));
+  });
+
   // 实时连接断开时的兜底
   setInterval(() => document.visibilityState === 'visible' && load(), 90_000);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && soon());
